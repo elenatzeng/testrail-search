@@ -2,9 +2,15 @@ import streamlit as st
 from testrail_api import TestRailAPI
 import time
 
-# --- 1. 搜尋邏輯與 UI 設定 (保持不變) ---
+# --- 1. 搜尋邏輯與 UI 設定 ---
 def multi_lang_search(text):
-    dictionary = [["登入", "登录", "login"], ["註冊", "注册", "register"], ["錢包", "钱包", "wallet"]]
+    dictionary = [
+        ["登入", "登录", "login", "auth"],
+        ["註冊", "注册", "register", "signup"],
+        ["提現", "提现", "withdraw", "payout"],
+        ["帳號", "账号", "account", "user"],
+        ["錢包", "钱包", "wallet", "balance"]
+    ]
     text_lower = text.lower().strip()
     related_words = [text_lower]
     for group in dictionary:
@@ -14,47 +20,58 @@ def multi_lang_search(text):
 
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
-# --- 2. 側邊欄：加入「讀取網址參數」功能 ---
+# --- 2. 側邊欄：讀取與儲存網址參數 (含 API Key) ---
 with st.sidebar:
     st.header("🔐 連線設定")
     st.caption("Connection Settings")
 
-    # 取得網址上的參數 (如果有跑掉或沒填，就給空字串)
+    # 取得網址參數
     query_params = st.query_params
 
-    # 優先級：網址參數 > Secrets > 空字串
+    # 讀取順序：網址參數 > Secrets > 預設值
     default_url = query_params.get("url", st.secrets.get("TR_URL", ""))
     default_user = query_params.get("user", st.secrets.get("TR_USER", ""))
+    default_pw = query_params.get("pw", st.secrets.get("TR_PW", ""))
+    default_pid = query_params.get("pid", str(st.secrets.get("PROJECT_ID", 1)))
+    default_sid = query_params.get("sid", str(st.secrets.get("SUITE_ID", 1)))
     
     tr_url = st.text_input("TestRail URL", value=default_url)
     tr_user = st.text_input("帳號 Email", value=default_user)
+    tr_pw = st.text_input("API Key", type="password", value=default_pw)
+    project_id = st.number_input("Project ID", value=int(default_pid))
+    suite_id = st.number_input("Suite ID", value=int(default_sid))
     
-    # 為了安全，密碼(API Key)通常不建議存網址，但如果你想存也可以比照辦理
-    tr_pw = st.text_input("API Key", type="password", value=st.secrets.get("TR_PW", ""))
-    
-    project_id = st.number_input("Project ID", value=int(st.secrets.get("PROJECT_ID", 1)))
-    suite_id = st.number_input("Suite ID", value=int(st.secrets.get("SUITE_ID", 1)))
-
-    if st.button("💾 儲存至網址 (Save to URL)"):
-        # 將目前的設定寫入網址列
-        st.query_params.update(url=tr_url, user=tr_user)
-        st.success("已更新網址！請將此頁面加入書籤。 (URL Updated! Please bookmark this page.)")
+    st.markdown("---")
+    # 儲存按鈕：把所有資訊塞進網址
+    if st.button("💾 儲存所有資訊至網址 (Save All to URL)"):
+        st.query_params.update(
+            url=tr_url, 
+            user=tr_user, 
+            pw=tr_pw, 
+            pid=project_id, 
+            sid=suite_id
+        )
+        st.success("✅ 已儲存！請將目前的「網址」加入瀏覽器書籤。")
+        st.caption("Done! Please bookmark this current URL.")
 
     if st.button("🔄 強制更新數據 (Force Update)"):
         st.cache_data.clear()
         st.rerun()
 
-# --- 3. 數據抓取與顯示邏輯 (與之前版本一致) ---
+# --- 3. 核心數據抓取 ---
 @st.cache_data(show_spinner=False, ttl=3600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
-        api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
+        clean_url = _url.split('/index.php')[0].strip('/')
+        api = TestRailAPI(clean_url, _user, _pw)
+        
+        # 作者對照表
         u_map = {2: "Elena", 3: "Esther", 4: "Emma", 5: "Baron", 6: "Meh", 8: "Copper", 11: "Katty"}
         try:
             users = api.users.get_users()
             for u in users: u_map[u['id']] = u['name']
         except: pass
-        
+
         # 抓取 Sections
         all_sects = []
         s_off = 0
@@ -104,8 +121,11 @@ if tr_url and tr_user and tr_pw:
             search_terms = multi_lang_search(query)
             results = []
             for c in all_cases:
-                cid, author = str(c.get('id', '')), user_map.get(c.get('created_by'), f"User_{c.get('created_by')}")
-                title, sid = c.get('title', ''), c.get('section_id')
+                cid = str(c.get('id', ''))
+                title = c.get('title', '')
+                sid = c.get('section_id')
+                author = user_map.get(c.get('created_by'), f"User_{c.get('created_by')}")
+                
                 if any(t in title.lower() or t in path_map.get(sid, "").lower() for t in search_terms) or (query.strip('#') == cid):
                     results.append({'id': cid, 'title': title, 'path': path_map.get(sid, "Unknown"), 'steps': c.get('custom_steps') or c.get('steps') or "No data", 'author': author})
             
@@ -118,9 +138,16 @@ if tr_url and tr_user and tr_pw:
                         with col_t:
                             st.markdown(f'<b>{item["title"]}</b> <small>(#{item["id"]})</small> <span style="color:#4CAF50; background:rgba(76,175,80,0.1); padding:2px 8px; border-radius:10px; font-size:11px;">👤 {item["author"]}</span>', unsafe_allow_html=True)
                         with col_b:
-                            st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{item["id"]}" target="_blank" style="background:#238636; color:white; padding:5px 10px; border-radius:6px; text-decoration:none; font-size:12px;">📖 Open</a></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{item["id"]}" target="_blank" style="background:#238636; color:white; padding:5px 10px; border-radius:6px; text-decoration:none; font-size:12px;">📖 Open Case</a></div>', unsafe_allow_html=True)
                         with st.expander("🔽 查看步驟 (Steps)"):
-                            st.write(item['steps'])
+                            # 步驟顯示優化
+                            raw_steps = item['steps']
+                            if isinstance(raw_steps, list):
+                                for i, s in enumerate(raw_steps, 1):
+                                    st.write(f"**Step {i}:** {s.get('content', '')}")
+                                    st.write(f"*Expected:* {s.get('expected', '')}")
+                            else:
+                                st.text_area(label=f"Details #{item['id']}", value=str(raw_steps), height=100, disabled=True, key=f"area_{item['id']}")
                         st.markdown("---")
             else:
                 st.info("查無結果 (No results found).")
