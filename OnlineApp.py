@@ -11,7 +11,7 @@ def multi_lang_search(text):
         ["帳號", "账号", "account", "user", "profile"],
         ["設定", "设置", "settings", "config", "setup"],
         ["驗證", "验证", "verify", "verification", "otp", "captcha"],
-        ["訂單", "订单", "order", "transaction", "history"]
+        ["錢包", "钱包", "wallet", "balance"]
     ]
     text_lower = text.lower().strip()
     related_words = [text_lower]
@@ -20,18 +20,12 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 2. 頁面介面與 CSS ---
+# --- 2. 頁面介面與 CSS 美化 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
     .stApp { background: linear-gradient(180deg, #0e1117 0%, #161b22 100%); }
-    .result-card {
-        background-color: rgba(255, 255, 255, 0.04);
-        padding: 15px; border-radius: 12px; border-left: 5px solid #4CAF50; margin-bottom: 15px;
-    }
-    .row-text { font-size: 15px; color: #e6edf3; }
-    .section-path { font-size: 11px; color: #8b949e; display: block; margin-bottom: 4px; }
     .author-tag { 
         font-size: 11px; color: #4CAF50; background: rgba(76, 175, 80, 0.1); 
         padding: 2px 10px; border-radius: 12px; margin-left: 8px; border: 1px solid rgba(76, 175, 80, 0.3);
@@ -40,6 +34,8 @@ st.markdown("""
         display: inline-block; padding: 6px 16px; background-color: #238636;
         color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;
     }
+    .row-text { font-size: 15px; color: #e6edf3; }
+    .section-path { font-size: 11px; color: #8b949e; display: block; margin-bottom: 4px; }
     .step-item { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #8b949e; font-size: 13px; }
     </style>
     """, unsafe_allow_html=True)
@@ -63,26 +59,31 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-# --- 4. 核心數據抓取 (防崩潰版) ---
+# --- 4. 數據抓取 (已手動餵食 User 清單) ---
 @st.cache_data(show_spinner=False, ttl=3600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
         clean_url = _url.split('/index.php')[0].strip('/')
         api = TestRailAPI(clean_url, _user, _pw)
         
-        # A. 嘗試抓取使用者對照表 (Esther 的名字就在這)
-        u_map = {}
-        try:
-            users = api.users.get_users()
-            u_map = {u['id']: u['name'] for u in users}
-        except:
-            # 如果權限不足抓不到全名單，嘗試抓自己，至少自己的名字能顯示
-            try:
-                me = api.users.get_current_user()
-                u_map[me['id']] = me['name']
-            except: pass
+        # --- 這裡餵食了你提供的名單 ---
+        u_map = {
+            2: "Elena",
+            3: "Esther",
+            4: "Emma",
+            5: "Baron",
+            6: "Katty",
+            8: "Copper"
+        }
         
-        # B. 抓取模組路徑
+        # 嘗試自動抓取補充其餘成員
+        try:
+            api_users = api.users.get_users()
+            for u in api_users:
+                u_map[u['id']] = u['name']
+        except: pass
+
+        # 抓取模組
         all_sects = []
         s_off = 0
         while True:
@@ -101,7 +102,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             return f"{get_path(p_id)} > {name}" if p_id else name
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
         
-        # C. 抓取案例
+        # 抓取案例
         all_cases = []
         c_off = 0
         while True:
@@ -120,7 +121,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
-    query = st.text_input("🔍 輸入關鍵字 (支援繁/簡/英/ID)：")
+    query = st.text_input("🔍 輸入關鍵字：", placeholder="搜尋功能、標題、ID 或作者...")
 
     if query:
         with st.spinner("🚀 同步數據中..."):
@@ -132,20 +133,22 @@ if tr_url and tr_user and tr_pw:
             results = []
 
             for c in all_cases:
-                # 這裡就是你要的：把 ID 換成名字
                 created_id = c.get('created_by')
+                # 自動對照名單
                 author_name = user_map.get(created_id, f"User_{created_id}")
                 
-                steps = c.get('custom_steps') or c.get('steps') or c.get('custom_steps_separated') or "無步驟資料"
+                steps = c.get('custom_steps') or c.get('steps') or c.get('custom_steps_separated') or "無詳細步驟"
                 case_id = str(c.get('id', ''))
                 title = c.get('title', '')
                 path = path_map.get(c.get('section_id'), "Unknown")
                 
-                if any(t in title.lower() or t in path.lower() for t in search_terms) or \
+                # 搜尋邏輯：支援作者搜尋
+                if any(t in title.lower() or t in path.lower() or t in author_name.lower() for t in search_terms) or \
                    (query.strip('#').isdigit() and query.strip('#') == case_id):
                     results.append({'id': case_id, 'title': title, 'path': path, 'steps': steps, 'author': author_name})
             
             if results:
+                st.write(f"### 🎯 找到 {len(results)} 個相關案例")
                 for item in results:
                     with st.container():
                         st.markdown(f'<span class="section-path">{item["path"]}</span>', unsafe_allow_html=True)
@@ -177,4 +180,4 @@ if tr_url and tr_user and tr_pw:
         else:
             st.error(f"❌ 無法讀取資料：{path_map}")
 else:
-    st.warning("👈 請在左側輸入連線資訊。")
+    st.warning("👈 請在左側輸入連線資訊開始使用。")
