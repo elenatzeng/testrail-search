@@ -72,8 +72,9 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             3: "Esther",
             4: "Emma",
             5: "Baron",
-            6: "Katty",
-            8: "Copper"
+            11: "Katty",
+            8: "Copper",
+            6: "Meh"
         }
         
         # 嘗試自動抓取補充其餘成員
