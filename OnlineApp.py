@@ -2,7 +2,7 @@ import streamlit as st
 from testrail_api import TestRailAPI
 import time
 
-# --- 1. 三語語意聯想字典 (Multi-lang Search Support) ---
+# --- 1. 三語語意聯想字典 ---
 def multi_lang_search(text):
     dictionary = [
         ["登入", "登录", "login", "auth", "sign in"],
@@ -21,24 +21,50 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 2. 頁面設定與 UI 美化 ---
+# --- 2. 頁面設定與 UI 美化 (配色強化版) ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(180deg, #0e1117 0%, #161b22 100%); }
+    /* 1. 背景改為深黑色實體漸層，確保基調穩定 */
+    .stApp { background-color: #0d1117; background-image: linear-gradient(180deg, #0d1117 0%, #161b22 100%); }
+    
+    /* 2. 作者標籤：加強邊框與背景對比度 */
     .author-tag { 
-        font-size: 11px; color: #4CAF50; background: rgba(76, 175, 80, 0.1); 
-        padding: 2px 10px; border-radius: 12px; margin-left: 8px; border: 1px solid rgba(76, 175, 80, 0.3);
+        font-size: 11px; color: #4CAF50; background: rgba(76, 175, 80, 0.15); 
+        padding: 2px 10px; border-radius: 12px; margin-left: 8px; border: 1px solid rgba(76, 175, 80, 0.4);
         display: inline-block; vertical-align: middle;
     }
+    
+    /* 3. 按鈕：使用更鮮豔的綠色 */
     .view-btn {
         display: inline-block; padding: 6px 16px; background-color: #238636;
         color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
-    .row-text { font-size: 15px; color: #e6edf3; }
-    .section-path { font-size: 11px; color: #8b949e; display: block; margin-bottom: 4px; }
-    .step-item { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #8b949e; font-size: 13px; }
+    .view-btn:hover { background-color: #2ea043; }
+
+    /* 4. 標題與路徑：調亮文字顏色 */
+    .row-text { font-size: 16px; color: #f0f6fc; font-weight: 600; }
+    .section-path { font-size: 12px; color: #8b949e; display: block; margin-bottom: 6px; }
+    
+    /* 5. 核心修正：步驟區塊改用實體深色，徹底解決「灰髒感」 */
+    .step-item { 
+        background: #1c2128; /* 深灰藍實色背景 */
+        padding: 15px; 
+        border-radius: 10px; 
+        margin-bottom: 12px; 
+        border-left: 5px solid #4CAF50; /* 亮綠色側邊條 */
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    /* 步驟文字：調高對比度 */
+    .step-item b { color: #58a6ff; font-size: 14px; } /* Step 標題改為亮藍色 */
+    .step-content { color: #e6edf3; font-size: 14px; margin-top: 4px; }
+    .step-exp { 
+        color: #8b949e; font-size: 13px; margin-top: 8px; 
+        padding-top: 8px; border-top: 1px solid #30363d; 
+    }
+
     .eng-sub { font-size: 12px; color: #8b949e; margin-top: -10px; margin-bottom: 10px; display: block; }
     </style>
     """, unsafe_allow_html=True)
@@ -86,14 +112,12 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         clean_url = _url.split('/index.php')[0].strip('/')
         api = TestRailAPI(clean_url, _user, _pw)
         
-        # 內建作者名單 (保底)
         u_map = {2: "Elena", 3: "Esther", 4: "Emma", 5: "Baron", 6: "Meh", 8: "Copper", 11: "Katty"}
         try:
             users = api.users.get_users()
             for u in users: u_map[u['id']] = u['name']
         except: pass
 
-        # 抓取 Sections
         all_sects = []
         s_off = 0
         while True:
@@ -112,7 +136,6 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             return f"{get_path(p_id)} > {name}" if p_id else name
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
         
-        # 抓取 Cases
         all_cases = []
         c_off = 0
         while True:
@@ -174,7 +197,13 @@ if tr_url and tr_user and tr_pw:
                             raw_steps = item['steps']
                             if isinstance(raw_steps, list) and len(raw_steps) > 0:
                                 for i, s in enumerate(raw_steps, 1):
-                                    st.markdown(f"""<div class="step-item"><b>Step {i}:</b> {s.get('content', s.get('step', ''))}<br><i>Expected:</i> {s.get('expected', '')}</div>""", unsafe_allow_html=True)
+                                    st.markdown(f"""
+                                        <div class="step-item">
+                                            <b>Step {i}:</b>
+                                            <div class="step-content">{s.get('content', s.get('step', ''))}</div>
+                                            <div class="step-exp"><i>Expected:</i> {s.get('expected', '')}</div>
+                                        </div>
+                                    """, unsafe_allow_html=True)
                             else:
                                 st.text_area(label=f"Details (#{item['id']})", value=str(raw_steps), height=100, disabled=True, key=f"area_{item['id']}")
                         st.markdown("---")
