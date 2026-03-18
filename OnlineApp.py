@@ -3,7 +3,7 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 超級清理工具：掃除隱藏格式，解決字體變灰 ---
+# --- 1. 工具函式：掃除隱藏格式，解決字體變灰 ---
 def clean_html(raw_html):
     if not raw_html:
         return ""
@@ -31,7 +31,7 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格設定 (抗干擾、高對比版本) ---
+# --- 3. UI 視覺風格設定 (高對比/抗變灰) ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
@@ -51,34 +51,23 @@ st.markdown("""
         color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;
     }
 
-    /* 步驟區塊：解決變灰、看不清楚的核心 CSS */
+    /* 專案位置標籤 */
+    .location-tag {
+        background: #1c2128; color: #adbac7; padding: 8px 16px; border-radius: 8px; 
+        font-size: 14px; border: 1px solid #444c56; display: inline-block; margin-bottom: 20px;
+    }
+    .location-tag b { color: #58a6ff; }
+
+    /* 步驟區塊核心樣式 */
     .step-item { 
-        background: #161b22; 
-        padding: 18px; 
-        border-radius: 10px; 
-        margin-bottom: 15px; 
-        border-left: 6px solid #4CAF50; 
-        border: 1px solid #30363d;
+        background: #161b22; padding: 18px; border-radius: 10px; margin-bottom: 15px; 
+        border-left: 6px solid #4CAF50; border: 1px solid #30363d;
     }
-    
     .step-title { color: #79c0ff; font-size: 15px; font-weight: 800; margin-bottom: 6px; display: block; }
-    
-    /* 內容文字：強制純白色 */
-    .step-content { 
-        color: #ffffff !important; 
-        font-size: 15px; 
-        font-weight: 500;
-        line-height: 1.6;
-    }
-    
-    .step-exp { 
-        color: #c9d1d9; 
-        font-size: 14px; 
-        margin-top: 10px; 
-        padding-top: 10px; 
-        border-top: 1px solid #30363d; 
-    }
+    .step-content { color: #ffffff !important; font-size: 15px; font-weight: 500; line-height: 1.6; }
+    .step-exp { color: #c9d1d9; font-size: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #30363d; }
     .exp-label { color: #8b949e; font-weight: bold; margin-right: 5px; }
+    
     .eng-sub { font-size: 12px; color: #8b949e; display: block; margin-top: -10px; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
@@ -101,24 +90,33 @@ with st.sidebar:
     st.markdown("---")
     if st.button("💾 儲存資訊至網址 (Save to URL)"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
-        st.success("✅ 已更新網址！請存為書籤。")
+        st.success("✅ 已更新網址！請將此頁存為書籤。")
         st.balloons()
-    if st.button("🔄 強制更新數據"):
+    if st.button("🔄 強制更新數據 (Force Sync)"):
         st.cache_data.clear()
         st.rerun()
 
-# --- 5. 核心數據抓取 ---
+# --- 5. 核心數據抓取 (含專案名稱抓取) ---
 @st.cache_data(show_spinner=False, ttl=3600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
-        api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
+        clean_url = _url.split('/index.php')[0].strip('/')
+        api = TestRailAPI(clean_url, _user, _pw)
+        
+        # ✨ 抓取專案詳細資訊（名稱）
+        try:
+            p_info = api.projects.get_project(project_id=pid)
+            p_name = p_info.get('name', f"Project #{pid}")
+        except:
+            p_name = f"Project #{pid}"
+
         u_map = {2: "Elena", 3: "Esther", 4: "Emma", 5: "Baron", 6: "Meh", 8: "Copper", 11: "Katty"}
         try:
             users = api.users.get_users()
             for u in users: u_map[u['id']] = u['name']
         except: pass
         
-        # 抓取模組路徑
+        # 抓取 Sections
         all_sects = api.sections.get_sections(project_id=pid, suite_id=sid)['sections']
         sect_dict = {s['id']: s for s in all_sects}
         def get_path(sid_in):
@@ -128,25 +126,34 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             return f"{get_path(p_id)} > {name}" if p_id else name
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
         
-        # 抓取案例
+        # 抓取 Cases
         all_cases = api.cases.get_cases(project_id=pid, suite_id=sid)['cases']
-        return all_cases, path_map, u_map, time.strftime("%H:%M:%S")
+        return all_cases, path_map, u_map, time.strftime("%H:%M:%S"), p_name
     except Exception as e:
-        return None, str(e), {}, None
+        return None, str(e), {}, None, ""
 
-# --- 6. 主介面搜尋邏輯 ---
+# --- 6. 主介面邏輯 ---
 st.title("🧪 TestRail 智能檢索中心")
 st.markdown('<span class="eng-sub">TestRail Intelligent Search Center</span>', unsafe_allow_html=True)
 
 if tr_url and tr_user and tr_pw:
-    st.markdown("##### 🔍 支援繁體、簡體、英文搜尋 (Supports Traditional/Simplified/English)")
-    query = st.text_input("搜尋內容 (Search Content):", placeholder="e.g. 充值, #31757")
+    # 進行同步
+    with st.spinner("🚀 同步數據中..."):
+        all_cases, path_map, user_map, sync_time, project_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
+    
+    if all_cases:
+        # ✨ 顯示目前專案名稱與位置
+        st.markdown(f"""
+            <div class="location-tag">
+                📍 Current: <b>{project_name}</b> (Suite #{suite_id})
+            </div>
+        """, unsafe_allow_html=True)
 
-    if query:
-        with st.spinner("🚀 同步數據中..."):
-            all_cases, path_map, user_map, sync_time = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
-        
-        if all_cases:
+        st.markdown("##### 🔍 支援繁體、簡體、英文搜尋")
+        query = st.text_input("搜尋內容 (Search Content):", placeholder="e.g. 登入, #31757")
+
+        if query:
+            st.caption(f"⚡ 最後同步時間 (Last Sync): {sync_time}")
             search_terms = multi_lang_search(query)
             results = [c for c in all_cases if any(t in c.get('title','').lower() or t in path_map.get(c.get('section_id'),"").lower() for t in search_terms) or (query.strip('#') == str(c.get('id','')))]
             
@@ -164,12 +171,10 @@ if tr_url and tr_user and tr_pw:
                             case_url = f"{tr_url.strip('/')}/index.php?/cases/view/{cid}"
                             st.markdown(f'<div style="text-align:right;"><a href="{case_url}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                         
-                        # --- 步驟顯示邏輯強化 ---
                         with st.expander("🔽 查看測試步驟 (View Test Steps)"):
-                            # 窮舉 TestRail 所有可能的步驟欄位名稱
                             raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
                             
-                            # 情況 A: 結構化步驟 (List 格式)
+                            # 結構化步驟顯示
                             if isinstance(raw_steps, list) and len(raw_steps) > 0:
                                 for i, s in enumerate(raw_steps, 1):
                                     st.markdown(f"""
@@ -179,20 +184,15 @@ if tr_url and tr_user and tr_pw:
                                             <div class="step-exp"><span class="exp-label">Expected:</span>{clean_html(s.get('expected', ''))}</div>
                                         </div>
                                     """, unsafe_allow_html=True)
-                            
-                            # 情況 B: 純文字步驟 (String 格式)
+                            # 純文字步驟顯示
                             elif isinstance(raw_steps, str) and raw_steps.strip():
-                                st.markdown(f"""
-                                    <div class="step-item">
-                                        <div class="step-content">{clean_html(raw_steps)}</div>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                            
-                            # 情況 C: 真的沒資料
+                                st.markdown(f"""<div class="step-item"><div class="step-content">{clean_html(raw_steps)}</div></div>""", unsafe_allow_html=True)
                             else:
-                                st.info("此案例無分步步驟資料 (No detailed steps found).")
+                                st.info("此案例無分步步驟資料。")
                         st.markdown("---")
             else:
-                st.info("查無結果。")
+                st.info("查無結果 (No results found).")
+    else:
+        st.error(f"❌ 無法連線至 TestRail，請檢查設定。錯誤訊息: {path_map}")
 else:
-    st.warning("👈 請填寫連線資訊。")
+    st.warning("👈 請在左側輸入連線資訊 (Please enter connection info).")
