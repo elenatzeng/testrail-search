@@ -2,14 +2,17 @@ import streamlit as st
 from testrail_api import TestRailAPI
 import time
 
-# --- 1. 搜尋邏輯與 UI 設定 ---
+# --- 1. 三語語意聯想字典 (Multi-lang Search Support) ---
 def multi_lang_search(text):
     dictionary = [
-        ["登入", "登录", "login", "auth"],
-        ["註冊", "注册", "register", "signup"],
-        ["提現", "提现", "withdraw", "payout"],
-        ["帳號", "账号", "account", "user"],
-        ["錢包", "钱包", "wallet", "balance"]
+        ["登入", "登录", "login", "auth", "sign in"],
+        ["註冊", "注册", "register", "signup", "create account"],
+        ["提現", "提现", "withdraw", "payout", "cash out"],
+        ["帳號", "账号", "account", "user", "profile"],
+        ["設定", "设置", "settings", "config", "setup"],
+        ["驗證", "验证", "verify", "verification", "otp", "captcha"],
+        ["錢包", "钱包", "wallet", "balance"],
+        ["訂單", "订单", "order", "transaction", "history"]
     ]
     text_lower = text.lower().strip()
     related_words = [text_lower]
@@ -18,54 +21,72 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
+# --- 2. 頁面設定與 UI 美化 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
-# --- 2. 側邊欄：讀取與儲存網址參數 (含 API Key) ---
+st.markdown("""
+    <style>
+    .stApp { background: linear-gradient(180deg, #0e1117 0%, #161b22 100%); }
+    .author-tag { 
+        font-size: 11px; color: #4CAF50; background: rgba(76, 175, 80, 0.1); 
+        padding: 2px 10px; border-radius: 12px; margin-left: 8px; border: 1px solid rgba(76, 175, 80, 0.3);
+        display: inline-block; vertical-align: middle;
+    }
+    .view-btn {
+        display: inline-block; padding: 6px 16px; background-color: #238636;
+        color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;
+    }
+    .row-text { font-size: 15px; color: #e6edf3; }
+    .section-path { font-size: 11px; color: #8b949e; display: block; margin-bottom: 4px; }
+    .step-item { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #8b949e; font-size: 13px; }
+    .eng-sub { font-size: 12px; color: #8b949e; margin-top: -10px; margin-bottom: 10px; display: block; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 3. 讀取網址參數 (Query Params Logic) ---
+q = st.query_params
+init_url = q.get("url", st.secrets.get("TR_URL", ""))
+init_user = q.get("user", st.secrets.get("TR_USER", ""))
+init_pw = q.get("pw", st.secrets.get("TR_PW", ""))
+init_pid = int(q.get("pid", st.secrets.get("PROJECT_ID", 1)))
+init_sid = int(q.get("sid", st.secrets.get("SUITE_ID", 1)))
+
+# --- 4. 側邊欄：連線設定 ---
 with st.sidebar:
     st.header("🔐 連線設定")
     st.caption("Connection Settings")
 
-    # 取得網址參數
-    query_params = st.query_params
-
-    # 讀取順序：網址參數 > Secrets > 預設值
-    default_url = query_params.get("url", st.secrets.get("TR_URL", ""))
-    default_user = query_params.get("user", st.secrets.get("TR_USER", ""))
-    default_pw = query_params.get("pw", st.secrets.get("TR_PW", ""))
-    default_pid = query_params.get("pid", str(st.secrets.get("PROJECT_ID", 1)))
-    default_sid = query_params.get("sid", str(st.secrets.get("SUITE_ID", 1)))
-    
-    tr_url = st.text_input("TestRail URL", value=default_url)
-    tr_user = st.text_input("帳號 Email", value=default_user)
-    tr_pw = st.text_input("API Key", type="password", value=default_pw)
-    project_id = st.number_input("Project ID", value=int(default_pid))
-    suite_id = st.number_input("Suite ID", value=int(default_sid))
+    tr_url = st.text_input("TestRail URL", value=init_url, placeholder="https://xxx.testrail.io")
+    tr_user = st.text_input("帳號 Email", value=init_user)
+    tr_pw = st.text_input("API Key", type="password", value=init_pw)
+    project_id = st.number_input("Project ID", value=init_pid)
+    suite_id = st.number_input("Suite ID", value=init_sid)
     
     st.markdown("---")
-    # 儲存按鈕：把所有資訊塞進網址
-    if st.button("💾 儲存所有資訊至網址 (Save All to URL)"):
+    
+    if st.button("💾 儲存資訊至網址 (Save to URL)"):
         st.query_params.update(
             url=tr_url, 
             user=tr_user, 
             pw=tr_pw, 
-            pid=project_id, 
-            sid=suite_id
+            pid=str(project_id), 
+            sid=str(suite_id)
         )
-        st.success("✅ 已儲存！請將目前的「網址」加入瀏覽器書籤。")
-        st.caption("Done! Please bookmark this current URL.")
+        st.success("✅ 已更新網址列！現在請將此頁存為「書籤」。")
+        st.balloons()
 
     if st.button("🔄 強制更新數據 (Force Update)"):
         st.cache_data.clear()
         st.rerun()
 
-# --- 3. 核心數據抓取 ---
+# --- 5. 核心數據抓取 ---
 @st.cache_data(show_spinner=False, ttl=3600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
         clean_url = _url.split('/index.php')[0].strip('/')
         api = TestRailAPI(clean_url, _user, _pw)
         
-        # 作者對照表
+        # 內建作者名單 (保底)
         u_map = {2: "Elena", 3: "Esther", 4: "Emma", 5: "Baron", 6: "Meh", 8: "Copper", 11: "Katty"}
         try:
             users = api.users.get_users()
@@ -101,55 +122,65 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             all_cases.extend(c_batch)
             if len(c_batch) < 250: break
             c_off += 250
+            
         return all_cases, path_map, u_map, time.strftime("%H:%M:%S")
     except Exception as e:
         return None, str(e), {}, None
 
-# --- 4. 主介面 (中英雙語) ---
+# --- 6. 主介面 ---
 st.title("🧪 TestRail 智能檢索中心")
-st.markdown("##### 🔍 支援繁體、簡體、英文搜尋 (Supports Traditional/Simplified/English)")
+st.markdown('<span class="eng-sub">TestRail Intelligent Search Center</span>', unsafe_allow_html=True)
 
 if tr_url and tr_user and tr_pw:
+    st.markdown("##### 🔍 支援繁體、簡體、英文搜尋")
+    st.markdown('<span class="eng-sub">Supports Traditional Chinese, Simplified Chinese, and English</span>', unsafe_allow_html=True)
+    
     query = st.text_input("搜尋內容 (Search Content):", placeholder="e.g. 登入, 提现, #30864")
 
     if query:
-        with st.spinner("🚀 同步數據中 (Syncing)..."):
+        with st.spinner("🚀 同步數據中 (Syncing Data)..."):
             all_cases, path_map, user_map, sync_time = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
         
         if all_cases:
-            st.caption(f"⚡ 最後同步 (Last Sync): {sync_time}")
+            st.caption(f"⚡ 最後同步時間 (Last Sync): {sync_time}")
             search_terms = multi_lang_search(query)
             results = []
+
             for c in all_cases:
-                cid = str(c.get('id', ''))
+                created_id = c.get('created_by')
+                author_name = user_map.get(created_id, f"User_{created_id}")
+                steps = c.get('custom_steps') or c.get('steps') or c.get('custom_steps_separated') or "No data"
+                case_id = str(c.get('id', ''))
                 title = c.get('title', '')
-                sid = c.get('section_id')
-                author = user_map.get(c.get('created_by'), f"User_{c.get('created_by')}")
+                path = path_map.get(c.get('section_id'), "Unknown")
                 
-                if any(t in title.lower() or t in path_map.get(sid, "").lower() for t in search_terms) or (query.strip('#') == cid):
-                    results.append({'id': cid, 'title': title, 'path': path_map.get(sid, "Unknown"), 'steps': c.get('custom_steps') or c.get('steps') or "No data", 'author': author})
+                if any(t in title.lower() or t in path.lower() for t in search_terms) or \
+                   (query.strip('#').isdigit() and query.strip('#') == case_id):
+                    results.append({'id': case_id, 'title': title, 'path': path, 'steps': steps, 'author': author_name})
             
             if results:
-                st.write(f"### 🎯 找到 {len(results)} 個案例")
+                st.write(f"### 🎯 找到 {len(results)} 個案例 (Found {len(results)} cases)")
                 for item in results:
                     with st.container():
-                        st.markdown(f'<p style="color:#8b949e; font-size:11px; margin-bottom:0;">{item["path"]}</p>', unsafe_allow_html=True)
+                        st.markdown(f'<span class="section-path">{item["path"]}</span>', unsafe_allow_html=True)
                         col_t, col_b = st.columns([7, 1.5])
                         with col_t:
-                            st.markdown(f'<b>{item["title"]}</b> <small>(#{item["id"]})</small> <span style="color:#4CAF50; background:rgba(76,175,80,0.1); padding:2px 8px; border-radius:10px; font-size:11px;">👤 {item["author"]}</span>', unsafe_allow_html=True)
+                            st.markdown(f'''<div class="row-text"><b>{item["title"]}</b> <small>(#{item["id"]})</small><span class="author-tag">👤 {item["author"]}</span></div>''', unsafe_allow_html=True)
                         with col_b:
-                            st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{item["id"]}" target="_blank" style="background:#238636; color:white; padding:5px 10px; border-radius:6px; text-decoration:none; font-size:12px;">📖 Open Case</a></div>', unsafe_allow_html=True)
-                        with st.expander("🔽 查看步驟 (Steps)"):
-                            # 步驟顯示優化
+                            case_url = f"{tr_url.strip('/')}/index.php?/cases/view/{item['id']}"
+                            st.markdown(f'<div style="text-align:right;"><a href="{case_url}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
+                        
+                        with st.expander("🔽 查看測試步驟 (View Test Steps)"):
                             raw_steps = item['steps']
-                            if isinstance(raw_steps, list):
+                            if isinstance(raw_steps, list) and len(raw_steps) > 0:
                                 for i, s in enumerate(raw_steps, 1):
-                                    st.write(f"**Step {i}:** {s.get('content', '')}")
-                                    st.write(f"*Expected:* {s.get('expected', '')}")
+                                    st.markdown(f"""<div class="step-item"><b>Step {i}:</b> {s.get('content', s.get('step', ''))}<br><i>Expected:</i> {s.get('expected', '')}</div>""", unsafe_allow_html=True)
                             else:
-                                st.text_area(label=f"Details #{item['id']}", value=str(raw_steps), height=100, disabled=True, key=f"area_{item['id']}")
+                                st.text_area(label=f"Details (#{item['id']})", value=str(raw_steps), height=100, disabled=True, key=f"area_{item['id']}")
                         st.markdown("---")
             else:
                 st.info("查無結果 (No results found).")
+        else:
+            st.error(f"❌ 錯誤 (Error): {path_map}")
 else:
-    st.warning("👈 請填寫連線資訊 (Please enter connection info).")
+    st.warning("👈 請在左側輸入連線資訊 (Please enter connection info on the left).")
