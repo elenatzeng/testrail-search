@@ -3,22 +3,33 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 工具函式：最精簡的標籤過濾 (保留原始換行) ---
-def ultra_clean_html(raw_html):
+# --- 1. 工具函式：修復條列式並自動補上數字 ---
+def clean_html_and_add_numbers(raw_html):
     if not raw_html: return ""
     text = str(raw_html)
     
-    # 僅將代表換行的標籤轉為 \n
-    text = re.sub(r'<(br\s*/?|/div|/p|li|/li)>', '\n', text) 
+    # 步驟 A: 將 <li> 標籤先換成一個特殊的換行符號，方便後續切割
+    text = text.replace('<li>', '\n')
+    text = re.sub(r'<(br\s*/?|/div|/p|/li)>', '\n', text) 
     
-    # 移除其餘 HTML 標籤
+    # 步驟 B: 掃除所有 HTML 標籤
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
     
-    # 處理特殊符號轉義
+    # 步驟 C: 處理特殊符號
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
     
-    return text.strip()
+    # 步驟 D: 重新組裝數字條列 (這是最關鍵的一步！)
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    numbered_lines = []
+    for index, line in enumerate(lines, 1):
+        # 如果妳原本就有手打數字，就不要重複加；如果沒手打，我們幫妳加上 1. 2. 3.
+        if not re.match(r'^\d+\.', line):
+            numbered_lines.append(f"{index}. {line}")
+        else:
+            numbered_lines.append(line)
+            
+    return "\n".join(numbered_lines)
 
 # --- 2. 搜尋字典 ---
 def multi_lang_search(text):
@@ -34,7 +45,7 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：鎖定黑暗模式 ---
+# --- 3. UI 視覺風格：鎖定深色模式 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
@@ -44,24 +55,18 @@ st.markdown("""
     }
     header[data-testid="stHeader"] { visibility: hidden; }
 
-    /* 側邊欄按鈕強化 */
+    /* 側邊欄按鈕強化 (亮色按鈕 + 黑字) */
     div[data-testid="stSidebar"] .stButton button {
-        background-color: #21262d !important;
-        color: #ffffff !important;
-        border: 1px solid #30363d !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ffffff !important;
         width: 100% !important;
         height: 45px !important;
-        font-weight: bold !important;
+        font-weight: 800 !important;
     }
-    
-    h1, h2, h3, h4, h5, p, span, label, small { color: #ffffff !important; }
-    .stTextInput input {
-        background-color: #161b22 !important;
-        color: #ffffff !important;
-        border: 1px solid #30363d !important;
-    }
+    div[data-testid="stSidebar"] .stButton button p { color: #000000 !important; }
 
-    /* 內容顯示區：確保尊重所有換行 */
+    /* 步驟顯示區塊：保留換行 */
     .step-content-box {
         color: #ffffff !important;
         font-size: 15px !important;
@@ -79,10 +84,10 @@ st.markdown("""
         padding-left: 20px;
         margin-bottom: 30px;
     }
-    .location-tag {
-        background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; 
-        font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px;
-    }
+    
+    h1, h2, h3, h4, h5, p, span, label, small { color: #ffffff !important; }
+    .stTextInput input { background-color: #161b22 !important; color: #ffffff !important; border: 1px solid #30363d !important; }
+    .location-tag { background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px; }
     .author-tag { font-size: 11px; color: #4CAF50 !important; background: rgba(76, 175, 80, 0.15); border-radius: 12px; padding: 3px 12px; border: 1.5px solid #4CAF50; }
     .view-btn { display: inline-block; padding: 6px 16px; background-color: #238636; color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
     footer {visibility: hidden;}
@@ -104,8 +109,7 @@ with st.sidebar:
     tr_pw = st.text_input("API Key", type="password", value=init_pw)
     project_id = st.number_input("Project ID", value=init_pid)
     suite_id = st.number_input("Suite ID", value=init_sid)
-    st.markdown("---")
-    if st.button("💾 儲存資訊至網址"):
+    if st.button("💾 儲存至網址"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
         st.success("✅ 已儲存！")
     if st.button("🔄 強制更新數據"):
@@ -155,7 +159,7 @@ if tr_url and tr_user and tr_pw:
     
     if all_cases:
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b><span style="color:#58a6ff; font-weight:bold;">{project_name}</span> | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("搜尋內容:", placeholder="請輸入關鍵字或 #ID")
+        query = st.text_input("搜尋內容:", placeholder="請輸入關鍵字（支援繁簡英）或 #ID")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
@@ -176,9 +180,9 @@ if tr_url and tr_user and tr_pw:
                         raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
                         if isinstance(raw_steps, list) and len(raw_steps) > 0:
                             for i, s in enumerate(raw_steps, 1):
-                                # 💡 直接呈現清理後的文字
-                                step_txt = ultra_clean_html(s.get('content', s.get('step', '')))
-                                exp_txt = ultra_clean_html(s.get('expected', ''))
+                                # ✨核心修復：使用 clean_html_and_add_numbers 自動補上數字
+                                step_txt = clean_html_and_add_numbers(s.get('content', s.get('step', '')))
+                                exp_txt = clean_html_and_add_numbers(s.get('expected', ''))
                                 st.markdown(f"""
                                     <div class="step-item">
                                         <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
@@ -187,10 +191,6 @@ if tr_url and tr_user and tr_pw:
                                         <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{exp_txt}</div>
                                     </div>
                                 """, unsafe_allow_html=True)
-                        elif isinstance(raw_steps, str) and raw_steps.strip():
-                            st.markdown(f'<div class="step-content-box">{ultra_clean_html(raw_steps)}</div>', unsafe_allow_html=True)
                         else:
                             st.info("無步驟資料。")
                     st.markdown("---")
-else:
-    st.warning("👈 請輸入連線資訊。")
