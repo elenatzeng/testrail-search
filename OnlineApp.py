@@ -26,7 +26,7 @@ def clean_html_and_add_numbers(raw_html):
             numbered_lines.append(line)
     return "\n".join(numbered_lines)
 
-# --- 2. 三語聯想搜尋字典 ---
+# --- 2. 三語聯想搜尋字典 (已補上免費旋轉與免費籌碼) ---
 def multi_lang_search(text):
     dictionary = [
         ["登入", "登录", "login", "auth", "sign in"],
@@ -35,8 +35,8 @@ def multi_lang_search(text):
         ["帳號", "账号", "account", "user"],
         ["錢包", "钱包", "wallet", "balance"],
         ["訂單", "订单", "order", "history"],
-        ["免费旋转", "免费旋转", "free Spin"],
-        ["免费筹码", "免费筹码", "free Chip"]
+        ["免費旋轉", "免费旋转", "free spin"],
+        ["免費籌碼", "免费筹码", "free chip"]
     ]
     text_lower = text.lower().strip()
     related_words = [text_lower]
