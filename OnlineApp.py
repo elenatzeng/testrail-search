@@ -25,49 +25,57 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格設定 (防日間模式毀壞版) ---
+# --- 3. UI 視覺風格設定 (全域強制黑暗模式版) ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
-    /* 強制鎖定深色背景，防止日間模式變白 */
-    .stApp { 
-        background-color: #0b0e14 !important; 
+    /* 1. 強制全域背景 (含主頁面與側邊欄) 變為深黑色 */
+    .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
+        background-color: #0b0e14 !important;
     }
     
-    /* 強制所有標準文字為白色 */
-    .stMarkdown, p, span, label, h1, h2, h3 {
+    /* 2. 強制所有文字為白色，避免在日間模式變黑 */
+    .stMarkdown, p, span, label, h1, h2, h3, h4, h5 {
         color: #ffffff !important;
     }
 
-    /* 修正搜尋輸入框在日間模式下的外觀 */
-    .stTextInput input {
+    /* 3. 側邊欄專屬文字提亮 (防止隱身) */
+    [data-testid="stSidebar"] .stMarkdown p, 
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] span {
+        color: #e6edf3 !important;
+        font-weight: 600 !important;
+    }
+
+    /* 4. 修正輸入框在日間模式下的外觀 */
+    .stTextInput input, .stNumberInput input {
         background-color: #161b22 !important;
         color: #ffffff !important;
         border: 1px solid #30363d !important;
     }
 
-    /* 作者標籤 */
+    /* 5. 作者標籤 */
     .author-tag { 
         font-size: 11px; color: #4CAF50 !important; background: rgba(76, 175, 80, 0.15); 
         padding: 3px 12px; border-radius: 12px; margin-left: 8px; border: 1.5px solid #4CAF50;
         display: inline-block; vertical-align: middle;
     }
     
-    /* 按鈕樣式 */
+    /* 6. 按鈕樣式 */
     .view-btn {
         display: inline-block; padding: 6px 16px; background-color: #238636;
         color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;
     }
 
-    /* 強化版位置標籤 (Status Bar) */
+    /* 7. 強化版位置標籤 (Status Bar) */
     .location-tag {
         background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; 
         font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     
-    /* 步驟區塊：解決對比度問題 */
+    /* 8. 步驟區塊樣式 */
     .step-item { 
         background: #161b22 !important; padding: 18px; border-radius: 10px; margin-bottom: 15px; 
         border-left: 6px solid #4CAF50; border: 1px solid #30363d;
@@ -78,12 +86,7 @@ st.markdown("""
     .exp-label { color: #8b949e !important; font-weight: bold; margin-right: 5px; }
     .section-path { font-size: 12px; color: #8b949e !important; display: block; margin-bottom: 6px; }
     
-    /* 側邊欄文字修正 */
-    section[data-testid="stSidebar"] .stMarkdown, 
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] p {
-        color: #e6edf3 !important;
-    }
+    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -102,6 +105,7 @@ with st.sidebar:
     tr_pw = st.text_input("API Key", type="password", value=init_pw)
     project_id = st.number_input("Project ID", value=init_pid)
     suite_id = st.number_input("Suite ID", value=init_sid)
+    st.markdown("---")
     if st.button("💾 儲存資訊至網址"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
         st.success("✅ 已儲存！請存為書籤。")
@@ -119,7 +123,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         p_name = p_info.get('name', f"Project #{pid}")
         u_map = {2: "Elena", 3: "Esther", 4: "Emma", 5: "Baron", 6: "Meh", 8: "Copper", 11: "Katty"}
         
-        # 修正分頁抓取邏輯
+        # 分頁抓取邏輯 (確保能搜到新Case)
         def get_all_items(method, key, **kwargs):
             all_items = []
             offset = 0
@@ -154,7 +158,6 @@ if tr_url and tr_user and tr_pw:
         all_cases, path_map, user_map, sync_time, project_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
     
     if all_cases:
-        # ✨ 顯示加粗漂亮的 Project 位置 (強制白色字體)
         st.markdown(f"""
             <div class="location-tag">
                 📍 <b>Project：</b><span style="color:#58a6ff; font-weight:bold;">{project_name}</span> 
@@ -188,7 +191,13 @@ if tr_url and tr_user and tr_pw:
                             raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
                             if isinstance(raw_steps, list) and len(raw_steps) > 0:
                                 for i, s in enumerate(raw_steps, 1):
-                                    st.markdown(f"""<div class="step-item"><span class="step-title">Step {i}:</span><div class="step-content">{clean_html(s.get('content', s.get('step', '')))}</div><div class="step-exp"><span class="exp-label">Expected:</span>{clean_html(s.get('expected', ''))}</div></div>""", unsafe_allow_html=True)
+                                    st.markdown(f"""
+                                        <div class="step-item">
+                                            <span class="step-title">Step {i}:</span>
+                                            <div class="step-content">{clean_html(s.get('content', s.get('step', '')))}</div>
+                                            <div class="step-exp"><span class="exp-label">Expected:</span>{clean_html(s.get('expected', ''))}</div>
+                                        </div>
+                                    """, unsafe_allow_html=True)
                             elif isinstance(raw_steps, str) and raw_steps.strip():
                                 st.markdown(f"""<div class="step-item"><div class="step-content">{clean_html(raw_steps)}</div></div>""", unsafe_allow_html=True)
                             else:
