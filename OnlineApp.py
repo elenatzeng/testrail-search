@@ -11,15 +11,12 @@ def clean_html(raw_html):
     cleantext = cleantext.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
     return cleantext.strip()
 
-# --- 2. 三語聯想搜尋字典 ---
+# --- 2. 三語搜尋字典 ---
 def multi_lang_search(text):
     dictionary = [
-        ["登入", "登录", "login", "auth", "sign in"],
-        ["註冊", "注册", "register", "signup"],
-        ["提現", "提现", "withdraw", "payout"],
-        ["帳號", "账号", "account", "user"],
-        ["錢包", "钱包", "wallet", "balance"],
-        ["訂單", "订单", "order", "history"]
+        ["登入", "登录", "login", "auth"], ["註冊", "注册", "register"],
+        ["提現", "提现", "withdraw"], ["帳號", "账号", "account"],
+        ["錢包", "钱包", "wallet"], ["訂單", "订单", "order"]
     ]
     text_lower = text.lower().strip()
     related_words = [text_lower]
@@ -28,7 +25,7 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：全域強制黑暗模式 + 按鈕文字顯色修復 ---
+# --- 3. UI 視覺風格：深度鎖定 CSS ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
@@ -38,45 +35,49 @@ st.markdown("""
         background-color: #0b0e14 !important;
     }
 
-    /* 2. 隱藏頂部系統白條 */
+    /* 2. 隱藏頂部白條 */
     header[data-testid="stHeader"] {
         background: rgba(0,0,0,0) !important;
+        height: 0px;
     }
     
-    /* 3. ✨ 側邊欄按鈕視覺終極補強 (修復字體看不見的問題) ✨ */
-    div[data-testid="stSidebar"] button {
-        background-color: #ffffff !important; /* 改用亮白色背景 */
-        border: 1px solid #ffffff !important;
+    /* 3. ✨ 側邊欄按鈕：強制亮色背景 + 黑字 (終極解決方案) ✨ */
+    /* 這裡使用了更長的選擇路徑來提高權重 */
+    div[data-testid="stSidebar"] .stButton button {
+        background-color: #4CAF50 !important; /* 亮綠色背景 */
+        border: 1px solid #4CAF50 !important;
         width: 100%;
-        height: 45px;
+        height: 48px;
         border-radius: 8px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
     
-    /* 強力覆蓋按鈕內的文字：確保它是純黑色 */
-    div[data-testid="stSidebar"] button p {
+    /* 強制按鈕內的文字：純黑色 + 粗體 */
+    div[data-testid="stSidebar"] .stButton button p,
+    div[data-testid="stSidebar"] .stButton button div,
+    div[data-testid="stSidebar"] .stButton button span {
         color: #000000 !important; 
-        font-weight: 800 !important; 
-        font-size: 14px !important;
+        font-weight: 900 !important; 
+        font-size: 15px !important;
+        opacity: 1 !important; /* 防止日間模式自動變透明 */
     }
     
-    div[data-testid="stSidebar"] button:hover {
-        background-color: #f0f0f0 !important;
-        border-color: #58a6ff !important;
+    div[data-testid="stSidebar"] .stButton button:hover {
+        background-color: #66bb6a !important;
+        border-color: #ffffff !important;
     }
 
-    /* 4. 輸入框樣式 */
+    /* 4. 輸入框與文字顯色 */
     .stTextInput input, .stNumberInput input {
         background-color: #161b22 !important;
         color: #ffffff !important;
         border: 1px solid #30363d !important;
     }
-
-    /* 5. 通用文字顏色 */
-    h1, h2, h3, h4, h5, p, span, label, small {
+    .stMarkdown, p, span, label, h1, h2, h3, h4, h5 {
         color: #ffffff !important;
     }
     
-    /* 6. 位置標籤 (Status Bar) */
+    /* 5. 位置標籤 (Status Bar) */
     .location-tag {
         background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; 
         font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px;
@@ -120,7 +121,7 @@ with st.sidebar:
     project_id = st.number_input("Project ID", value=init_pid)
     suite_id = st.number_input("Suite ID", value=init_sid)
     st.markdown("---")
-    # ✨ 按鈕部分
+    # 這裡的按鈕字體透過 CSS 強制顯色
     if st.button("💾 儲存資訊至網址 (Save to URL)"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
         st.success("✅ 已儲存！")
@@ -129,7 +130,7 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-# --- 5. 數據抓取 (深度同步) ---
+# --- 5. 數據抓取 ---
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
