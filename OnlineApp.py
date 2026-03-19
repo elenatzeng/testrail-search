@@ -3,7 +3,7 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 工具函式：掃除格式 ---
+# --- 1. 工具函式 ---
 def clean_html(raw_html):
     if not raw_html: return ""
     cleanr = re.compile('<.*?>')
@@ -28,63 +28,60 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：徹底修復日間模式 & 按鈕字體 ---
+# --- 3. UI 視覺風格：全域強制黑暗模式 + 按鈕文字顯色修復 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
-    /* 1. 全域背景染黑 (含側邊欄) */
+    /* 1. 全域背景染黑 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
         background-color: #0b0e14 !important;
     }
 
-    /* 2. 隱藏頂部系統白條 (Header) */
+    /* 2. 隱藏頂部系統白條 */
     header[data-testid="stHeader"] {
         background: rgba(0,0,0,0) !important;
-        color: white !important;
     }
     
-    /* 3. 側邊欄按鈕視覺補強 (解決 Light Mode 看不清問題) */
+    /* 3. ✨ 側邊欄按鈕視覺終極補強 (修復字體看不見的問題) ✨ */
     div[data-testid="stSidebar"] button {
-        background-color: #21262d !important; 
-        color: #ffffff !important;           
-        border: 1px solid #30363d !important;
+        background-color: #ffffff !important; /* 改用亮白色背景 */
+        border: 1px solid #ffffff !important;
         width: 100%;
-        font-weight: 800 !important; /* 超粗體 */
         height: 45px;
+        border-radius: 8px !important;
     }
+    
+    /* 強力覆蓋按鈕內的文字：確保它是純黑色 */
+    div[data-testid="stSidebar"] button p {
+        color: #000000 !important; 
+        font-weight: 800 !important; 
+        font-size: 14px !important;
+    }
+    
     div[data-testid="stSidebar"] button:hover {
-        background-color: #30363d !important;
+        background-color: #f0f0f0 !important;
         border-color: #58a6ff !important;
     }
 
-    /* 4. 輸入框樣式強制鎖定 */
+    /* 4. 輸入框樣式 */
     .stTextInput input, .stNumberInput input {
         background-color: #161b22 !important;
         color: #ffffff !important;
         border: 1px solid #30363d !important;
     }
 
-    /* 5. 位置標籤 (Status Bar) */
-    .location-tag {
-        background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; 
-        font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    }
-    
-    /* 6. 步驟區塊 */
-    .step-item { 
-        background: #161b22 !important; padding: 18px; border-radius: 10px; margin-bottom: 15px; 
-        border-left: 6px solid #4CAF50; border: 1px solid #30363d;
-    }
-    .step-title { color: #79c0ff !important; font-size: 15px; font-weight: 800; margin-bottom: 6px; display: block; }
-    .step-content { color: #ffffff !important; font-size: 15px; font-weight: 500; line-height: 1.6; }
-    
-    /* 7. 通用文字與標題顏色 */
+    /* 5. 通用文字顏色 */
     h1, h2, h3, h4, h5, p, span, label, small {
         color: #ffffff !important;
     }
     
+    /* 6. 位置標籤 (Status Bar) */
+    .location-tag {
+        background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; 
+        font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px;
+    }
+
     .author-tag { 
         font-size: 11px; color: #4CAF50 !important; background: rgba(76, 175, 80, 0.15); 
         padding: 3px 12px; border-radius: 12px; margin-left: 8px; border: 1.5px solid #4CAF50;
@@ -95,6 +92,13 @@ st.markdown("""
         display: inline-block; padding: 6px 16px; background-color: #238636;
         color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;
     }
+
+    .step-item { 
+        background: #161b22 !important; padding: 18px; border-radius: 10px; margin-bottom: 15px; 
+        border-left: 6px solid #4CAF50; border: 1px solid #30363d;
+    }
+    .step-title { color: #79c0ff !important; font-size: 15px; font-weight: 800; margin-bottom: 6px; display: block; }
+    .step-content { color: #ffffff !important; font-size: 15px; font-weight: 500; line-height: 1.6; }
     
     footer {visibility: hidden;}
     </style>
@@ -116,9 +120,10 @@ with st.sidebar:
     project_id = st.number_input("Project ID", value=init_pid)
     suite_id = st.number_input("Suite ID", value=init_sid)
     st.markdown("---")
+    # ✨ 按鈕部分
     if st.button("💾 儲存資訊至網址 (Save to URL)"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
-        st.success("✅ 已儲存至網址！")
+        st.success("✅ 已儲存！")
         st.balloons()
     if st.button("🔄 強制更新數據 (Force Sync)"):
         st.cache_data.clear()
@@ -174,12 +179,8 @@ if tr_url and tr_user and tr_pw:
             </div>
         """, unsafe_allow_html=True)
 
-        # ✨ 強化提示詞：明確告知支援繁簡英轉換
         st.markdown("##### 🔍 支援繁體 / 簡體 / 英文 跨語言搜尋")
-        query = st.text_input(
-            "搜尋內容 (Search Content):", 
-            placeholder="請輸入關鍵字（支援繁簡英自動轉換）或 #ID"
-        )
+        query = st.text_input("搜尋內容 (Search Content):", placeholder="請輸入關鍵字（支援繁簡英自動轉換）或 #ID")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
