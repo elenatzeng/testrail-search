@@ -3,12 +3,12 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 工具函式：修復條列式並自動補上數字 ---
+# --- 1. 核心邏輯：修復條列式並自動補上數字 (解決 1. 2. 3. 消失與斷行問題) ---
 def clean_html_and_add_numbers(raw_html):
     if not raw_html: return ""
     text = str(raw_html)
     
-    # 步驟 A: 將 <li> 標籤先換成一個特殊的換行符號，方便後續切割
+    # 步驟 A: 預處理 HTML 換行標籤，確保轉為 \n
     text = text.replace('<li>', '\n')
     text = re.sub(r'<(br\s*/?|/div|/p|/li)>', '\n', text) 
     
@@ -16,27 +16,30 @@ def clean_html_and_add_numbers(raw_html):
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
     
-    # 步驟 C: 處理特殊符號
+    # 步驟 C: 處理轉義符號 (如 &nbsp; 等)
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
     
-    # 步驟 D: 重新組裝數字條列 (這是最關鍵的一步！)
+    # 步驟 D: 重新組裝數字條列
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     numbered_lines = []
     for index, line in enumerate(lines, 1):
-        # 如果妳原本就有手打數字，就不要重複加；如果沒手打，我們幫妳加上 1. 2. 3.
-        if not re.match(r'^\d+\.', line):
+        # 判斷是否已有數字開頭 (1. 或 1、)，若無則人工補上
+        if not re.match(r'^\d+[\.\、]', line):
             numbered_lines.append(f"{index}. {line}")
         else:
             numbered_lines.append(line)
             
     return "\n".join(numbered_lines)
 
-# --- 2. 搜尋字典 ---
+# --- 2. 三語聯想搜尋字典 ---
 def multi_lang_search(text):
     dictionary = [
-        ["登入", "登录", "login", "auth"], ["註冊", "注册", "register"],
-        ["提現", "提现", "withdraw"], ["帳號", "账号", "account"],
-        ["錢包", "钱包", "wallet"], ["訂單", "订单", "order"]
+        ["登入", "登录", "login", "auth", "sign in"],
+        ["註冊", "注册", "register", "signup"],
+        ["提現", "提现", "withdraw", "payout"],
+        ["帳號", "账号", "account", "user"],
+        ["錢包", "钱包", "wallet", "balance"],
+        ["訂單", "订单", "order", "history"]
     ]
     text_lower = text.lower().strip()
     related_words = [text_lower]
@@ -45,17 +48,30 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：鎖定深色模式 ---
+# --- 3. UI 視覺風格：鎖定深色模式 + 修復側邊欄隱形箭頭 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
+    /* 1. 全域背景染黑 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
         background-color: #0b0e14 !important;
     }
-    header[data-testid="stHeader"] { visibility: hidden; }
 
-    /* 側邊欄按鈕強化 (亮色按鈕 + 黑字) */
+    /* 2. ✨核心修復：讓頂部 Header 透明，但保留「展開箭頭」按鈕✨ */
+    header[data-testid="stHeader"] {
+        background: rgba(0,0,0,0) !important;
+        color: white !important;
+    }
+    
+    /* 強制讓側邊欄切換箭頭 (Toggle) 顯示為白色，確保縮小後能看見 */
+    button[data-testid="baseButton-headerNoPadding"] {
+        color: white !important;
+        background-color: rgba(255,255,255,0.1) !important;
+        border-radius: 50% !important;
+    }
+
+    /* 3. 側邊欄按鈕強化 (亮色背景 + 黑字) */
     div[data-testid="stSidebar"] .stButton button {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -63,10 +79,15 @@ st.markdown("""
         width: 100% !important;
         height: 45px !important;
         font-weight: 800 !important;
+        transition: all 0.3s;
     }
     div[data-testid="stSidebar"] .stButton button p { color: #000000 !important; }
+    div[data-testid="stSidebar"] .stButton button:hover {
+        background-color: #f0f0f0 !important;
+        transform: scale(1.02);
+    }
 
-    /* 步驟顯示區塊：保留換行 */
+    /* 4. 內容顯示區塊 (尊重斷行與條列) */
     .step-content-box {
         color: #ffffff !important;
         font-size: 15px !important;
@@ -90,11 +111,12 @@ st.markdown("""
     .location-tag { background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px; }
     .author-tag { font-size: 11px; color: #4CAF50 !important; background: rgba(76, 175, 80, 0.15); border-radius: 12px; padding: 3px 12px; border: 1.5px solid #4CAF50; }
     .view-btn { display: inline-block; padding: 6px 16px; background-color: #238636; color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
+    
     footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 參數處理 ---
+# --- 4. 參數讀取與儲存 (URL 參數功能) ---
 q = st.query_params
 init_url = q.get("url", st.secrets.get("TR_URL", ""))
 init_user = q.get("user", st.secrets.get("TR_USER", ""))
@@ -109,14 +131,16 @@ with st.sidebar:
     tr_pw = st.text_input("API Key", type="password", value=init_pw)
     project_id = st.number_input("Project ID", value=init_pid)
     suite_id = st.number_input("Suite ID", value=init_sid)
-    if st.button("💾 儲存至網址"):
+    st.markdown("---")
+    if st.button("💾 儲存資訊至網址 (Save to URL)"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
-        st.success("✅ 已儲存！")
-    if st.button("🔄 強制更新數據"):
+        st.success("✅ 已儲存至網址！請將此頁存為書籤方便下次使用。")
+        st.balloons()
+    if st.button("🔄 強制更新數據 (Force Sync)"):
         st.cache_data.clear()
         st.rerun()
 
-# --- 5. 數據抓取 ---
+# --- 5. 數據抓取函式 ---
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
@@ -153,44 +177,50 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
-    with st.spinner("🚀 同步數據中..."):
+    with st.spinner("🚀 正在同步 TestRail 最新數據..."):
         data = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
         all_cases, path_map, user_map, sync_time, project_name = data
     
     if all_cases:
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b><span style="color:#58a6ff; font-weight:bold;">{project_name}</span> | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("搜尋內容:", placeholder="請輸入關鍵字（支援繁簡英）或 #ID")
+        st.markdown("##### 🔍 支援繁體 / 簡體 / 英文 跨語言搜尋")
+        query = st.text_input("搜尋內容 (Search Content):", placeholder="請輸入關鍵字（支援繁簡英自動轉換）或 #ID")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             search_terms = multi_lang_search(query)
             results = [c for c in all_cases if any(t in c.get('title','').lower() or t in path_map.get(c.get('section_id'),"").lower() for t in search_terms) or (query.strip('#') == str(c.get('id','')))]
             
-            for item in results:
-                cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
-                with st.container():
-                    st.markdown(f'<span style="font-size:12px; color:#8b949e !important;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
-                    col_t, col_b = st.columns([7, 1.5])
-                    with col_t:
-                        st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag">👤 {author}</span></div>', unsafe_allow_html=True)
-                    with col_b:
-                        st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
-                    
-                    with st.expander("🔽 查看測試步驟"):
-                        raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
-                        if isinstance(raw_steps, list) and len(raw_steps) > 0:
-                            for i, s in enumerate(raw_steps, 1):
-                                # ✨核心修復：使用 clean_html_and_add_numbers 自動補上數字
-                                step_txt = clean_html_and_add_numbers(s.get('content', s.get('step', '')))
-                                exp_txt = clean_html_and_add_numbers(s.get('expected', ''))
-                                st.markdown(f"""
-                                    <div class="step-item">
-                                        <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
-                                        <div class="step-content-box">{step_txt}</div>
-                                        <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
-                                        <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{exp_txt}</div>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                        else:
-                            st.info("無步驟資料。")
-                    st.markdown("---")
+            if results:
+                st.write(f"### 🎯 找到 {len(results)} 個案例")
+                for item in results:
+                    cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"ID_{item.get('created_by')}")
+                    with st.container():
+                        st.markdown(f'<span style="font-size:12px; color:#8b949e !important;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
+                        col_t, col_b = st.columns([7, 1.5])
+                        with col_t:
+                            st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag">👤 {author}</span></div>', unsafe_allow_html=True)
+                        with col_b:
+                            st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
+                        
+                        with st.expander("🔽 查看測試步驟 (View Test Steps)"):
+                            raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
+                            if isinstance(raw_steps, list) and len(raw_steps) > 0:
+                                for i, s in enumerate(raw_steps, 1):
+                                    step_txt = clean_html_and_add_numbers(s.get('content', s.get('step', '')))
+                                    exp_txt = clean_html_and_add_numbers(s.get('expected', ''))
+                                    st.markdown(f"""
+                                        <div class="step-item">
+                                            <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
+                                            <div class="step-content-box">{step_txt}</div>
+                                            <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
+                                            <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{exp_txt}</div>
+                                        </div>
+                                    """, unsafe_allow_html=True)
+                            else:
+                                st.info("此案例無詳細步驟。")
+                        st.markdown("---")
+            else:
+                st.info("查無結果，請嘗試其他關鍵字。")
+else:
+    st.warning("👈 請在左側輸入連線資訊開始使用。")
