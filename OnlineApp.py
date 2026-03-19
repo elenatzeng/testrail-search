@@ -3,23 +3,21 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 工具函式：精準斷行清理 (移除強制圓點，還原原始數字) ---
-def clean_html_with_structure(raw_html):
+# --- 1. 工具函式：最精簡的標籤過濾 (保留原始換行) ---
+def ultra_clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html)
     
-    # 步驟 A: 將代表換行的標籤轉為 \n，但不額外增加符號
+    # 僅將代表換行的標籤轉為 \n
     text = re.sub(r'<(br\s*/?|/div|/p|li|/li)>', '\n', text) 
     
-    # 步驟 B: 掃除 HTML 標籤
+    # 移除其餘 HTML 標籤
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
     
-    # 步驟 C: 處理轉義符號
+    # 處理特殊符號轉義
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
     
-    # 步驟 D: 修正過度換行
-    text = re.sub(r'\n\s*\n', '\n', text)
     return text.strip()
 
 # --- 2. 搜尋字典 ---
@@ -46,12 +44,13 @@ st.markdown("""
     }
     header[data-testid="stHeader"] { visibility: hidden; }
 
-    /* 側邊欄按鈕字體提亮 */
+    /* 側邊欄按鈕強化 */
     div[data-testid="stSidebar"] .stButton button {
         background-color: #21262d !important;
         color: #ffffff !important;
         border: 1px solid #30363d !important;
         width: 100% !important;
+        height: 45px !important;
         font-weight: bold !important;
     }
     
@@ -62,7 +61,7 @@ st.markdown("""
         border: 1px solid #30363d !important;
     }
 
-    /* 步驟顯示區塊 */
+    /* 內容顯示區：確保尊重所有換行 */
     .step-content-box {
         color: #ffffff !important;
         font-size: 15px !important;
@@ -156,7 +155,7 @@ if tr_url and tr_user and tr_pw:
     
     if all_cases:
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b><span style="color:#58a6ff; font-weight:bold;">{project_name}</span> | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("搜尋內容:", placeholder="請輸入關鍵字（支援繁簡英）或 #ID")
+        query = st.text_input("搜尋內容:", placeholder="請輸入關鍵字或 #ID")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
@@ -177,9 +176,9 @@ if tr_url and tr_user and tr_pw:
                         raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
                         if isinstance(raw_steps, list) and len(raw_steps) > 0:
                             for i, s in enumerate(raw_steps, 1):
-                                # 直接清理並換行
-                                step_txt = clean_html_with_structure(s.get('content', s.get('step', '')))
-                                exp_txt = clean_html_with_structure(s.get('expected', ''))
+                                # 💡 直接呈現清理後的文字
+                                step_txt = ultra_clean_html(s.get('content', s.get('step', '')))
+                                exp_txt = ultra_clean_html(s.get('expected', ''))
                                 st.markdown(f"""
                                     <div class="step-item">
                                         <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
@@ -189,7 +188,7 @@ if tr_url and tr_user and tr_pw:
                                     </div>
                                 """, unsafe_allow_html=True)
                         elif isinstance(raw_steps, str) and raw_steps.strip():
-                            st.markdown(f'<div class="step-content-box">{clean_html_with_structure(raw_steps)}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="step-content-box">{ultra_clean_html(raw_steps)}</div>', unsafe_allow_html=True)
                         else:
                             st.info("無步驟資料。")
                     st.markdown("---")
