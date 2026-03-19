@@ -3,23 +3,20 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 核心邏輯：修復條列式數字 (這是妳看到 1. 2. 3. 的關鍵) ---
+# --- 1. 核心邏輯：修復條列式數字 (找回 1. 2. 3.) ---
 def clean_html_and_add_numbers(raw_html):
     if not raw_html: return ""
     text = str(raw_html)
-    
-    # 步驟 A: 預處理 HTML 換行標籤
+    # 將 HTML 條列標籤預處理為換行
     text = text.replace('<li>', '\n')
     text = re.sub(r'<(br\s*/?|/div|/p|/li)>', '\n', text) 
-    
-    # 步驟 B: 掃除 HTML 標籤
+    # 清除其餘 HTML 標籤
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
-    
-    # 步驟 C: 處理轉義符號
+    # 處理特殊符號轉義
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
     
-    # 步驟 D: 自動組裝 1. 2. 3. 條列
+    # 自動補上數字條列 1. 2. 3.
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     numbered_lines = []
     for index, line in enumerate(lines, 1):
@@ -27,7 +24,6 @@ def clean_html_and_add_numbers(raw_html):
             numbered_lines.append(f"{index}. {line}")
         else:
             numbered_lines.append(line)
-            
     return "\n".join(numbered_lines)
 
 # --- 2. 三語聯想搜尋字典 ---
@@ -47,38 +43,45 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：🏆終極鎖定完全版 (強行鎖死 Dark Mode + 停用選單) ---
-# 步驟 A: 在 set_page_config 中宣告我們偏好深色
+# --- 3. UI 視覺風格：🏆 究極黑金鎖定版 (物理遮蔽選單) ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
-    /* 🌑 核心修復 1：鎖死全域背景，確保 Light Mode 無法染白 app */
+    /* 🌑 核心鎖定：強制全域背景深黑色 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
         background-color: #0b0e14 !important;
     }
 
-    /* 🌕 核心修復 2：鎖死所有文字顏色為白色，防止變白底時隱身 */
+    /* 🌕 核心鎖定：強制所有文字為白色，防日間模式隱身 */
     h1, h2, h3, h4, h5, p, span, label, small, .stMarkdown {
         color: #ffffff !important;
     }
 
-    /* 🚫【終極鎖定】核心修復 3：停用並隱藏頂部所有選單 (Share, Deploy, GitHub, 三點點) 🚫 */
-    /* 這行指令會讓使用者完全點不到任何選單，連主題設定選單都沒得選 */
-    div[data-testid="stTopBar"] {
+    /* 🚫 物理遮蔽：隱藏頂部所有選單 (Share, Deploy, 三點點) 🚫 */
+    [data-testid="stHeader"], [data-testid="stTopBar"], div[data-testid="stMainMenu"] {
         display: none !important;
+        visibility: hidden !important;
+        height: 0px !important;
     }
     
-    /* 因為我們隱藏了頂部選單，側邊欄展開箭頭會被頂到最高，這裡幫它修正位置 */
-    button[data-testid="baseButton-headerNoPadding"] {
+    /* 隱藏選單內的日間/夜間切換 Radio 群組 */
+    div[role="radiogroup"] {
+        display: none !important;
+    }
+
+    /* 修正側邊欄箭頭按鈕：確保縮小後能看到白色的展開按鈕 */
+    [data-testid="stSidebarCollapse"] {
         top: 10px !important;
         left: 10px !important;
+        position: fixed !important;
+        z-index: 1000001 !important;
         color: white !important;
         background-color: rgba(255,255,255,0.1) !important;
         border-radius: 50% !important;
     }
 
-    /* 4. 側邊欄按鈕強化 (高對比白底黑字) */
+    /* 側邊欄按鈕強化 (白底黑字) */
     div[data-testid="stSidebar"] .stButton button {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -89,7 +92,7 @@ st.markdown("""
     }
     div[data-testid="stSidebar"] .stButton button p { color: #000000 !important; }
 
-    /* 5. 內容顯示區塊 (尊重斷行與條列) */
+    /* 步驟顯示區塊 (尊重換行) */
     .step-content-box {
         color: #ffffff !important;
         font-size: 15px !important;
@@ -117,7 +120,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 參數處理 ---
+# --- 4. 參數讀取與儲存 ---
 q = st.query_params
 init_url = q.get("url", st.secrets.get("TR_URL", ""))
 init_user = q.get("user", st.secrets.get("TR_USER", ""))
@@ -135,7 +138,7 @@ with st.sidebar:
     st.markdown("---")
     if st.button("💾 儲存資訊至網址"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
-        st.success("✅ 已儲存至網址！妳的連線設定已鎖定在書籤中。")
+        st.success("✅ 已儲存至網址！")
         st.balloons()
     if st.button("🔄 強制更新數據"):
         st.cache_data.clear()
@@ -184,6 +187,7 @@ if tr_url and tr_user and tr_pw:
     
     if all_cases:
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b><span style="color:#58a6ff; font-weight:bold;">{project_name}</span> | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
+        st.markdown("##### 🔍 支援繁體 / 簡體 / 英文 跨語言搜尋")
         query = st.text_input("搜尋內容 (Search Content):", placeholder="請輸入關鍵字（支援繁簡英自動轉換）或 #ID")
 
         if query:
@@ -218,7 +222,7 @@ if tr_url and tr_user and tr_pw:
                                         </div>
                                     """, unsafe_allow_html=True)
                             else:
-                                st.info("此案例無詳細步驟。")
+                                st.info("無步驟資料。")
                         st.markdown("---")
 else:
-    st.warning("👈 請在左側輸入連線資訊，或開啟妳的書籤連線。")
+    st.warning("👈 請在左側輸入連線資訊。")
