@@ -3,22 +3,23 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 工具函式：修復斷行顯示 (將 HTML 標籤轉為換行符號) ---
+# --- 1. 工具函式：強化換行處理 ---
 def clean_html_with_breaks(raw_html):
     if not raw_html: return ""
-    # 步驟 A: 將 HTML 的換行標籤（br, div, p）替換為真正的換行符號 \n
+    # 步驟 A: 強制把內容轉成字串，並處理 HTML 換行標籤
     text = str(raw_html)
-    text = re.sub(r'<(br|/div|/p)>', '\n', text) 
+    # 這裡多加了一些可能的換行標籤處理
+    text = re.sub(r'<(br\s*/?|/div|/p|li)>', '\n', text) 
     
-    # 步驟 B: 移除剩下的所有 HTML 標籤
+    # 步驟 B: 移除剩下的標籤
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
     
-    # 步驟 C: 處理 HTML 符號
+    # 步驟 C: 處理轉義符號
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
     return text.strip()
 
-# --- 2. 三語搜尋字典 ---
+# --- 2. 搜尋字典 ---
 def multi_lang_search(text):
     dictionary = [
         ["登入", "登录", "login", "auth"], ["註冊", "注册", "register"],
@@ -32,52 +33,47 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：鎖定 Dark Mode 並優化文字排版 ---
+# --- 3. UI 視覺風格：鎖定 Dark Mode 與 換行排版 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
-    /* 強制全域深色背景 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
         background-color: #0b0e14 !important;
     }
-
-    /* 隱藏頂部白條 */
     header[data-testid="stHeader"] { visibility: hidden; }
 
-    /* 側邊欄按鈕強化 */
+    /* 側邊欄按鈕字體提亮 */
     div[data-testid="stSidebar"] .stButton button {
         background-color: #21262d !important;
         color: #ffffff !important;
         border: 1px solid #30363d !important;
         width: 100% !important;
-        height: 45px !important;
         font-weight: bold !important;
     }
     
-    /* 文字顏色鎖定 */
-    h1, h2, h3, h4, h5, p, span, label, small {
-        color: #ffffff !important;
-    }
-
-    /* 搜尋與輸入框 */
+    /* 文字與搜尋框 */
+    h1, h2, h3, h4, h5, p, span, label, small { color: #ffffff !important; }
     .stTextInput input {
         background-color: #161b22 !important;
         color: #ffffff !important;
         border: 1px solid #30363d !important;
     }
 
-    /* ✨ 關鍵修復：保留斷行排版 (white-space) */
+    /* ✨【換行核心修復】✨ */
     .step-content-box {
         color: #ffffff !important;
         font-size: 15px !important;
-        line-height: 1.7 !important;
-        white-space: pre-wrap !important; /* 確保顯示 \n 換行 */
+        line-height: 1.8 !important;
+        /* 這裡是關鍵：white-space 設為 pre-wrap 才能讓換行生效 */
+        white-space: pre-wrap !important; 
+        word-wrap: break-word !important;
         background: #1c2128;
         padding: 15px;
         border-radius: 10px;
         margin-top: 8px;
         border: 1px solid #30363d;
+        font-family: sans-serif !important;
     }
 
     .step-item { 
@@ -85,22 +81,12 @@ st.markdown("""
         padding-left: 20px;
         margin-bottom: 30px;
     }
-    
     .location-tag {
         background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; 
         font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px;
     }
-
-    .author-tag { 
-        font-size: 11px; color: #4CAF50 !important; background: rgba(76, 175, 80, 0.15); 
-        padding: 3px 12px; border-radius: 12px; margin-left: 8px; border: 1.5px solid #4CAF50;
-    }
-
-    .view-btn {
-        display: inline-block; padding: 6px 16px; background-color: #238636;
-        color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;
-    }
-    
+    .author-tag { font-size: 11px; color: #4CAF50 !important; background: rgba(76, 175, 80, 0.15); border-radius: 12px; padding: 3px 12px; border: 1.5px solid #4CAF50; }
+    .view-btn { display: inline-block; padding: 6px 16px; background-color: #238636; color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
     footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
@@ -124,7 +110,6 @@ with st.sidebar:
     if st.button("💾 儲存資訊至網址"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
         st.success("✅ 已儲存！")
-        st.balloons()
     if st.button("🔄 強制更新數據"):
         st.cache_data.clear()
         st.rerun()
@@ -171,15 +156,7 @@ if tr_url and tr_user and tr_pw:
         all_cases, path_map, user_map, sync_time, project_name = data
     
     if all_cases:
-        st.markdown(f"""
-            <div class="location-tag">
-                📍 <b>Project：</b><span style="color:#58a6ff; font-weight:bold;">{project_name}</span> 
-                <span style="color:#444c56; margin: 0 10px;">|</span> 
-                <b>Suite：</b>#{suite_id}
-            </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("##### 🔍 支援繁體 / 簡體 / 英文 跨語言搜尋")
+        st.markdown(f'<div class="location-tag">📍 <b>Project：</b><span style="color:#58a6ff; font-weight:bold;">{project_name}</span> | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
         query = st.text_input("搜尋內容:", placeholder="請輸入關鍵字或 #ID")
 
         if query:
@@ -199,15 +176,17 @@ if tr_url and tr_user and tr_pw:
                     
                     with st.expander("🔽 查看測試步驟"):
                         raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
-                        
                         if isinstance(raw_steps, list) and len(raw_steps) > 0:
                             for i, s in enumerate(raw_steps, 1):
+                                # 這裡使用 clean_html_with_breaks 確保內部的換行符號被保留
+                                step_txt = clean_html_with_breaks(s.get('content', s.get('step', '')))
+                                exp_txt = clean_html_with_breaks(s.get('expected', ''))
                                 st.markdown(f"""
                                     <div class="step-item">
                                         <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
-                                        <div class="step-content-box">{clean_html_with_breaks(s.get('content', s.get('step', '')))}</div>
+                                        <div class="step-content-box">{step_txt}</div>
                                         <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
-                                        <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html_with_breaks(s.get('expected', ''))}</div>
+                                        <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{exp_txt}</div>
                                     </div>
                                 """, unsafe_allow_html=True)
                         elif isinstance(raw_steps, str) and raw_steps.strip():
