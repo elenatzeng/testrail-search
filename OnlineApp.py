@@ -3,13 +3,18 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 工具函式 ---
-def clean_html(raw_html):
+# --- 1. 工具函式：優化版 HTML 清理 (保留換行) ---
+def clean_html_keep_breaks(raw_html):
     if not raw_html: return ""
+    # 將常見的換行標籤替換為標準換行符 \n
+    text = str(raw_html)
+    text = re.sub(r'<(br|/div|/p)>', '\n', text) 
+    # 移除剩餘的 HTML 標籤
     cleanr = re.compile('<.*?>')
-    cleantext = re.sub(cleanr, '', str(raw_html))
-    cleantext = cleantext.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
-    return cleantext.strip()
+    text = re.sub(cleanr, '', text)
+    # 處理特殊符號
+    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
+    return text.strip()
 
 # --- 2. 三語搜尋字典 ---
 def multi_lang_search(text):
@@ -25,59 +30,59 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：深度鎖定 CSS ---
+# --- 3. UI 視覺風格：強制鎖定深色模式 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
-    /* 1. 全域背景染黑 */
+    /* 強制全域深色背景 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
         background-color: #0b0e14 !important;
     }
 
-    /* 2. 隱藏頂部白條 */
-    header[data-testid="stHeader"] {
-        background: rgba(0,0,0,0) !important;
-        height: 0px;
-    }
-    
-    /* 3. ✨ 側邊欄按鈕：強制亮色背景 + 黑字 (終極解決方案) ✨ */
-    /* 這裡使用了更長的選擇路徑來提高權重 */
+    /* 隱藏頂部白條 */
+    header[data-testid="stHeader"] { visibility: hidden; }
+
+    /* 側邊欄按鈕：深灰背景 + 白字 (高對比) */
     div[data-testid="stSidebar"] .stButton button {
-        background-color: #4CAF50 !important; /* 亮綠色背景 */
-        border: 1px solid #4CAF50 !important;
-        width: 100%;
-        height: 48px;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        background-color: #21262d !important;
+        color: #ffffff !important;
+        border: 1px solid #30363d !important;
+        width: 100% !important;
+        height: 45px !important;
+        font-weight: bold !important;
     }
     
-    /* 強制按鈕內的文字：純黑色 + 粗體 */
-    div[data-testid="stSidebar"] .stButton button p,
-    div[data-testid="stSidebar"] .stButton button div,
-    div[data-testid="stSidebar"] .stButton button span {
-        color: #000000 !important; 
-        font-weight: 900 !important; 
-        font-size: 15px !important;
-        opacity: 1 !important; /* 防止日間模式自動變透明 */
-    }
-    
-    div[data-testid="stSidebar"] .stButton button:hover {
-        background-color: #66bb6a !important;
-        border-color: #ffffff !important;
+    /* 文字顏色鎖定 */
+    h1, h2, h3, h4, h5, p, span, label, small {
+        color: #ffffff !important;
     }
 
-    /* 4. 輸入框與文字顯色 */
+    /* 搜尋與輸入框 */
     .stTextInput input, .stNumberInput input {
         background-color: #161b22 !important;
         color: #ffffff !important;
         border: 1px solid #30363d !important;
     }
-    .stMarkdown, p, span, label, h1, h2, h3, h4, h5 {
+
+    /* 步驟顯示核心：保留斷行符號 (white-space: pre-line) */
+    .step-content-box {
         color: #ffffff !important;
+        font-size: 15px !important;
+        line-height: 1.6 !important;
+        white-space: pre-line !important; /* 重要：這行負責處理換行 */
+        background: #161b22;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 5px;
+    }
+
+    .step-item { 
+        border-left: 5px solid #4CAF50;
+        padding-left: 15px;
+        margin-bottom: 20px;
     }
     
-    /* 5. 位置標籤 (Status Bar) */
     .location-tag {
         background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; 
         font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px;
@@ -86,26 +91,18 @@ st.markdown("""
     .author-tag { 
         font-size: 11px; color: #4CAF50 !important; background: rgba(76, 175, 80, 0.15); 
         padding: 3px 12px; border-radius: 12px; margin-left: 8px; border: 1.5px solid #4CAF50;
-        display: inline-block; vertical-align: middle;
     }
 
     .view-btn {
         display: inline-block; padding: 6px 16px; background-color: #238636;
         color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold;
     }
-
-    .step-item { 
-        background: #161b22 !important; padding: 18px; border-radius: 10px; margin-bottom: 15px; 
-        border-left: 6px solid #4CAF50; border: 1px solid #30363d;
-    }
-    .step-title { color: #79c0ff !important; font-size: 15px; font-weight: 800; margin-bottom: 6px; display: block; }
-    .step-content { color: #ffffff !important; font-size: 15px; font-weight: 500; line-height: 1.6; }
     
     footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 讀取與儲存參數 ---
+# --- 4. 參數處理 ---
 q = st.query_params
 init_url = q.get("url", st.secrets.get("TR_URL", ""))
 init_user = q.get("user", st.secrets.get("TR_USER", ""))
@@ -121,7 +118,6 @@ with st.sidebar:
     project_id = st.number_input("Project ID", value=init_pid)
     suite_id = st.number_input("Suite ID", value=init_sid)
     st.markdown("---")
-    # 這裡的按鈕字體透過 CSS 強制顯色
     if st.button("💾 儲存資訊至網址 (Save to URL)"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
         st.success("✅ 已儲存！")
@@ -167,7 +163,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
-    with st.spinner("🚀 同步數據中..."):
+    with st.spinner("🚀 正在同步最新數據..."):
         data = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
         all_cases, path_map, user_map, sync_time, project_name = data
     
@@ -181,7 +177,7 @@ if tr_url and tr_user and tr_pw:
         """, unsafe_allow_html=True)
 
         st.markdown("##### 🔍 支援繁體 / 簡體 / 英文 跨語言搜尋")
-        query = st.text_input("搜尋內容 (Search Content):", placeholder="請輸入關鍵字（支援繁簡英自動轉換）或 #ID")
+        query = st.text_input("搜尋內容 (Search Content):", placeholder="請輸入關鍵字（支援繁簡英）或 #ID")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
@@ -191,21 +187,30 @@ if tr_url and tr_user and tr_pw:
             if results:
                 st.write(f"### 🎯 找到 {len(results)} 個案例")
                 for item in results:
-                    cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"ID_{item.get('created_by')}")
+                    cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
                     with st.container():
                         st.markdown(f'<span style="font-size:12px; color:#8b949e !important;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
                         col_t, col_b = st.columns([7, 1.5])
                         with col_t:
-                            st.markdown(f'<div style="font-size:16px; color:#ffffff !important; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag">👤 {author}</span></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag">👤 {author}</span></div>', unsafe_allow_html=True)
                         with col_b:
                             st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
+                        
                         with st.expander("🔽 查看測試步驟"):
                             raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
+                            
                             if isinstance(raw_steps, list) and len(raw_steps) > 0:
                                 for i, s in enumerate(raw_steps, 1):
-                                    st.markdown(f"""<div class="step-item"><span class="step-title">Step {i}:</span><div class="step-content">{clean_html(s.get('content', s.get('step', '')))}</div><div style="color:#c9d1d9; font-size:14px; margin-top:10px; padding-top:10px; border-top:1px solid #30363d;"><span style="color:#8b949e; font-weight:bold;">Expected:</span>{clean_html(s.get('expected', ''))}</div></div>""", unsafe_allow_html=True)
+                                    st.markdown(f"""
+                                        <div class="step-item">
+                                            <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
+                                            <div class="step-content-box">{clean_html_keep_breaks(s.get('content', s.get('step', '')))}</div>
+                                            <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
+                                            <div class="step-content-box" style="border-left: 2px solid #30363d;">{clean_html_keep_breaks(s.get('expected', ''))}</div>
+                                        </div>
+                                    """, unsafe_allow_html=True)
                             elif isinstance(raw_steps, str) and raw_steps.strip():
-                                st.markdown(f"""<div class="step-item"><div class="step-content">{clean_html(raw_steps)}</div></div>""", unsafe_allow_html=True)
+                                st.markdown(f'<div class="step-content-box">{clean_html_keep_breaks(raw_steps)}</div>', unsafe_allow_html=True)
                             else:
                                 st.info("無步驟資料。")
                         st.markdown("---")
