@@ -3,24 +3,17 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 工具函式：深度修復斷行與條列式 ---
-def clean_html_with_breaks(raw_html):
+# --- 1. 工具函式：掃除 HTML，保留標準換行 ---
+def clean_html_basic(raw_html):
     if not raw_html: return ""
     text = str(raw_html)
-    
-    # 步驟 A: 將所有可能代表「換行」的標籤轉為標準換行符 \n
-    # 包含 <br>, <div>, <p>, 以及條列式的 <li>
-    text = re.sub(r'<(br\s*/?|/div|/p|li|/li)>', '\n', text) 
-    
-    # 步驟 B: 移除剩下的 HTML 標籤
+    # 將 br 標籤轉為換行
+    text = re.sub(r'<(br\s*/?)>', '\n', text)
+    # 掃除其餘標籤
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
-    
-    # 步驟 C: 處理 HTML 轉義符號 (如 &nbsp;)
+    # 處理符號
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
-    
-    # 步驟 D: 移除過多的重複換行，保持美觀
-    text = re.sub(r'\n\s*\n', '\n', text)
     return text.strip()
 
 # --- 2. 三語搜尋字典 ---
@@ -37,12 +30,12 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：鎖定 Dark Mode 與 強制換行 ---
+# --- 3. UI 視覺風格：鎖定 Dark Mode ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
-    /* 全域深色背景鎖定 */
+    /* 強制全域深色背景鎖定 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
         background-color: #0b0e14 !important;
     }
@@ -66,21 +59,38 @@ st.markdown("""
         border: 1px solid #30363d !important;
     }
 
-    /* ✨【換行與條列式核心修復】✨ */
+    /* ✨【條列式核心修復】✨ */
     .step-content-box {
         color: #ffffff !important;
         font-size: 15px !important;
-        line-height: 1.7 !important;
-        /* 關鍵：pre-wrap 會保留文字中的 \n 換行符號 */
-        white-space: pre-wrap !important; 
-        word-wrap: break-word !important;
+        line-height: 1.8 !important;
+        white-space: pre-wrap !important; /* 保留換行 */
         background: #1c2128;
         padding: 15px;
         border-radius: 10px;
         margin-top: 5px;
         border: 1px solid #30363d;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+        font-family: "Segoe UI", Tahoma, sans-serif !important;
     }
+    
+    /* 人工條列式樣式 (1., 2., 3.) */
+    .numbered-list {
+        margin: 0; padding: 0; list-style: none;
+    }
+    .numbered-list li {
+        position: relative;
+        padding-left: 30px; /* 給數字留空間 */
+        margin-bottom: 10px;
+    }
+    .numbered-list li::before {
+        content: counter(item) ". ";
+        counter-increment: item;
+        position: absolute;
+        left: 0;
+        color: #79c0ff; /* 數字顏色 */
+        font-weight: bold;
+    }
+    .numbered-list { counter-reset: item; }
 
     .step-item { 
         border-left: 5px solid #4CAF50;
@@ -170,32 +180,46 @@ if tr_url and tr_user and tr_pw:
             search_terms = multi_lang_search(query)
             results = [c for c in all_cases if any(t in c.get('title','').lower() or t in path_map.get(c.get('section_id'),"").lower() for t in search_terms) or (query.strip('#') == str(c.get('id','')))]
             
-            for item in results:
-                cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
-                with st.container():
-                    st.markdown(f'<span style="font-size:12px; color:#8b949e !important;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
-                    col_t, col_b = st.columns([7, 1.5])
-                    with col_t:
-                        st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag">👤 {author}</span></div>', unsafe_allow_html=True)
-                    with col_b:
-                        st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
-                    
-                    with st.expander("🔽 查看測試步驟"):
-                        raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
-                        if isinstance(raw_steps, list) and len(raw_steps) > 0:
-                            for i, s in enumerate(raw_steps, 1):
-                                st.markdown(f"""
-                                    <div class="step-item">
-                                        <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
-                                        <div class="step-content-box">{clean_html_with_breaks(s.get('content', s.get('step', '')))}</div>
-                                        <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
-                                        <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html_with_breaks(s.get('expected', ''))}</div>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                        elif isinstance(raw_steps, str) and raw_steps.strip():
-                            st.markdown(f'<div class="step-content-box">{clean_html_with_breaks(raw_steps)}</div>', unsafe_allow_html=True)
-                        else:
-                            st.info("無步驟資料。")
+            if results:
+                st.write(f"### 🎯 找到 {len(results)} 個案例")
+                for item in results:
+                    cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
+                    with st.container():
+                        st.markdown(f'<span style="font-size:12px; color:#8b949e !important;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
+                        col_t, col_b = st.columns([7, 1.5])
+                        with col_t:
+                            st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag">👤 {author}</span></div>', unsafe_allow_html=True)
+                        with col_b:
+                            st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
+                        
+                        with st.expander("🔽 查看測試步驟"):
+                            raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
+                            if isinstance(raw_steps, list) and len(raw_steps) > 0:
+                                for i, s in enumerate(raw_steps, 1):
+                                    # ✨核心修復：清理 HTML，並使用 split('\n') 將內容切成陣列
+                                    content_raw = clean_html_basic(s.get('content', s.get('step', '')))
+                                    expected_raw = clean_html_basic(s.get('expected', ''))
+                                    
+                                    # 將內容按換行符切開，移除空行
+                                    content_lines = [line for line in content_raw.split('\n') if line.strip()]
+                                    expected_lines = [line for line in expected_raw.split('\n') if line.strip()]
+                                    
+                                    # 人工組裝條列式 HTML
+                                    content_html = "<ol class='numbered-list'>" + "".join([f"li>{line}</li>" for line in content_lines]) + "</ol>"
+                                    expected_html = "<ol class='numbered-list'>" + "".join([f"li>{line}</li>" for line in expected_lines]) + "</ol>"
+
+                                    st.markdown(f"""
+                                        <div class="step-item">
+                                            <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
+                                            <div class="step-content-box">{content_html}</div>
+                                            <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
+                                            <div class="step-content-box" style="border-left: 2px solid #30363d;">{expected_html}</div>
+                                        </div>
+                                    """, unsafe_allow_html=True)
+                            elif isinstance(raw_steps, str) and raw_steps.strip():
+                                st.markdown(f'<div class="step-content-box">{clean_html_basic(raw_steps)}</div>', unsafe_allow_html=True)
+                            else:
+                                st.info("無步驟資料。")
                     st.markdown("---")
 else:
     st.warning("👈 請輸入連線資訊。")
