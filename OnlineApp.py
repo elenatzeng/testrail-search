@@ -3,35 +3,25 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 核心邏輯：修復條列式並自動補上數字 (解決 1. 2. 3. 消失與斷行問題) ---
+# --- 1. 核心邏輯：修復條列式數字 (找回 1. 2. 3.) ---
 def clean_html_and_add_numbers(raw_html):
     if not raw_html: return ""
     text = str(raw_html)
-    
-    # 步驟 A: 預處理 HTML 換行標籤，確保轉為 \n
     text = text.replace('<li>', '\n')
     text = re.sub(r'<(br\s*/?|/div|/p|/li)>', '\n', text) 
-    
-    # 步驟 B: 掃除所有 HTML 標籤
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
-    
-    # 步驟 C: 處理轉義符號 (如 &nbsp; 等)
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
-    
-    # 步驟 D: 重新組裝數字條列
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     numbered_lines = []
     for index, line in enumerate(lines, 1):
-        # 判斷是否已有數字開頭 (1. 或 1、)，若無則人工補上
         if not re.match(r'^\d+[\.\、]', line):
             numbered_lines.append(f"{index}. {line}")
         else:
             numbered_lines.append(line)
-            
     return "\n".join(numbered_lines)
 
-# --- 2. 三語聯想搜尋字典 ---
+# --- 2. 三語聯想搜尋 ---
 def multi_lang_search(text):
     dictionary = [
         ["登入", "登录", "login", "auth", "sign in"],
@@ -48,30 +38,34 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：鎖定深色模式 + 修復側邊欄隱形箭頭 ---
+# --- 3. UI 視覺風格：【全方位強制鎖死深色模式】 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
-    /* 1. 全域背景染黑 */
+    /* 🌑 強制鎖定全域背景：這行是關鍵，!important 確保它不被主題切換覆蓋 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
         background-color: #0b0e14 !important;
     }
 
-    /* 2. ✨核心修復：讓頂部 Header 透明，但保留「展開箭頭」按鈕✨ */
+    /* 🌕 強制鎖定文字顏色：確保背景變白時字不會隱身 */
+    h1, h2, h3, h4, h5, p, span, label, small, .stMarkdown {
+        color: #ffffff !important;
+    }
+
+    /* 頂部 Header 透明化，但保留箭頭 */
     header[data-testid="stHeader"] {
         background: rgba(0,0,0,0) !important;
-        color: white !important;
     }
     
-    /* 強制讓側邊欄切換箭頭 (Toggle) 顯示為白色，確保縮小後能看見 */
+    /* 側邊欄展開箭頭 (白色提亮) */
     button[data-testid="baseButton-headerNoPadding"] {
         color: white !important;
         background-color: rgba(255,255,255,0.1) !important;
         border-radius: 50% !important;
     }
 
-    /* 3. 側邊欄按鈕強化 (亮色背景 + 黑字) */
+    /* 側邊欄按鈕：高對比白底黑字 */
     div[data-testid="stSidebar"] .stButton button {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -79,15 +73,10 @@ st.markdown("""
         width: 100% !important;
         height: 45px !important;
         font-weight: 800 !important;
-        transition: all 0.3s;
     }
     div[data-testid="stSidebar"] .stButton button p { color: #000000 !important; }
-    div[data-testid="stSidebar"] .stButton button:hover {
-        background-color: #f0f0f0 !important;
-        transform: scale(1.02);
-    }
 
-    /* 4. 內容顯示區塊 (尊重斷行與條列) */
+    /* 步驟顯示區塊 */
     .step-content-box {
         color: #ffffff !important;
         font-size: 15px !important;
@@ -106,7 +95,6 @@ st.markdown("""
         margin-bottom: 30px;
     }
     
-    h1, h2, h3, h4, h5, p, span, label, small { color: #ffffff !important; }
     .stTextInput input { background-color: #161b22 !important; color: #ffffff !important; border: 1px solid #30363d !important; }
     .location-tag { background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px; }
     .author-tag { font-size: 11px; color: #4CAF50 !important; background: rgba(76, 175, 80, 0.15); border-radius: 12px; padding: 3px 12px; border: 1.5px solid #4CAF50; }
@@ -116,7 +104,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 參數讀取與儲存 (URL 參數功能) ---
+# --- 4. 參數處理 ---
 q = st.query_params
 init_url = q.get("url", st.secrets.get("TR_URL", ""))
 init_user = q.get("user", st.secrets.get("TR_USER", ""))
@@ -132,15 +120,15 @@ with st.sidebar:
     project_id = st.number_input("Project ID", value=init_pid)
     suite_id = st.number_input("Suite ID", value=init_sid)
     st.markdown("---")
-    if st.button("💾 儲存資訊至網址 (Save to URL)"):
+    if st.button("💾 儲存資訊至網址"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
-        st.success("✅ 已儲存至網址！請將此頁存為書籤方便下次使用。")
+        st.success("✅ 已儲存至網址！")
         st.balloons()
-    if st.button("🔄 強制更新數據 (Force Sync)"):
+    if st.button("🔄 強制更新數據"):
         st.cache_data.clear()
         st.rerun()
 
-# --- 5. 數據抓取函式 ---
+# --- 5. 數據抓取 ---
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
@@ -177,7 +165,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
-    with st.spinner("🚀 正在同步 TestRail 最新數據..."):
+    with st.spinner("🚀 數據同步中..."):
         data = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
         all_cases, path_map, user_map, sync_time, project_name = data
     
@@ -220,7 +208,5 @@ if tr_url and tr_user and tr_pw:
                             else:
                                 st.info("此案例無詳細步驟。")
                         st.markdown("---")
-            else:
-                st.info("查無結果，請嘗試其他關鍵字。")
 else:
-    st.warning("👈 請在左側輸入連線資訊開始使用。")
+    st.warning("👈 請在左側輸入連線資訊。")
