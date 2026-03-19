@@ -3,23 +3,27 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# --- 1. 工具函式：強化換行處理 ---
+# --- 1. 工具函式：深度修復斷行與條列式 ---
 def clean_html_with_breaks(raw_html):
     if not raw_html: return ""
-    # 步驟 A: 強制把內容轉成字串，並處理 HTML 換行標籤
     text = str(raw_html)
-    # 這裡多加了一些可能的換行標籤處理
-    text = re.sub(r'<(br\s*/?|/div|/p|li)>', '\n', text) 
     
-    # 步驟 B: 移除剩下的標籤
+    # 步驟 A: 將所有可能代表「換行」的標籤轉為標準換行符 \n
+    # 包含 <br>, <div>, <p>, 以及條列式的 <li>
+    text = re.sub(r'<(br\s*/?|/div|/p|li|/li)>', '\n', text) 
+    
+    # 步驟 B: 移除剩下的 HTML 標籤
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
     
-    # 步驟 C: 處理轉義符號
+    # 步驟 C: 處理 HTML 轉義符號 (如 &nbsp;)
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
+    
+    # 步驟 D: 移除過多的重複換行，保持美觀
+    text = re.sub(r'\n\s*\n', '\n', text)
     return text.strip()
 
-# --- 2. 搜尋字典 ---
+# --- 2. 三語搜尋字典 ---
 def multi_lang_search(text):
     dictionary = [
         ["登入", "登录", "login", "auth"], ["註冊", "注册", "register"],
@@ -33,26 +37,28 @@ def multi_lang_search(text):
             related_words.extend([g.lower() for g in group])
     return list(set(related_words))
 
-# --- 3. UI 視覺風格：鎖定 Dark Mode 與 換行排版 ---
+# --- 3. UI 視覺風格：鎖定 Dark Mode 與 強制換行 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
     <style>
+    /* 全域深色背景鎖定 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
         background-color: #0b0e14 !important;
     }
     header[data-testid="stHeader"] { visibility: hidden; }
 
-    /* 側邊欄按鈕字體提亮 */
+    /* 側邊欄按鈕強化 */
     div[data-testid="stSidebar"] .stButton button {
         background-color: #21262d !important;
         color: #ffffff !important;
         border: 1px solid #30363d !important;
         width: 100% !important;
+        height: 45px !important;
         font-weight: bold !important;
     }
     
-    /* 文字與搜尋框 */
+    /* 文字與輸入框顏色 */
     h1, h2, h3, h4, h5, p, span, label, small { color: #ffffff !important; }
     .stTextInput input {
         background-color: #161b22 !important;
@@ -60,26 +66,26 @@ st.markdown("""
         border: 1px solid #30363d !important;
     }
 
-    /* ✨【換行核心修復】✨ */
+    /* ✨【換行與條列式核心修復】✨ */
     .step-content-box {
         color: #ffffff !important;
         font-size: 15px !important;
-        line-height: 1.8 !important;
-        /* 這裡是關鍵：white-space 設為 pre-wrap 才能讓換行生效 */
+        line-height: 1.7 !important;
+        /* 關鍵：pre-wrap 會保留文字中的 \n 換行符號 */
         white-space: pre-wrap !important; 
         word-wrap: break-word !important;
         background: #1c2128;
         padding: 15px;
         border-radius: 10px;
-        margin-top: 8px;
+        margin-top: 5px;
         border: 1px solid #30363d;
-        font-family: sans-serif !important;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
     }
 
     .step-item { 
         border-left: 5px solid #4CAF50;
         padding-left: 20px;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
     }
     .location-tag {
         background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; 
@@ -151,13 +157,13 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
-    with st.spinner("🚀 正在同步數據..."):
+    with st.spinner("🚀 同步數據中..."):
         data = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
         all_cases, path_map, user_map, sync_time, project_name = data
     
     if all_cases:
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b><span style="color:#58a6ff; font-weight:bold;">{project_name}</span> | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("搜尋內容:", placeholder="請輸入關鍵字或 #ID")
+        query = st.text_input("搜尋內容:", placeholder="請輸入關鍵字（支援繁簡英）或 #ID")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
@@ -178,15 +184,12 @@ if tr_url and tr_user and tr_pw:
                         raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
                         if isinstance(raw_steps, list) and len(raw_steps) > 0:
                             for i, s in enumerate(raw_steps, 1):
-                                # 這裡使用 clean_html_with_breaks 確保內部的換行符號被保留
-                                step_txt = clean_html_with_breaks(s.get('content', s.get('step', '')))
-                                exp_txt = clean_html_with_breaks(s.get('expected', ''))
                                 st.markdown(f"""
                                     <div class="step-item">
                                         <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
-                                        <div class="step-content-box">{step_txt}</div>
+                                        <div class="step-content-box">{clean_html_with_breaks(s.get('content', s.get('step', '')))}</div>
                                         <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
-                                        <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{exp_txt}</div>
+                                        <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html_with_breaks(s.get('expected', ''))}</div>
                                     </div>
                                 """, unsafe_allow_html=True)
                         elif isinstance(raw_steps, str) and raw_steps.strip():
