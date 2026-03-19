@@ -34,8 +34,8 @@ def multi_lang_search(text):
         ["提現", "提现", "withdraw", "payout"],
         ["帳號", "账号", "account", "user"],
         ["錢包", "钱包", "wallet", "balance"],
-        ["訂單", "订单", "order", "history"]
-        ["免费旋转", "免费旋转", "free Spin"]
+        ["訂單", "订单", "order", "history"],
+        ["免费旋转", "免费旋转", "free Spin"],
         ["免费筹码", "免费筹码", "free Chip"]
     ]
     text_lower = text.lower().strip()
