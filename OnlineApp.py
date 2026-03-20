@@ -4,7 +4,7 @@ import time
 import re
 
 # ======================================================================================
-# ✨ 1. 外部檔案引入 (預防找不到檔案的機制)
+# ✨ 1. 外部檔案引入
 # ======================================================================================
 try:
     from keywords import SEARCH_DICTIONARY
@@ -22,7 +22,6 @@ except ImportError:
 # ======================================================================================
 
 def clean_html_and_add_numbers(raw_html):
-    """清理 TestRail HTML 標籤並加上步驟編號"""
     if not raw_html: return "（無詳細步驟）"
     text = str(raw_html)
     text = text.replace('<li>', '\n')
@@ -37,7 +36,6 @@ def clean_html_and_add_numbers(raw_html):
     return "\n".join(numbered_lines)
 
 def multi_lang_search(text):
-    """三語聯想搜尋核心"""
     text_lower = text.lower().strip()
     related_words = {text_lower}
     for group in SEARCH_DICTIONARY:
@@ -46,46 +44,54 @@ def multi_lang_search(text):
             related_words.update(group_lower)
     return list(related_words)
 
-# 🚀 強效清除函數：在按鈕點擊時優先執行
 def clear_search_action():
     if "search_box" in st.session_state:
-        st.session_state["search_box"] = ""  # 清空 Widget 內容
-    st.session_state.query_text = ""        # 清空邏輯變數
+        st.session_state["search_box"] = ""
+    st.session_state.query_text = ""
 
 # ======================================================================================
 # 🎨 3. UI 視覺風格配置
 # ======================================================================================
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
+# 移除 Header 樣式保留側邊欄摺疊功能
 st.markdown("""
     <style>
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div { background-color: #0b0e14 !important; }
     h1, h2, h3, h4, h5, p, span, label, small, .stMarkdown { color: #ffffff !important; }
-    [data-testid="stHeader"], [data-testid="stTopBar"], div[data-testid="stMainMenu"] { display: none !important; visibility: hidden !important; }
-    [data-testid="stSidebarCollapse"] { top: 10px !important; left: 10px !important; position: fixed !important; z-index: 1000001 !important; color: white !important; background-color: rgba(255,255,255,0.1) !important; border-radius: 50% !important; }
-    div[data-testid="stSidebar"] .stButton button { background-color: #ffffff !important; color: #000000 !important; border: 1px solid #ffffff !important; width: 100% !important; height: 45px !important; font-weight: 800 !important; }
-    div[data-testid="stSidebar"] .stButton button p { color: #000000 !important; }
-    .step-content-box { color: #ffffff !important; font-size: 15px !important; line-height: 1.8 !important; white-space: pre-wrap !important; background: #1c2128; padding: 15px; border-radius: 10px; margin-top: 8px; border: 1px solid #30363d; }
+    [data-testid="stHeader"], [data-testid="stTopBar"] { display: none !important; }
+    div[data-testid="stSidebar"] .stButton button { background-color: #ffffff !important; color: #000000 !important; width: 100% !important; font-weight: 800 !important; }
+    .step-content-box { color: #ffffff !important; background: #1c2128; padding: 15px; border-radius: 10px; border: 1px solid #30363d; }
     .step-item { border-left: 5px solid #4CAF50; padding-left: 20px; margin-bottom: 30px; }
-    .stTextInput input { background-color: #161b22 !important; color: #ffffff !important; border: 1px solid #30363d !important; }
-    .location-tag { background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px; }
+    .location-tag { background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px; }
     .author-tag { font-size: 11px; border-radius: 12px; padding: 3px 12px; display: inline-block; margin-left: 10px; font-weight: bold; }
     .view-btn { display: inline-block; padding: 6px 16px; background-color: #238636; color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
-    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
 # ======================================================================================
-# 🔐 4. 側邊欄配置
+# 🔐 4. 側邊欄配置 (強化記憶邏輯)
 # ======================================================================================
 with st.sidebar:
     st.header("🔐 連線設定")
-    tr_url = st.text_input("TestRail URL", value=st.query_params.get("url", ""))
-    tr_user = st.text_input("帳號 Email", value=st.query_params.get("user", ""))
-    tr_pw = st.text_input("API Key", type="password", value=st.query_params.get("pw", ""))
-    project_id = st.number_input("Project ID", value=int(st.query_params.get("pid", 1)))
-    suite_id = st.number_input("Suite ID", value=int(st.query_params.get("sid", 1)))
     
+    # 💡 記憶邏輯：優先從網址讀取，沒有就看 session_state，都沒有就空字串
+    def get_val(key, default=""):
+        return st.query_params.get(key, st.session_state.get(f"store_{key}", default))
+
+    tr_url = st.text_input("TestRail URL", value=get_val("url"), key="input_url")
+    tr_user = st.text_input("帳號 Email", value=get_val("user"), key="input_user")
+    tr_pw = st.text_input("API Key", type="password", value=get_val("pw"), key="input_pw")
+    project_id = st.number_input("Project ID", value=int(get_val("pid", "1")), key="input_pid")
+    suite_id = st.number_input("Suite ID", value=int(get_val("sid", "1")), key="input_sid")
+    
+    # 將輸入暫存在 Session
+    st.session_state.store_url = tr_url
+    st.session_state.store_user = tr_user
+    st.session_state.store_pw = tr_pw
+    st.session_state.store_pid = str(project_id)
+    st.session_state.store_sid = str(suite_id)
+
     if st.button("💾 儲存資訊至網址"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
         st.success("✅ 儲存成功！")
@@ -144,24 +150,15 @@ if tr_url and tr_user and tr_pw:
         data_container.empty()
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
         
-        # 🚀 佈局優化
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2])
-        
-        if "query_text" not in st.session_state:
-            st.session_state.query_text = ""
+        if "query_text" not in st.session_state: st.session_state.query_text = ""
 
         with col_search:
-            # 綁定 key="search_box"
-            query = st.text_input(
-                "🔍 搜尋內容 (輸入關鍵字查詢：支援繁體簡體與英文):", 
-                placeholder="多關鍵字請以空格分隔 (交集搜尋)",
-                key="search_box"
-            )
+            query = st.text_input("🔍 搜尋內容 (輸入關鍵字):", placeholder="多關鍵字請以空格分隔 (交集搜尋)", key="search_box")
             st.session_state.query_text = query
 
         with col_clear:
             st.markdown('<p style="margin-bottom: 28px;"></p>', unsafe_allow_html=True) 
-            # 使用 on_click 回調函數徹底清除 Session State
             if st.button("🗑️ 清除條件", use_container_width=True, on_click=clear_search_action):
                 st.rerun()
 
@@ -171,22 +168,18 @@ if tr_url and tr_user and tr_pw:
                 st.rerun()
 
         final_query = st.session_state.query_text
-
         if final_query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             raw_input_terms = final_query.strip().split()
             scored_results = []
-            
             for c in all_cases:
                 cid, title = str(c.get('id', '')), c.get('title', '').lower()
                 section_path = path_map.get(c.get('section_id'), "").lower()
                 full_text = str(c).lower()
-                
                 is_all_match, combined_score = True, 0
                 for term in raw_input_terms:
                     expanded_terms = multi_lang_search(term)
                     match_this_term = False
-                    
                     if term.strip('#') == cid:
                         combined_score += 100000
                         match_this_term = True
@@ -199,31 +192,22 @@ if tr_url and tr_user and tr_pw:
                     elif any(et in full_text for et in expanded_terms):
                         combined_score += 1000
                         match_this_term = True
-                    
                     if not match_this_term:
                         is_all_match = False
                         break
-                
                 if is_all_match:
                     author_id = c.get('created_by')
                     u_info = USER_CONFIG.get(author_id, DEFAULT_CONFIG)
                     raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
-                    steps_count = len(raw_steps) if isinstance(raw_steps, list) else 0
-                    content_len = len(str(raw_steps))
-                    
-                    score = combined_score + (steps_count * 500) + (content_len // 10) + u_info.get("weight", 0)
+                    score = combined_score + (len(raw_steps) * 500) + u_info.get("weight", 0)
                     if not u_info.get("is_active", True): score -= 45000
-                    if steps_count == 0 or content_len < 15: score -= 40000 
                     scored_results.append((score, c, u_info))
-
             scored_results.sort(key=lambda x: x[0], reverse=True)
-            
             if scored_results:
                 st.write(f"### 🎯 找到 {len(scored_results)} 個案例")
                 for _, item, u_info in scored_results:
                     cid = str(item.get('id'))
                     status_emoji, author_style = ("🟢", "color: #4CAF50; background: rgba(76, 175, 80, 0.15); border: 1.5px solid #4CAF50;") if u_info.get("is_active", True) else ("🔴", "color: #ff4b4b; background: rgba(255, 75, 75, 0.15); border: 1.5px solid #ff4b4b;")
-
                     with st.container():
                         st.markdown(f'<span style="font-size:12px; color:#8b949e;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
                         col_t, col_b = st.columns([7, 1.5])
