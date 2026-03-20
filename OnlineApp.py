@@ -115,12 +115,12 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         data_container.empty()
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="請輸入關鍵字，將依照關聯比率排序")
+        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="請輸入關鍵字，將依照 Section > Case 步驟關聯比率排序")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             
-            # --- ✨ 排序打分邏輯 ✨ ---
+            # --- ✨ 排序打分邏輯 (依 Elena 要求優化) ✨ ---
             query_raw = query.strip()
             query_lower = query_raw.lower()
             search_terms = multi_lang_search(query_raw)
@@ -131,25 +131,36 @@ if tr_url and tr_user and tr_pw:
                 score = 0
                 cid = str(c.get('id', ''))
                 title = c.get('title', '').lower()
+                section_path = path_map.get(c.get('section_id'), "").lower()
                 full_context = str(c).lower()
                 
-                # 1. ID 精準匹配 (權重 100)
+                # 1. ID 精準匹配 (權重最高 1000)
                 if query_lower.strip('#') == cid:
-                    score += 100
-                # 2. 標題完全包含原始輸入 (權重 80)
+                    score += 1000
+                
+                # 2. Section (目錄) 匹配 (權重次高 500)
+                # 只要 Section 路徑包含關鍵字，優先排在最前面
+                if query_lower in section_path:
+                    score += 500
+                elif any(term in section_path for term in search_terms):
+                    score += 400
+
+                # 3. Case 標題完全包含原始輸入 (權重 200)
                 if query_lower in title:
-                    score += 80
-                # 3. 字典聯想詞包含 (權重 40~60)
-                match_count = sum(1 for t in search_terms if t.lower() in title)
-                if match_count > 0:
-                    score += 40 + (match_count * 2)
-                # 4. 全文檢索/隱藏 Key (權重 30)
+                    score += 200
+                
+                # 4. 字典聯想詞出現在標題 (權重 100)
+                if any(term in title for term in search_terms):
+                    score += 100
+                
+                # 5. Case 步驟與內容包含關鍵字 (權重 50)
                 if query_lower in full_context:
-                    score += 30
-                # 5. 分詞模糊匹配 (解決長句問題)
-                word_matches = [w for w in query_words if w in title or w in full_context]
-                if word_matches:
-                    score += (len(word_matches) / len(query_words)) * 20 if query_words else 0
+                    score += 50
+
+                # 6. 分詞模糊匹配 (處理「帳號角色添加成功」這類複合搜尋)
+                if query_words:
+                    match_count = sum(1 for word in query_words if word in section_path or word in title or word in full_context)
+                    score += (match_count / len(query_words)) * 30
 
                 if score > 0:
                     scored_results.append((score, c))
@@ -164,10 +175,11 @@ if tr_url and tr_user and tr_pw:
                     seen_ids.add(item['id'])
 
             if unique_results:
-                st.write(f"### 🎯 找到 {len(unique_results)} 個案例 (已按相關度排序)")
+                st.write(f"### 🎯 找到 {len(unique_results)} 個案例 (已按 Section > 相關度排序)")
                 for item in unique_results:
                     cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
                     with st.container():
+                        # 顯示路徑
                         st.markdown(f'<span style="font-size:12px; color:#8b949e;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
                         col_t, col_b = st.columns([7, 1.5])
                         with col_t:
@@ -181,6 +193,9 @@ if tr_url and tr_user and tr_pw:
                                     st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html_and_add_numbers(s.get("content", s.get("step", "")))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html_and_add_numbers(s.get("expected", ""))}</div></div>', unsafe_allow_html=True)
                             else: st.info("無步驟資料。")
                         st.markdown("---")
-            else: st.warning("查無結果。")
-    else: st.error(f"❌ 同步失敗：{path_map}")
-else: st.warning("👈 請輸入連線資訊。")
+            else:
+                st.warning("查無結果。")
+    else:
+        st.error(f"❌ 同步失敗：{path_map}")
+else:
+    st.warning("👈 請輸入連線資訊。")
