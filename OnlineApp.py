@@ -3,6 +3,20 @@ from testrail_api import TestRailAPI
 import time
 import re
 
+# ======================================================================================
+# 🧪 TestRail 智能搜索：排序逻辑对照表 (Relevancy Ranking)
+# 
+# | 排序维度        | 规则说明 (Logic)                                  | 优先级 (Priority) |
+# | :---           | :---                                              | :---             |
+# | 1. 精准匹配     | 搜索关键字与案例 ID 完全一致 (如：#123)            | 🌟 最高          |
+# | 2. 功能路径     | 关键字命中目录名称 (Section Path)，优先聚合模块案例 | 👑 极高          |
+# | 3. 标题关联     | 关键字出现在案例标题 (Title) 中                    | 🔥 高            |
+# | 4. 内容检索     | 关键字出现在测试步骤或预期结果中                    | 📝 中            |
+# | 5. 内容完整度    | 核心指标：根据 Step 数量排序。步骤越扎实，排名越靠前 | 🚀 关键加成      |
+# | 6. 维护者权重    | 优先显示核心维护账号或标准化账号之撰写内容          | ⚖️ 微调优先      |
+# | 7. 待完善处理    | 空值筛选：侦测到无步骤或内容过少，排序自动往后移    | ⚠️ 后置处理      |
+# ======================================================================================
+
 # ✨ 引入字典與「獨立」的使用者管理名單
 try:
     from keywords import SEARCH_DICTIONARY
@@ -124,49 +138,75 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         data_container.empty()
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="支援多關鍵字搜尋，請以空格分隔")
+        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="多關鍵字請以空格分隔 (交集搜尋)")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             
-            # 🚀 多關鍵字拆分與字典連動
+            # 🚀 1. 拆分原始輸入關鍵字 (例如: "充值 失敗")
             raw_input_terms = query.strip().split()
-            all_search_terms = []
-            for t in raw_input_terms:
-                all_search_terms.extend(multi_lang_search(t))
-            search_terms = list(set(all_search_terms))
             
             scored_results = []
             for c in all_cases:
-                score = 0
-                cid, title = str(c.get('id', '')), c.get('title', '').lower()
+                # 取得該案例文字內容
+                cid = str(c.get('id', ''))
+                title = c.get('title', '').lower()
                 section_path = path_map.get(c.get('section_id'), "").lower()
-                author_id = c.get('created_by')
-                u_info = USER_CONFIG.get(author_id, DEFAULT_CONFIG)
-                
-                raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
-                steps_count = len(raw_steps) if isinstance(raw_steps, list) else 0
-                content_len = len(str(raw_steps))
                 full_text = str(c).lower()
                 
-                # --- [ 基礎評分 (累加命中) ] ---
-                if any(t in cid for t in raw_input_terms): score += 100000
-                if any(t in section_path for t in search_terms): score += 50000
-                if any(t in title for t in search_terms): score += 10000
-                if any(t in full_text for t in search_terms): score += 1000
-
-                # --- [ 權重校準 ] ---
-                if score > 0:
+                # 🚀 2. 核心邏輯：交集檢查 (必須每個輸入詞都命中)
+                is_all_match = True
+                combined_score = 0 
+                
+                for term in raw_input_terms:
+                    # 針對單個詞展開字典 (三語聯動)
+                    expanded_terms = multi_lang_search(term)
+                    match_this_term = False
+                    
+                    # 檢查 ID (精準匹配輸入)
+                    if term.strip('#') == cid:
+                        combined_score += 100000
+                        match_this_term = True
+                    # 檢查路徑
+                    elif any(et in section_path for et in expanded_terms):
+                        combined_score += 50000
+                        match_this_term = True
+                    # 檢查標題
+                    elif any(et in title for et in expanded_terms):
+                        combined_score += 10000
+                        match_this_term = True
+                    # 檢查全文
+                    elif any(et in full_text for et in expanded_terms):
+                        combined_score += 1000
+                        match_this_term = True
+                    
+                    # 如果任何一個關鍵字沒命中，直接出局
+                    if not match_this_term:
+                        is_all_match = False
+                        break
+                
+                # 🚀 3. 只有滿足「交集」才顯示
+                if is_all_match:
+                    score = combined_score
+                    author_id = c.get('created_by')
+                    u_info = USER_CONFIG.get(author_id, DEFAULT_CONFIG)
+                    
+                    raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
+                    steps_count = len(raw_steps) if isinstance(raw_steps, list) else 0
+                    content_len = len(str(raw_steps))
+                    
                     score += (steps_count * 500) + (content_len // 10)
                     score += u_info.get("weight", 0)
+                    
                     if not u_info.get("is_active", True): score -= 45000
                     if steps_count == 0 or content_len < 15: score -= 40000 
+                    
                     scored_results.append((score, c, u_info))
 
             scored_results.sort(key=lambda x: x[0], reverse=True)
             
             if scored_results:
-                st.write(f"### 🎯 找到 {len(scored_results)} 個案例")
+                st.write(f"### 🎯 找到 {len(scored_results)} 個案例 (已過濾交集結果)")
                 for _, item, u_info in scored_results:
                     cid = str(item.get('id'))
                     
@@ -195,6 +235,6 @@ if tr_url and tr_user and tr_pw:
                                     st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html_and_add_numbers(s.get("content", s.get("step", "")))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html_and_add_numbers(s.get("expected", ""))}</div></div>', unsafe_allow_html=True)
                             else: st.info("無步驟資料。")
                         st.markdown("---")
-            else: st.warning("查無搜尋結果。")
+            else: st.warning("查無符合所有條件的結果。")
     else: st.error(f"❌ 同步失敗")
 else: st.warning("👈 請輸入連線資訊。")
