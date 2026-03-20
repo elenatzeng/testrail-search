@@ -3,6 +3,20 @@ from testrail_api import TestRailAPI
 import time
 import re
 
+# ======================================================================================
+# 🧪 TestRail 智能搜索：排序逻辑对照表 (Relevancy Ranking)
+# 
+# | 排序维度        | 规则说明 (Logic)                                  | 优先级 (Priority) |
+# | :---           | :---                                              | :---             |
+# | 1. 精准匹配     | 搜索关键字与案例 ID 完全一致 (如：#123)            | 🌟 最高          |
+# | 2. 功能路径     | 关键字命中目录名称 (Section Path)，优先聚合模块案例 | 👑 极高          |
+# | 3. 标题关联     | 关键字出现在案例标题 (Title) 中                    | 🔥 高            |
+# | 4. 内容检索     | 关键字出现在测试步骤或预期结果中                    | 📝 中            |
+# | 5. 内容完整度    | 核心指标：根据 Step 数量排序。步骤越扎实，排名越靠前 | 🚀 关键加成      |
+# | 6. 维护者权重    | 优先显示核心维护账号或标准化账号之撰写内容          | ⚖️ 微调优先      |
+# | 7. 待完善处理    | 空值筛选：侦测到无步骤或内容过少，排序自动往后移    | ⚠️ 后置处理      |
+# ======================================================================================
+
 # ✨ 引入字典與「獨立」的使用者管理名單
 try:
     from keywords import SEARCH_DICTIONARY
@@ -55,13 +69,13 @@ st.markdown("""
     .step-item { border-left: 5px solid #4CAF50; padding-left: 20px; margin-bottom: 30px; }
     .stTextInput input { background-color: #161b22 !important; color: #ffffff !important; border: 1px solid #30363d !important; }
     .location-tag { background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; font-size: 15px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px; }
-    .author-tag { font-size: 11px; border-radius: 12px; padding: 3px 12px; display: inline-block; margin-left: 10px; }
+    .author-tag { font-size: 11px; border-radius: 12px; padding: 3px 12px; display: inline-block; margin-left: 10px; font-weight: bold; }
     .view-btn { display: inline-block; padding: 6px 16px; background-color: #238636; color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
     footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 側邊欄 (完全還原妳的原始配置) ---
+# --- 4. 側邊欄 (還原原始架構) ---
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=st.query_params.get("url", ""))
@@ -70,7 +84,6 @@ with st.sidebar:
     project_id = st.number_input("Project ID", value=int(st.query_params.get("pid", 1)))
     suite_id = st.number_input("Suite ID", value=int(st.query_params.get("sid", 1)))
     
-    # ✨ 妳要的儲存至網址按鈕 (已補回)
     if st.button("💾 儲存資訊至網址"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
         st.success("✅ 儲存成功！")
@@ -89,7 +102,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         p_info = api.projects.get_project(project_id=pid)
         p_name = p_info.get('name', f"Project #{pid}")
         
-        # 💡 名單對應邏輯 (改由 users.py 供應，不影響 UI)
+        # 使用者名稱對應
         u_map = {uid: info["name"] for uid, info in USER_CONFIG.items()}
         
         def get_all(method, key, **kwargs):
@@ -151,7 +164,7 @@ if tr_url and tr_user and tr_pw:
                 if any(term in title for term in search_terms): score += 10000
                 if any(term in full_text for term in search_terms): score += 1000
 
-                # --- [ 進階排序修正 ] ---
+                # --- [ 權重校準 ] ---
                 if score > 0:
                     score += (steps_count * 500) + (content_len // 10)
                     score += u_info.get("weight", 0)
@@ -166,19 +179,26 @@ if tr_url and tr_user and tr_pw:
                 for _, item, u_info in scored_results:
                     cid = str(item.get('id'))
                     
-                    # 💡 視覺標籤控制 (不影響 UI 配置，僅決定顏色與文字)
-                    if u_info["is_active"]:
+                    # 💡 核心變動：根據在職狀態決定顏色 (綠燈 vs 紅燈)
+                    if u_info.get("is_active", True):
+                        # 🟢 在職綠
                         author_style = "color: #4CAF50; background: rgba(76, 175, 80, 0.15); border: 1.5px solid #4CAF50;"
-                        display_name = u_info["name"]
                     else:
-                        author_style = "color: #8b949e; background: rgba(255, 255, 255, 0.05); border: 1px solid #444c56;"
-                        display_name = f"{u_info['name']} (離職)"
+                        # 🔴 離職紅 (拿掉文字)
+                        author_style = "color: #ff4b4b; background: rgba(255, 75, 75, 0.15); border: 1.5px solid #ff4b4b;"
 
                     with st.container():
                         st.markdown(f'<span style="font-size:12px; color:#8b949e;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
                         col_t, col_b = st.columns([7, 1.5])
                         with col_t:
-                            st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag" style="{author_style}">👤 {display_name}</span></div>', unsafe_allow_html=True)
+                            # 👤 燈號 Tag
+                            st.markdown(f'''
+                                <div style="font-size:16px; font-weight:bold;">
+                                    {item.get("title")} 
+                                    <small style="color:#8b949e">(#{cid})</small> 
+                                    <span class="author-tag" style="{author_style}">👤 {u_info["name"]}</span>
+                                </div>
+                            ''', unsafe_allow_html=True)
                         with col_b:
                             st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                         with st.expander("🔽 查看測試步驟"):
