@@ -153,7 +153,7 @@ if tr_url and tr_user and tr_pw:
         with col_search:
             # 綁定 key="search_box"
             query = st.text_input(
-                "🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", 
+                "🔍 搜尋內容 (輸入關鍵字查詢：支援繁體簡體與英文):", 
                 placeholder="多關鍵字請以空格分隔 (交集搜尋)",
                 key="search_box"
             )
