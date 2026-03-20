@@ -3,7 +3,7 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# ✨ 引入字典與獨立的使用者管理名單
+# ✨ 引入字典與「獨立」的使用者管理名單
 try:
     from keywords import SEARCH_DICTIONARY
 except ImportError:
@@ -42,6 +42,7 @@ def multi_lang_search(text):
 
 # --- 3. UI 視覺風格 ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
+
 st.markdown("""
     <style>
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div { background-color: #0b0e14 !important; }
@@ -60,7 +61,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 側邊欄 ---
+# --- 4. 側邊欄 (完全還原妳的原始配置) ---
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=st.query_params.get("url", ""))
@@ -68,6 +69,13 @@ with st.sidebar:
     tr_pw = st.text_input("API Key", type="password", value=st.query_params.get("pw", ""))
     project_id = st.number_input("Project ID", value=int(st.query_params.get("pid", 1)))
     suite_id = st.number_input("Suite ID", value=int(st.query_params.get("sid", 1)))
+    
+    # ✨ 妳要的儲存至網址按鈕 (已補回)
+    if st.button("💾 儲存資訊至網址"):
+        st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
+        st.success("✅ 儲存成功！")
+        st.balloons()
+        
     if st.button("🔄 強制更新數據"):
         st.cache_data.clear()
         st.rerun()
@@ -80,63 +88,32 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         p_name = p_info.get('name', f"Project #{pid}")
-        all_sects = api.sections.get_sections(project_id=pid, suite_id=sid)
+        
+        # 💡 名單對應邏輯 (改由 users.py 供應，不影響 UI)
+        u_map = {uid: info["name"] for uid, info in USER_CONFIG.items()}
+        
+        def get_all(method, key, **kwargs):
+            all_items, offset = [], 0
+            while True:
+                res = method(**kwargs, limit=250, offset=offset)
+                items = res[key] if isinstance(res, dict) and key in res else res
+                if not items: break
+                all_items.extend(items)
+                if len(items) < 250: break
+                offset += 250
+            return all_items
+
+        all_sects = get_all(api.sections.get_sections, 'sections', project_id=pid, suite_id=sid)
         sect_dict = {s['id']: s for s in all_sects}
         def get_path(sid_in):
             curr = sect_dict.get(sid_in)
             if not curr: return "Unknown"
             return f"{get_path(curr.get('parent_id'))} > {curr['name']}" if curr.get('parent_id') else curr['name']
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
-        all_cases = api.cases.get_cases(project_id=pid, suite_id=sid)
-        return all_cases, path_map, time.strftime("%H:%M:%S"), p_name
+        all_cases = get_all(api.cases.get_cases, 'cases', project_id=pid, suite_id=sid)
+        return all_cases, path_map, u_map, time.strftime("%H:%M:%S"), p_name
     except Exception as e:
-        return None, str(e), None, ""
+        return None, str(e), {}, None, ""
 
-# --- 6. 主介面 ---
-st.title("🧪 TestRail 智能檢索中心")
-
-if tr_url and tr_user and tr_pw:
-    all_cases, path_map, sync_time, project_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
-    if all_cases:
-        st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):")
-
-        if query:
-            search_terms = multi_lang_search(query)
-            scored_results = []
-            for c in all_cases:
-                score = 0
-                cid, title = str(c.get('id', '')), c.get('title', '').lower()
-                section_path = path_map.get(c.get('section_id'), "").lower()
-                author_id = c.get('created_by')
-                
-                # 取得使用者配置
-                u_info = USER_CONFIG.get(author_id, DEFAULT_CONFIG)
-                
-                # 基礎評分邏輯
-                if query.lower().strip('#') == cid: score += 100000
-                if any(term in section_path for term in search_terms): score += 50000
-                if any(term in title for term in search_terms): score += 10000
-                
-                if score > 0:
-                    score += u_info["weight"] # 套用權重
-                    # 💡 自動處理離職降權：如果不是在職，大幅扣分
-                    if not u_info.get("is_active", True): score -= 45000
-                    scored_results.append((score, c, u_info))
-
-            scored_results.sort(key=lambda x: x[0], reverse=True)
-            for _, item, u_info in scored_results:
-                # 💡 動態決定頭像顏色
-                if u_info["is_active"]:
-                    # 在職：亮綠標
-                    author_style = "color: #4CAF50; background: rgba(76, 175, 80, 0.15); border: 1.5px solid #4CAF50;"
-                    display_name = u_info["name"]
-                else:
-                    # 離職：灰標
-                    author_style = "color: #8b949e; background: rgba(255, 255, 255, 0.05); border: 1px solid #444c56;"
-                    display_name = f"{u_info['name']} (離職)"
-
-                with st.container():
-                    st.markdown(f'<span style="font-size:12px; color:#8b949e;">{path_map.get(item.get("section_id"))}</span>', unsafe_allow_html=True)
-                    st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{item.get("id")})</small> <span class="author-tag" style="{author_style}">👤 {display_name}</span></div>', unsafe_allow_html=True)
-                    # (下方省略 Open Case 與 Steps 顯示邏輯，保持原本架構即可)
+# --- 6. 主介面邏輯 ---
+st.title("🧪
