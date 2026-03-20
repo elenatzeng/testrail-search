@@ -3,7 +3,7 @@ import time
 from testrail_api import TestRailAPI
 import streamlit as st
 
-def clean_html_and_add_numbers(raw_html):
+def clean_html(raw_html):
     if not raw_html: return "（無詳細步驟）"
     text = str(raw_html)
     text = text.replace('<li>', '\n')
@@ -23,12 +23,12 @@ def multi_lang_search(text, dictionary):
             related_words.update(group_lower)
     return list(related_words)
 
+# 🚀 確保這個函數名稱是 fetch_data_from_tr
 @st.cache_data(show_spinner=False, ttl=600)
-def fetch_data_from_tr(_url, _user, _pw, pid, sid, user_config):
+def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
-        
         all_sects = api.sections.get_sections(project_id=pid, suite_id=sid)
         sect_dict = {s['id']: s for s in all_sects['sections']}
         
