@@ -55,7 +55,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 參數與側邊欄 ---
+# --- 4. 側邊欄 ---
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=st.query_params.get("url", ""))
@@ -79,6 +79,8 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         p_name = p_info.get('name', f"Project #{pid}")
+        
+        # 使用者對應表
         u_map = {2: "Elena", 3: "Esther", 4: "Emma", 5: "Baron", 6: "Meh", 8: "Copper", 11: "Katty"}
         
         def get_all(method, key, **kwargs):
@@ -98,6 +100,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             curr = sect_dict.get(sid_in)
             if not curr: return "Unknown"
             return f"{get_path(curr.get('parent_id'))} > {curr['name']}" if curr.get('parent_id') else curr['name']
+        
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
         all_cases = get_all(api.cases.get_cases, 'cases', project_id=pid, suite_id=sid)
         return all_cases, path_map, u_map, time.strftime("%H:%M:%S"), p_name
@@ -115,18 +118,25 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         data_container.empty()
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="將優先依照 Section > Case 步驟完整度進行排序")
+        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="優先依照 Section > 步驟完整度 > User (Meh最後) 排序")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             
-            # --- ✨ 排序打分邏輯 (整併版) ✨ ---
             query_raw = query.strip()
             query_lower = query_raw.lower()
             search_terms = multi_lang_search(query_raw)
             
-            # 使用者權重權重 (Elena > Katty > Esther > Emma > Cooper > Baron)
-            user_rank = {"Elena": 60, "Katty": 50, "Esther": 40, "Emma": 30, "Copper": 20, "Baron": 10}
+            # ✨ 使用者比重權重 (Elena最高，Meh最低)
+            user_rank = {
+                "Elena": 60, 
+                "Katty": 50, 
+                "Esther": 40, 
+                "Emma": 30, 
+                "Copper": 20, 
+                "Baron": 10,
+                "Meh": 5      # 👈 Meh 排在最後
+            }
 
             scored_results = []
             for c in all_cases:
@@ -136,11 +146,10 @@ if tr_url and tr_user and tr_pw:
                 section_path = path_map.get(c.get('section_id'), "").lower()
                 author_name = user_map.get(c.get('created_by'), "Other")
                 
-                # 取得內容長度 (完整度)
+                # 取得內容豐富度數據
                 raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
-                content_str = str(raw_steps)
                 steps_count = len(raw_steps) if isinstance(raw_steps, list) else 0
-                content_len = len(content_str)
+                content_len = len(str(raw_steps))
                 
                 full_case_text = str(c).lower()
                 
@@ -161,18 +170,17 @@ if tr_url and tr_user and tr_pw:
                     score += 500
                 
                 if score > 0:
-                    # 4. ✨ 內容完整度權重 (每步驟 +100分，每 10 個字 +1分)
+                    # 4. ✨ 內容完整度權重 (每步驟+100，每10字+1)
                     score += (steps_count * 100) + (content_len // 10)
                     
-                    # 5. ✨ 使用者優先級權重
+                    # 5. ✨ 使用者優先級權重 (包含 Meh 排最後)
                     score += user_rank.get(author_name, 0)
                     
                     scored_results.append((score, c))
 
-            # 按分數排序 (從大到小)
+            # 按分數排序
             scored_results.sort(key=lambda x: x[0], reverse=True)
             
-            # 去重並提取結果
             seen_ids = set()
             unique_results = []
             for score, item in scored_results:
@@ -181,7 +189,7 @@ if tr_url and tr_user and tr_pw:
                     seen_ids.add(item['id'])
 
             if unique_results:
-                st.write(f"### 🎯 找到 {len(unique_results)} 個案例 (排序依據：Section > 步驟完整度 > User)")
+                st.write(f"### 🎯 找到 {len(unique_results)} 個案例")
                 for item in unique_results:
                     cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
                     with st.container():
