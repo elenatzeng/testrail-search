@@ -1,43 +1,129 @@
-# 3. 側邊欄記憶與連線設定
+import streamlit as st
+from keywords import SEARCH_DICTIONARY
+from users import USER_CONFIG, DEFAULT_CONFIG
+from style import apply_custom_style, show_sleeping_mode
+from utils import clean_html, multi_lang_search, fetch_data_from_tr
+
+# 1. 頁面配置
+st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
+apply_custom_style()
+
+# 2. 清除搜尋與記憶函數
+def clear_search_action():
+    if "search_box" in st.session_state:
+        st.session_state["search_box"] = ""
+    st.session_state.query_text = ""
+
 def get_val(key, default=""):
-    # 優先從網址讀，再從 session 讀
     return st.query_params.get(key, st.session_state.get(f"store_{key}", default))
 
+# 3. 側邊欄：強制更新、連線設定、儲存
 with st.sidebar:
     st.header("🔐 連線設定")
     
-    # 🔄 1. 強制更新按鈕 (放在最上面，確保隨時可見)
     if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
     
-    st.markdown("---") # 分隔線
+    st.markdown("---")
     
     tr_url = st.text_input("TestRail URL", value=get_val("url"), key="input_url")
     tr_user = st.text_input("帳號 Email", value=get_val("user"), key="input_user")
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"), key="input_pw")
     
-    # 數字輸入框增加 try-except 避免型別錯誤
     try:
-        p_id_val = int(get_val("pid", "1"))
-        s_id_val = int(get_val("sid", "1"))
+        p_id_def = int(get_val("pid", "1"))
+        s_id_def = int(get_val("sid", "1"))
     except:
-        p_id_val, s_id_val = 1, 1
+        p_id_def, s_id_def = 1, 1
 
-    project_id = st.number_input("Project ID", value=p_id_val, key="input_pid")
-    suite_id = st.number_input("Suite ID", value=s_id_val, key="input_sid")
+    project_id = st.number_input("Project ID", value=p_id_def, key="input_pid")
+    suite_id = st.number_input("Suite ID", value=s_id_def, key="input_sid")
     
-    # 更新 Session
     st.session_state.update({
-        "store_url": tr_url, 
-        "store_user": tr_user, 
-        "store_pw": tr_pw, 
-        "store_pid": project_id, 
-        "store_sid": suite_id
+        "store_url": tr_url, "store_user": tr_user, "store_pw": tr_pw, 
+        "store_pid": project_id, "store_sid": suite_id
     })
 
-    # 💾 2. 儲存按鈕
     if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=project_id, sid=suite_id)
-        st.success("✅ 已儲存至 URL")
-        st.balloons()
+        st.success("✅ 已同步至 URL")
+
+# 4. 主檢索畫面
+st.title("🧪 TestRail 智能檢索中心")
+
+if tr_url and tr_user and tr_pw:
+    all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
+    
+    if all_cases:
+        st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{p_name} | 最後更新：{sync_time}</div>', unsafe_allow_html=True)
+        
+        # 搜尋區域
+        col_search, col_clear, col_run = st.columns([6, 1.2, 1.2])
+        if "query_text" not in st.session_state: st.session_state.query_text = ""
+
+        with col_search:
+            query = st.text_input("🔍 搜尋內容:", placeholder="輸入關鍵字 (空格分隔交集)", key="search_box")
+            st.session_state.query_text = query
+
+        with col_clear:
+            st.markdown('<p style="margin-bottom: 28px;"></p>', unsafe_allow_html=True) 
+            if st.button("🗑️ 清除", use_container_width=True, on_click=clear_search_action):
+                st.rerun()
+
+        with col_run:
+            st.markdown('<p style="margin-bottom: 28px;"></p>', unsafe_allow_html=True)
+            if st.button("🔎 查詢", use_container_width=True):
+                st.rerun()
+
+        # 結果過濾
+        final_query = st.session_state.query_text
+        if final_query:
+            raw_input_terms = final_query.strip().split()
+            scored_results = []
+            for c in all_cases:
+                cid, title = str(c.get('id', '')), c.get('title', '').lower()
+                section_path = path_map.get(c.get('section_id'), "").lower()
+                full_text = str(c).lower()
+                
+                is_all_match, combined_score = True, 0
+                for term in raw_input_terms:
+                    expanded_terms = multi_lang_search(term, SEARCH_DICTIONARY)
+                    match_this_term = False
+                    if term.strip('#') == cid:
+                        combined_score += 100000
+                        match_this_term = True
+                    elif any(et in section_path for et in expanded_terms):
+                        combined_score += 50000
+                        match_this_term = True
+                    elif any(et in title for et in expanded_terms):
+                        combined_score += 10000
+                        match_this_term = True
+                    elif any(et in full_text for et in expanded_terms):
+                        combined_score += 1000
+                        match_this_term = True
+                    if not match_this_term:
+                        is_all_match = False
+                        break
+                
+                if is_all_match:
+                    author_id = c.get('created_by')
+                    u_info = USER_CONFIG.get(author_id, DEFAULT_CONFIG)
+                    raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
+                    score = combined_score + (len(raw_steps) * 500) + u_info.get("weight", 0)
+                    if not u_info.get("is_active", True): score -= 45000
+                    scored_results.append((score, c, u_info))
+
+            scored_results.sort(key=lambda x: x[0], reverse=True)
+            for _, item, u_info in scored_results:
+                cid = str(item.get('id'))
+                status_emoji, author_style = ("🟢", "color: #4CAF50; background: rgba(76,175,80,0.15); border: 1.5px solid #4CAF50;") if u_info.get("is_active", True) else ("🔴", "color: #ff4b4b; background: rgba(255,75,75,0.15); border: 1.5px solid #ff4b4b;")
+                
+                with st.container():
+                    st.markdown(f'<span style="font-size:12px; color:#8b949e;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag" style="{author_style}">{status_emoji} {u_info["name"]}</span></div>', unsafe_allow_html=True)
+                    with st.expander("🔽 查看步驟"):
+                        raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
+                        if isinstance(raw_steps, list) and len(raw_steps) > 0:
+                            for i, s in enumerate(raw_steps, 1):
+                                st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html(s.get("content", s.get("step", "")))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="
