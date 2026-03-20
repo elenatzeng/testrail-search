@@ -41,14 +41,18 @@ def clean_html_and_add_numbers(raw_html):
             
     return "\n".join(numbered_lines)
 
-# --- 2. 三語聯想搜尋 ---
+# --- 2. 三語聯想搜尋 (優化版：支援模糊匹配與 Key 轉換) ---
 def multi_lang_search(text):
     text_lower = text.lower().strip()
-    related_words = [text_lower]
+    related_words = {text_lower} # 使用 set 避免重複
+    
     for group in SEARCH_DICTIONARY:
-        if any(word.lower() == text_lower for word in group):
-            related_words.extend([g.lower() for g in group])
-    return list(set(related_words))
+        group_lower = [str(word).lower() for word in group]
+        # 只要輸入的字「包含」在翻譯組裡，或翻譯組的字「包含」在輸入裡，就抓出全組
+        if any(text_lower in word for word in group_lower) or any(word in text_lower for word in group_lower):
+            related_words.update(group_lower)
+            
+    return list(related_words)
 
 # --- 3. UI 視覺風格：🏆 究極黑金鎖定版 (物理遮蔽選單) ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
@@ -174,7 +178,6 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
-    # 這裡顯示一個較小的進度提示，避免畫面完全卡死
     data_container = st.empty()
     data_container.info("⏳ 正在同步 TestRail 最新數據，請稍候...")
     
@@ -188,12 +191,46 @@ if tr_url and tr_user and tr_pw:
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
-            search_terms = multi_lang_search(query)
-            results = [c for c in all_cases if any(t in c.get('title','').lower() or t in path_map.get(c.get('section_id'),"").lower() for t in search_terms) or (query.strip('#') == str(c.get('id','')))]
             
-            if results:
-                st.write(f"### 🎯 找到 {len(results)} 個案例")
-                for item in results:
+            # --- ✨ 改進後的搜尋核心：聯想轉換 + 全文掃描 ✨ ---
+            search_terms = multi_lang_search(query)
+            query_plain = query.lower().strip()
+            
+            results = []
+            for c in all_cases:
+                cid = str(c.get('id', ''))
+                title = c.get('title','').lower()
+                # 取得路徑文字
+                path_text = path_map.get(c.get('section_id'),"").lower()
+                # 將整個 Case 內容轉成字串以供深度檢索
+                full_case_text = str(c).lower() 
+
+                # 1. 匹配 ID
+                if query_plain.strip('#') == cid:
+                    results.append(c)
+                    continue
+
+                # 2. 匹配原始輸入 (直接包含)
+                if query_plain in title or query_plain in path_text:
+                    results.append(c)
+                    continue
+                
+                # 3. 匹配聯想詞 (字典內的 繁/簡/英/Key)
+                if any(t in title or t in full_case_text for t in search_terms):
+                    results.append(c)
+                    continue
+
+            # 去重處理
+            seen_ids = set()
+            unique_results = []
+            for r in results:
+                if r['id'] not in seen_ids:
+                    unique_results.append(r)
+                    seen_ids.add(r['id'])
+            
+            if unique_results:
+                st.write(f"### 🎯 找到 {len(unique_results)} 個案例")
+                for item in unique_results:
                     cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
                     with st.container():
                         st.markdown(f'<span style="font-size:12px; color:#8b949e !important;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
@@ -223,7 +260,6 @@ if tr_url and tr_user and tr_pw:
             else:
                 st.warning("查無搜尋結果，請嘗試其他關鍵字。")
     else:
-        # 如果 all_cases 是 None，代表 fetch 過程出錯
-        data_container.error(f"❌ 數據同步失敗！錯誤訊息：{path_map}") # 在這種情況下 path_map 存的是錯誤訊息字串
+        data_container.error(f"❌ 數據同步失敗！錯誤訊息：{path_map}")
 else:
     st.warning("👈 請在左側輸入連線資訊開始使用。")
