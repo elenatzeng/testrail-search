@@ -126,7 +126,7 @@ if tr_url and tr_user and tr_pw:
             search_terms = multi_lang_search(query_raw)
             
             # 使用者優先級權重 ( Elena最高, Meh最後 )
-            user_rank = {"Elena": 70, "Katty": 60, "Esther": 50, "Emma": 40, "Copper": 30, "Baron": 20, "Meh": 5}
+            user_rank = {"Elena": 70, "Katty": 70, "Esther": 50, "Emma": 40, "Copper": 30, "Baron": 20, "Meh": 5}
 
             scored_results = []
             for c in all_cases:
