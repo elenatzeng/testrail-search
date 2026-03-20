@@ -39,7 +39,7 @@ if tr_url and tr_user and tr_pw:
         
         # 標記 3: 搜尋框
         if "q_text" not in st.session_state: st.session_state.q_text = ""
-        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", key="search_box", placeholder="獎金錢包 free chip")
+        query = st.text_input("🔍 搜尋內容 (輸入關鍵字查詢：支援繁體簡體與英文 ):", key="search_box", placeholder="獎金錢包 free chip")
         st.session_state.q_text = query
 
         if st.session_state.q_text:
