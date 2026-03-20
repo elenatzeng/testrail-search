@@ -116,4 +116,78 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         return None, str(e), {}, None, ""
 
 # --- 6. 主介面邏輯 ---
-st.title("🧪
+st.title("🧪 TestRail 智能檢索中心")
+
+if tr_url and tr_user and tr_pw:
+    data_container = st.empty()
+    data_container.info("⏳ 正在同步 TestRail 數據...")
+    all_cases, path_map, user_map, sync_time, project_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
+    
+    if all_cases:
+        data_container.empty()
+        st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
+        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="依照關鍵字的關聯性與完整度排序")
+
+        if query:
+            st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
+            search_terms = multi_lang_search(query)
+            
+            scored_results = []
+            for c in all_cases:
+                score = 0
+                cid, title = str(c.get('id', '')), c.get('title', '').lower()
+                section_path = path_map.get(c.get('section_id'), "").lower()
+                author_id = c.get('created_by')
+                u_info = USER_CONFIG.get(author_id, DEFAULT_CONFIG)
+                
+                raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
+                steps_count = len(raw_steps) if isinstance(raw_steps, list) else 0
+                content_len = len(str(raw_steps))
+                full_text = str(c).lower()
+                
+                # --- [ 基礎評分 ] ---
+                if query.lower().strip('#') == cid: score += 100000
+                if any(term in section_path for term in search_terms): score += 50000
+                if any(term in title for term in search_terms): score += 10000
+                if any(term in full_text for term in search_terms): score += 1000
+
+                # --- [ 進階排序修正 ] ---
+                if score > 0:
+                    score += (steps_count * 500) + (content_len // 10)
+                    score += u_info.get("weight", 0)
+                    if not u_info.get("is_active", True): score -= 45000
+                    if steps_count == 0 or content_len < 15: score -= 40000 
+                    scored_results.append((score, c, u_info))
+
+            scored_results.sort(key=lambda x: x[0], reverse=True)
+            
+            if scored_results:
+                st.write(f"### 🎯 找到 {len(scored_results)} 個案例")
+                for _, item, u_info in scored_results:
+                    cid = str(item.get('id'))
+                    
+                    # 💡 視覺標籤控制 (不影響 UI 配置，僅決定顏色與文字)
+                    if u_info["is_active"]:
+                        author_style = "color: #4CAF50; background: rgba(76, 175, 80, 0.15); border: 1.5px solid #4CAF50;"
+                        display_name = u_info["name"]
+                    else:
+                        author_style = "color: #8b949e; background: rgba(255, 255, 255, 0.05); border: 1px solid #444c56;"
+                        display_name = f"{u_info['name']} (離職)"
+
+                    with st.container():
+                        st.markdown(f'<span style="font-size:12px; color:#8b949e;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
+                        col_t, col_b = st.columns([7, 1.5])
+                        with col_t:
+                            st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small style="color:#8b949e">(#{cid})</small> <span class="author-tag" style="{author_style}">👤 {display_name}</span></div>', unsafe_allow_html=True)
+                        with col_b:
+                            st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
+                        with st.expander("🔽 查看測試步驟"):
+                            raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
+                            if isinstance(raw_steps, list) and len(raw_steps) > 0:
+                                for i, s in enumerate(raw_steps, 1):
+                                    st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html_and_add_numbers(s.get("content", s.get("step", "")))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html_and_add_numbers(s.get("expected", ""))}</div></div>', unsafe_allow_html=True)
+                            else: st.info("無步驟資料。")
+                        st.markdown("---")
+            else: st.warning("查無搜尋結果。")
+    else: st.error(f"❌ 同步失敗")
+else: st.warning("👈 請輸入連線資訊。")
