@@ -4,31 +4,40 @@ from users import USER_CONFIG, DEFAULT_CONFIG
 from style import apply_custom_style
 from utils import clean_html, multi_lang_search, fetch_data_from_tr
 
-# 1. 設置與樣式
+# 1. 頁面配置
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
+
+# 2. 清除搜尋函數
+def clear_search_action():
+    st.session_state["search_box"] = ""
+    st.session_state.q_text = ""
 
 def get_val(key, default=""):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", default))
 
-# 4. 側邊欄 (標記 1, 2)
+# 3. 側邊欄 (對應文件標記 1 & 2)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
     tr_user = st.text_input("帳號 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
+    
+    # 預設 ID 設為 10
     project_id = st.number_input("Project ID", value=int(get_val("pid", "10")))
     suite_id = st.number_input("Suite ID", value=int(get_val("sid", "10")))
 
-    if st.button("💾 儲存資訊至網址"): # 標記 1
+    # 標記 1: 儲存按鈕
+    if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=project_id, sid=suite_id)
         st.success("✅ 已儲存")
 
-    if st.button("🔄 強制更新數據"): # 標記 2
+    # 標記 2: 強制刷新按鈕
+    if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
-# 5. 主畫面 (標記 3, 4, 5, 6, 7)
+# 4. 主畫面檢索區域
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
@@ -37,14 +46,35 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f'<div class="location-tag">📍 Project：{p_name} | Suite：#{suite_id}</div>', unsafe_allow_html=True)
         
-        # 標記 3: 搜尋框
+        # 🚀 這裡把「搜尋框」、「清除」、「查詢」併排 (還原妳要的功能)
+        col_search, col_clear, col_run = st.columns([6, 1.2, 1.2])
+        
         if "q_text" not in st.session_state: st.session_state.q_text = ""
-        query = st.text_input("🔍 搜尋內容 (輸入關鍵字查詢：支援繁體簡體與英文 ):", key="search_box", placeholder="多關鍵字請以空格分隔 (交集搜尋)")
-        st.session_state.q_text = query
 
-        if st.session_state.q_text:
+        with col_search:
+            # 標記 3: 搜尋框 (字體已改回妳要求的版本)
+            query = st.text_input(
+                "🔍 搜尋內容 (輸入關鍵字查詢：支援繁體簡體與英文):", 
+                placeholder="多關鍵字請以空格分隔 (交集搜尋)",
+                key="search_box"
+            )
+            st.session_state.q_text = query
+
+        with col_clear:
+            st.markdown('<p style="margin-bottom: 28px;"></p>', unsafe_allow_html=True) 
+            if st.button("🗑️ 清除條件", use_container_width=True, on_click=clear_search_action):
+                st.rerun()
+
+        with col_run:
+            st.markdown('<p style="margin-bottom: 28px;"></p>', unsafe_allow_html=True)
+            if st.button("🔎 重新查詢", use_container_width=True):
+                st.rerun()
+
+        # 5. 結果渲染 (標記 4, 5, 6, 7)
+        final_query = st.session_state.q_text
+        if final_query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
-            raw_terms = st.session_state.q_text.strip().split()
+            raw_terms = final_query.strip().split()
             scored_results = []
 
             for c in all_cases:
