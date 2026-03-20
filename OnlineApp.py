@@ -134,7 +134,7 @@ if tr_url and tr_user and tr_pw:
             
             scored_results = []
             for c in all_cases:
-                # 取得該案例文字內容
+                # 取得該案例文字內容供比對
                 cid = str(c.get('id', ''))
                 title = c.get('title', '').lower()
                 section_path = path_map.get(c.get('section_id'), "").lower()
@@ -171,12 +171,13 @@ if tr_url and tr_user and tr_pw:
                         is_all_match = False
                         break
                 
-                # 🚀 3. 只有滿足「交集」才顯示
+                # 🚀 3. 只有滿足「交集」才顯示並計算完整度
                 if is_all_match:
                     score = combined_score
                     author_id = c.get('created_by')
                     u_info = USER_CONFIG.get(author_id, DEFAULT_CONFIG)
                     
+                    # 內容完整度與權重校準 (維持原本計分方式)
                     raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
                     steps_count = len(raw_steps) if isinstance(raw_steps, list) else 0
                     content_len = len(str(raw_steps))
@@ -184,11 +185,13 @@ if tr_url and tr_user and tr_pw:
                     score += (steps_count * 500) + (content_len // 10)
                     score += u_info.get("weight", 0)
                     
+                    # 離職與空值降權
                     if not u_info.get("is_active", True): score -= 45000
                     if steps_count == 0 or content_len < 15: score -= 40000 
                     
                     scored_results.append((score, c, u_info))
 
+            # 按分數排序 (從大到小)
             scored_results.sort(key=lambda x: x[0], reverse=True)
             
             if scored_results:
@@ -196,20 +199,28 @@ if tr_url and tr_user and tr_pw:
                 for _, item, u_info in scored_results:
                     cid = str(item.get('id'))
                     
+                    # 🚀 核心視覺改動：根據在職狀態決定 Emoji 與 顏色
                     if u_info.get("is_active", True):
+                        # 🟢 在職綠燈
+                        status_emoji = "🟢"
                         author_style = "color: #4CAF50; background: rgba(76, 175, 80, 0.15); border: 1.5px solid #4CAF50;"
                     else:
+                        # 🔴 已離職紅燈
+                        status_emoji = "🔴"
                         author_style = "color: #ff4b4b; background: rgba(255, 75, 75, 0.15); border: 1.5px solid #ff4b4b;"
 
                     with st.container():
                         st.markdown(f'<span style="font-size:12px; color:#8b949e;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
                         col_t, col_b = st.columns([7, 1.5])
                         with col_t:
+                            # 👤 在這裡加入了 {status_emoji} 
                             st.markdown(f'''
                                 <div style="font-size:16px; font-weight:bold;">
                                     {item.get("title")} 
                                     <small style="color:#8b949e">(#{cid})</small> 
-                                    <span class="author-tag" style="{author_style}">👤 {u_info["name"]}</span>
+                                    <span class="author-tag" style="{author_style}">
+                                        {status_emoji} {u_info["name"]}
+                                    </span>
                                 </div>
                             ''', unsafe_allow_html=True)
                         with col_b:
@@ -221,6 +232,6 @@ if tr_url and tr_user and tr_pw:
                                     st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html_and_add_numbers(s.get("content", s.get("step", "")))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html_and_add_numbers(s.get("expected", ""))}</div></div>', unsafe_allow_html=True)
                             else: st.info("無步驟資料。")
                         st.markdown("---")
-            else: st.warning("查無符合所有條件的結果。")
+            else: st.warning("查無符合所有交集條件的結果。")
     else: st.error(f"❌ 同步失敗")
 else: st.warning("👈 請輸入連線資訊。")
