@@ -3,20 +3,6 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# ======================================================================================
-# 🧪 TestRail 智能搜索：排序逻辑对照表 (Relevancy Ranking)
-# 
-# | 排序维度        | 规则说明 (Logic)                                  | 优先级 (Priority) |
-# | :---           | :---                                              | :---             |
-# | 1. 精准匹配     | 搜索关键字与案例 ID 完全一致 (如：#123)            | 🌟 最高          |
-# | 2. 功能路径     | 关键字命中目录名称 (Section Path)，优先聚合模块案例 | 👑 极高          |
-# | 3. 标题关联     | 关键字出现在案例标题 (Title) 中                    | 🔥 高            |
-# | 4. 内容检索     | 关键字出现在测试步骤或预期结果中                    | 📝 中            |
-# | 5. 内容完整度    | 核心指标：根据 Step 数量排序。步骤越扎实，排名越靠前 | 🚀 关键加成      |
-# | 6. 维护者权重    | 优先显示核心维护账号或标准化账号之撰写内容          | ⚖️ 微调优先      |
-# | 7. 待完善处理    | 空值筛选：侦测到无步骤或内容过少，排序自动往后移    | ⚠️ 后置处理      |
-# ======================================================================================
-
 # ✨ 引入字典與「獨立」的使用者管理名單
 try:
     from keywords import SEARCH_DICTIONARY
@@ -102,7 +88,6 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         p_info = api.projects.get_project(project_id=pid)
         p_name = p_info.get('name', f"Project #{pid}")
         
-        # 使用者名稱對應
         u_map = {uid: info["name"] for uid, info in USER_CONFIG.items()}
         
         def get_all(method, key, **kwargs):
@@ -139,11 +124,17 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         data_container.empty()
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="依照關鍵字的關聯性與完整度排序")
+        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="支援多關鍵字搜尋，請以空格分隔")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
-            search_terms = multi_lang_search(query)
+            
+            # 🚀 多關鍵字拆分與字典連動
+            raw_input_terms = query.strip().split()
+            all_search_terms = []
+            for t in raw_input_terms:
+                all_search_terms.extend(multi_lang_search(t))
+            search_terms = list(set(all_search_terms))
             
             scored_results = []
             for c in all_cases:
@@ -158,11 +149,11 @@ if tr_url and tr_user and tr_pw:
                 content_len = len(str(raw_steps))
                 full_text = str(c).lower()
                 
-                # --- [ 基礎評分 ] ---
-                if query.lower().strip('#') == cid: score += 100000
-                if any(term in section_path for term in search_terms): score += 50000
-                if any(term in title for term in search_terms): score += 10000
-                if any(term in full_text for term in search_terms): score += 1000
+                # --- [ 基礎評分 (累加命中) ] ---
+                if any(t in cid for t in raw_input_terms): score += 100000
+                if any(t in section_path for t in search_terms): score += 50000
+                if any(t in title for t in search_terms): score += 10000
+                if any(t in full_text for t in search_terms): score += 1000
 
                 # --- [ 權重校準 ] ---
                 if score > 0:
@@ -179,19 +170,15 @@ if tr_url and tr_user and tr_pw:
                 for _, item, u_info in scored_results:
                     cid = str(item.get('id'))
                     
-                    # 💡 核心變動：根據在職狀態決定顏色 (綠燈 vs 紅燈)
                     if u_info.get("is_active", True):
-                        # 🟢 在職綠
                         author_style = "color: #4CAF50; background: rgba(76, 175, 80, 0.15); border: 1.5px solid #4CAF50;"
                     else:
-                        # 🔴 離職紅 (拿掉文字)
                         author_style = "color: #ff4b4b; background: rgba(255, 75, 75, 0.15); border: 1.5px solid #ff4b4b;"
 
                     with st.container():
                         st.markdown(f'<span style="font-size:12px; color:#8b949e;">{path_map.get(item.get("section_id"), "Unknown")}</span>', unsafe_allow_html=True)
                         col_t, col_b = st.columns([7, 1.5])
                         with col_t:
-                            # 👤 燈號 Tag
                             st.markdown(f'''
                                 <div style="font-size:16px; font-weight:bold;">
                                     {item.get("title")} 
