@@ -60,4 +60,17 @@ SEARCH_DICTIONARY = [
     ["prof_ad", "地址證明", "地址证明", "Proof of Address", "poa", "residence_ad"],
     ["edd", "風險評估問卷", "風險評估問卷", "Risk Assessment Questionnaire", "edd_veri", "edd_popup_tips", "加強型盡職調查"],
     ["sow", "財富來源", "财富来源", "Source of Wealth", "source_wealth", "proof_wealth"],
-    ["face_verify", "活體認證", "活体认证", "Face Verification
+    ["face_verify", "活體認證", "活体认证", "Face Verification", "livingBody", "faceRecognition", "vivoAuthentication"],
+    ["risk", "風控管理", "风控管理", "Risk Management", "windControl", "riskLevel", "highRiskMemberDetail"],
+
+    # --- [Affiliate] 聯盟計畫 (代理) ---
+    ["affiliate", "聯盟計畫", "联盟计划", "Affiliate Program", "global_alli", "affiliate_join_how", "affiliate_step1_title"],
+    ["sub_agent", "下級代理", "下级代理", "Sub-agent", "subUID", "fourth_recom"],
+    ["aff_comm", "佣金率", "佣金率", "Commission ratio", "commission_ratio", "affiliate_banner_title", "高达55%佣金比例"],
+
+    # --- [System / UI] 基礎設施與更新 ---
+    ["notification", "系統通知", "系统通知", "System Notification", "messageManagement", "insite_noti", "notification"],
+    ["report", "報表下載", "报表下载", "Report Download", "reportDownload", "playerPromotion", "vipPerformance", "dailyDataRecon"],
+    ["update", "更新", "Update", "new_version_discovered", "update_immediately", "new_version"],
+    ["maintenance", "維護中", "維護中", "service_maintain_text1", "game_main", "maintenance"]
+]
