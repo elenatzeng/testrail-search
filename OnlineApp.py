@@ -55,7 +55,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 側邊欄 ---
+# --- 4. 參數與側邊欄 ---
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=st.query_params.get("url", ""))
@@ -66,6 +66,7 @@ with st.sidebar:
     if st.button("💾 儲存資訊至網址"):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=str(project_id), sid=str(suite_id))
         st.success("✅ 儲存成功！")
+        st.balloons()
     if st.button("🔄 強制更新數據"):
         st.cache_data.clear()
         st.rerun()
@@ -107,64 +108,71 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
+    data_container = st.empty()
+    data_container.info("⏳ 正在同步 TestRail 數據...")
     all_cases, path_map, user_map, sync_time, project_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, project_id, suite_id)
     
     if all_cases:
+        data_container.empty()
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="將優先顯示 Section 匹配且內容完整的案例")
+        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="將優先依照 Section > Case 步驟完整度進行排序")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             
+            # --- ✨ 排序打分邏輯 (整併版) ✨ ---
             query_raw = query.strip()
             query_lower = query_raw.lower()
             search_terms = multi_lang_search(query_raw)
-            query_words = [w for w in re.split(r'\s+|[,\._-]', query_lower) if len(w) > 1]
             
+            # 使用者權重權重 (Elena > Katty > Esther > Emma > Cooper > Baron)
+            user_rank = {"Elena": 60, "Katty": 50, "Esther": 40, "Emma": 30, "Copper": 20, "Baron": 10}
+
             scored_results = []
             for c in all_cases:
                 score = 0
                 cid = str(c.get('id', ''))
                 title = c.get('title', '').lower()
                 section_path = path_map.get(c.get('section_id'), "").lower()
+                author_name = user_map.get(c.get('created_by'), "Other")
                 
-                # 取得步驟內容來計算「完整度」
+                # 取得內容長度 (完整度)
                 raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
+                content_str = str(raw_steps)
                 steps_count = len(raw_steps) if isinstance(raw_steps, list) else 0
-                content_len = len(str(raw_steps))
+                content_len = len(content_str)
                 
-                full_context = str(c).lower()
+                full_case_text = str(c).lower()
                 
-                # --- [評分權重分配] ---
-                # 1. ID 匹配 (1000)
-                if query_lower.strip('#') == cid: score += 1000
+                # 1. ID 精準匹配 (權重 10000)
+                if query_lower.strip('#') == cid:
+                    score += 10000
                 
-                # 2. Section (目錄) 匹配 (500)
-                if query_lower in section_path: score += 500
-                elif any(term in section_path for term in search_terms): score += 400
+                # 2. Section (目錄路徑) 匹配 (權重 5000)
+                if query_lower in section_path:
+                    score += 5000
+                elif any(term in section_path for term in search_terms):
+                    score += 4000
 
-                # 3. 標題完全包含 (200)
-                if query_lower in title: score += 200
+                # 3. 標題與聯想詞命中 (權重 1000)
+                if query_lower in title:
+                    score += 1000
+                if any(t in title or t in full_case_text for t in search_terms):
+                    score += 500
                 
-                # 4. 字典聯想命中 (100)
-                if any(term in title for term in search_terms): score += 100
-                
-                # 5. 內容/步驟命中 (50)
-                if query_lower in full_context: score += 50
-
-                # 6. ✨ 內容完整度加分 (Completeness Bonus) ✨
-                # 每一增加一個步驟 +5 分，每 100 個字 +1 分 (上限 100 分)
-                # 這能讓同樣命中的 Case 中，寫得詳細的排在前面
                 if score > 0:
-                    completeness_score = (steps_count * 5) + (content_len // 100)
-                    score += min(completeness_score, 100) 
-
-                if score > 0:
+                    # 4. ✨ 內容完整度權重 (每步驟 +100分，每 10 個字 +1分)
+                    score += (steps_count * 100) + (content_len // 10)
+                    
+                    # 5. ✨ 使用者優先級權重
+                    score += user_rank.get(author_name, 0)
+                    
                     scored_results.append((score, c))
 
-            # 按分數排序
+            # 按分數排序 (從大到小)
             scored_results.sort(key=lambda x: x[0], reverse=True)
             
+            # 去重並提取結果
             seen_ids = set()
             unique_results = []
             for score, item in scored_results:
@@ -173,7 +181,7 @@ if tr_url and tr_user and tr_pw:
                     seen_ids.add(item['id'])
 
             if unique_results:
-                st.write(f"### 🎯 找到 {len(unique_results)} 個案例 (優先排列 Section 匹配且內容豐富者)")
+                st.write(f"### 🎯 找到 {len(unique_results)} 個案例 (排序依據：Section > 步驟完整度 > User)")
                 for item in unique_results:
                     cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
                     with st.container():
@@ -184,13 +192,15 @@ if tr_url and tr_user and tr_pw:
                         with col_b:
                             st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                         with st.expander("🔽 查看測試步驟"):
-                            # 重複使用變數顯示步驟
                             actual_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
                             if isinstance(actual_steps, list) and len(actual_steps) > 0:
                                 for i, s in enumerate(actual_steps, 1):
                                     st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html_and_add_numbers(s.get("content", s.get("step", "")))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html_and_add_numbers(s.get("expected", ""))}</div></div>', unsafe_allow_html=True)
                             else: st.info("無步驟資料。")
                         st.markdown("---")
-            else: st.warning("查無結果。")
-    else: st.error("❌ 同步失敗")
-else: st.warning("👈 請輸入連線資訊。")
+            else:
+                st.warning("查無結果。")
+    else:
+        st.error(f"❌ 同步失敗：{path_map}")
+else:
+    st.warning("👈 請輸入連線資訊。")
