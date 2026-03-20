@@ -3,13 +3,13 @@ from testrail_api import TestRailAPI
 import time
 import re
 
-# ✨ 嘗試引入外部字典，若檔案不存在則預設為空，防止當機
+# ✨ 引入剛才整併好的【地道繁體 + 翻譯 + 功能地圖】字典
 try:
     from keywords import SEARCH_DICTIONARY
 except ImportError:
     SEARCH_DICTIONARY = []
 
-# --- 1. 核心邏輯：修復條列式數字 (找回 1. 2. 3. 並防止空白) ---
+# --- 1. 核心邏輯：修復條列式數字 (鎖定妳的原始邏輯) ---
 def clean_html_and_add_numbers(raw_html):
     if not raw_html: return "（無詳細步驟）"
     text = str(raw_html)
@@ -41,20 +41,21 @@ def clean_html_and_add_numbers(raw_html):
             
     return "\n".join(numbered_lines)
 
-# --- 2. 三語聯想搜尋 (優化版：支援模糊匹配與 Key 轉換) ---
+# --- 2. 三語聯想搜尋 (✨ 拍檔整併：地道繁體 + 功能地圖聯動) ---
 def multi_lang_search(text):
     text_lower = text.lower().strip()
     related_words = {text_lower} # 使用 set 避免重複
     
+    # 這裡就是妳要的：搜尋一個 Key 或 翻譯，帶出整組「功能地圖」
     for group in SEARCH_DICTIONARY:
         group_lower = [str(word).lower() for word in group]
-        # 只要輸入的字「包含」在翻譯組裡，或翻譯組的字「包含」在輸入裡，就抓出全組
+        # 只要輸入的詞命中組內的任何一個（Key、繁、簡、英），就抓出整組
         if any(text_lower in word for word in group_lower) or any(word in text_lower for word in group_lower):
             related_words.update(group_lower)
             
     return list(related_words)
 
-# --- 3. UI 視覺風格：🏆 究極黑金鎖定版 (物理遮蔽選單) ---
+# --- 3. UI 視覺風格：🏆 究極黑金鎖定版 (鎖定妳的樣式) ---
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
 st.markdown("""
@@ -116,7 +117,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 參數讀取 ---
+# --- 4. 參數讀取 (鎖定妳的邏輯) ---
 q = st.query_params
 init_url = q.get("url", st.secrets.get("TR_URL", ""))
 init_user = q.get("user", st.secrets.get("TR_USER", ""))
@@ -174,7 +175,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     except Exception as e:
         return None, f"連線失敗: {str(e)}", {}, None, ""
 
-# --- 6. 主介面邏輯 ---
+# --- 6. 主介面邏輯 (鎖定妳的搜尋流程) ---
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
@@ -192,7 +193,7 @@ if tr_url and tr_user and tr_pw:
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             
-            # --- ✨ 改進後的搜尋核心：聯想轉換 + 全文掃描 ✨ ---
+            # --- ✨ 這裡植入了剛才整併好的聯想邏輯 ✨ ---
             search_terms = multi_lang_search(query)
             query_plain = query.lower().strip()
             
@@ -200,9 +201,7 @@ if tr_url and tr_user and tr_pw:
             for c in all_cases:
                 cid = str(c.get('id', ''))
                 title = c.get('title','').lower()
-                # 取得路徑文字
                 path_text = path_map.get(c.get('section_id'),"").lower()
-                # 將整個 Case 內容轉成字串以供深度檢索
                 full_case_text = str(c).lower() 
 
                 # 1. 匹配 ID
@@ -210,12 +209,12 @@ if tr_url and tr_user and tr_pw:
                     results.append(c)
                     continue
 
-                # 2. 匹配原始輸入 (直接包含)
+                # 2. 匹配原始輸入 (標題或路徑直接包含)
                 if query_plain in title or query_plain in path_text:
                     results.append(c)
                     continue
                 
-                # 3. 匹配聯想詞 (字典內的 繁/簡/英/Key)
+                # 3. 匹配地圖聯想詞 (字典內的 繁/簡/英/Key)
                 if any(t in title or t in full_case_text for t in search_terms):
                     results.append(c)
                     continue
