@@ -50,22 +50,44 @@ def clear_search_action():
     st.session_state.query_text = ""
 
 # ======================================================================================
-# 🎨 3. UI 視覺風格配置
+# 🎨 3. UI 視覺風格配置 (修正側邊欄按鈕消失問題)
 # ======================================================================================
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 
-# 移除 Header 樣式保留側邊欄摺疊功能
 st.markdown("""
     <style>
+    /* 整體背景與文字 */
     .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div { background-color: #0b0e14 !important; }
     h1, h2, h3, h4, h5, p, span, label, small, .stMarkdown { color: #ffffff !important; }
-    [data-testid="stHeader"], [data-testid="stTopBar"] { display: none !important; }
-    div[data-testid="stSidebar"] .stButton button { background-color: #ffffff !important; color: #000000 !important; width: 100% !important; font-weight: 800 !important; }
-    .step-content-box { color: #ffffff !important; background: #1c2128; padding: 15px; border-radius: 10px; border: 1px solid #30363d; }
+
+    /* 🚀 核心修正：強制顯示左上角側邊欄開關 */
+    button[data-testid="stSidebarCollapse"] {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+        border-radius: 8px !important;
+        top: 10px !important;
+        left: 10px !important;
+        position: fixed !important;
+        z-index: 999999 !important;
+    }
+    button[data-testid="stSidebarCollapse"]:hover {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    /* 隱藏頂部裝飾條，但保留基本組件 */
+    header[data-testid="stHeader"] { background: transparent !important; }
+    [data-testid="stTopBar"] { display: none !important; }
+
+    /* 按鈕與卡片樣式 */
+    div[data-testid="stSidebar"] .stButton button { background-color: #ffffff !important; color: #000000 !important; width: 100% !important; font-weight: 800 !important; border-radius: 8px !important; }
+    .step-content-box { color: #ffffff !important; background: #1c2128; padding: 15px; border-radius: 10px; border: 1px solid #30363d; margin-top: 5px; }
     .step-item { border-left: 5px solid #4CAF50; padding-left: 20px; margin-bottom: 30px; }
     .location-tag { background: #1c2128 !important; color: #adbac7 !important; padding: 10px 20px; border-radius: 10px; border: 1px solid #444c56; display: inline-block; margin-bottom: 25px; }
     .author-tag { font-size: 11px; border-radius: 12px; padding: 3px 12px; display: inline-block; margin-left: 10px; font-weight: bold; }
     .view-btn { display: inline-block; padding: 6px 16px; background-color: #238636; color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; }
+    
+    /* 修正輸入框文字顏色 */
+    .stTextInput input { color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -75,7 +97,6 @@ st.markdown("""
 with st.sidebar:
     st.header("🔐 連線設定")
     
-    # 💡 記憶邏輯：優先從網址讀取，沒有就看 session_state，都沒有就空字串
     def get_val(key, default=""):
         return st.query_params.get(key, st.session_state.get(f"store_{key}", default))
 
