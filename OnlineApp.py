@@ -126,4 +126,10 @@ if tr_url and tr_user and tr_pw:
                         raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or item.get('steps')
                         if isinstance(raw_steps, list) and len(raw_steps) > 0:
                             for i, s in enumerate(raw_steps, 1):
-                                st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html(s.get("content", s.get("step", "")))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="
+                                st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html(s.get("content", s.get("step", "")))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html(s.get("expected", ""))}</div></div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
+                    st.markdown("---")
+    else:
+        st.error(f"連線失敗，請檢查側邊欄連線資訊。")
+else:
+    st.warning("👈 請在左側輸入連線資訊。")
