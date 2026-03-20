@@ -30,7 +30,6 @@ def multi_lang_search(text):
     related_words = {text_lower}
     for group in SEARCH_DICTIONARY:
         group_lower = [str(word).lower() for word in group]
-        # 只要輸入的詞命中組內的任何一個（Key、繁、簡、英），就抓出全組
         if any(text_lower in word for word in group_lower) or any(word in text_lower for word in group_lower):
             related_words.update(group_lower)
     return list(related_words)
@@ -56,7 +55,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 側邊欄與設定 ---
+# --- 4. 側邊欄 ---
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=st.query_params.get("url", ""))
@@ -116,18 +115,18 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         data_container.empty()
         st.markdown(f'<div class="location-tag">📍 <b>Project：</b>{project_name} | <b>Suite：</b>#{suite_id}</div>', unsafe_allow_html=True)
-        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="依照關鍵字的關聯性與完整度排序'")
+        query = st.text_input("🔍 搜尋內容 (輸入 Key、地道繁體或 #ID):", placeholder="依照關鍵字的關聯性與完整度排序")
 
         if query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             
-            # --- ✨ 排序打分邏輯 (依 Elena 要求強化版) ✨ ---
+            # --- ✨ 排序打分邏輯 ( Elena 指定強化版 ) ✨ ---
             query_raw = query.strip()
             query_lower = query_raw.lower()
             search_terms = multi_lang_search(query_raw)
             
-            # 使用者權重表
-            user_rank = {"Elena": 60, "Katty": 50, "Esther": 40, "Emma": 30, "Copper": 20, "Baron": 10, "Meh": 5}
+            # 使用者優先級權重 ( Elena最高, Meh最後 )
+            user_rank = {"Elena": 70, "Katty": 60, "Esther": 50, "Emma": 40, "Copper": 30, "Baron": 20, "Meh": 5}
 
             scored_results = []
             for c in all_cases:
@@ -137,48 +136,49 @@ if tr_url and tr_user and tr_pw:
                 section_path = path_map.get(c.get('section_id'), "").lower()
                 author_name = user_map.get(c.get('created_by'), "Other")
                 
-                # 取得步驟內容來計算「完整度」
+                # 計算「內容完整度」：看步驟列表的長度與總字數
                 raw_steps = c.get('custom_steps_separated') or c.get('custom_steps') or c.get('steps') or []
                 steps_count = len(raw_steps) if isinstance(raw_steps, list) else 0
                 content_str = str(raw_steps)
                 content_len = len(content_str)
                 
-                # 檢查內容是否為空
-                is_empty = (steps_count == 0 or content_len < 10)
+                # 判定內容是否為空 (少於 15 字或 0 步視為空)
+                is_empty = (steps_count == 0 or content_len < 15)
 
                 full_case_text = str(c).lower()
                 
-                # 1. ID 精準匹配 (權重最高)
+                # 1. ID 精準匹配 (基礎 100,000 分)
                 if query_lower.strip('#') == cid:
+                    score += 100000
+                
+                # 2. Section (路徑路徑) 匹配 (基礎 50,000 分)
+                # 這樣路徑一樣的會被歸在同一個分數區間，排在一起
+                if any(term in section_path for term in search_terms):
                     score += 50000
                 
-                # 2. Section (目錄路徑) 匹配 (權重次高 10000)
-                if any(term in section_path for term in search_terms):
+                # 3. 標題完全命中 (基礎 10,000 分)
+                if any(term in title for term in search_terms):
                     score += 10000
                 
-                # 3. 標題與聯想詞命中 (權重 5000)
-                if any(term in title for term in search_terms):
-                    score += 5000
-                
-                # 4. 步驟與內容包含關鍵字 (權重 1000)
+                # 4. 全文檢索命中 (基礎 1,000 分)
                 if any(term in full_case_text for term in search_terms):
                     score += 1000
 
-                # --- 🎖️ 排序加權核心邏輯 🎖️ ---
+                # --- 🏅 權重校準邏輯 🏅 ---
                 if score > 0:
-                    # A. 內容完整度加分 (每一步 +100 分，每 10 個字 +1 分)
-                    score += (steps_count * 100) + (content_len // 10)
+                    # A. 內容完整度加乘 (每一步 +500 分，讓步驟多的強力排到前面)
+                    score += (steps_count * 500) + (content_len // 10)
                     
-                    # B. 使用者權重加分
+                    # B. 使用者權重加分 ( Elena > Katty > ... > Meh )
                     score += user_rank.get(author_name, 0)
 
-                    # C. 🛑 空內容懲罰項 (內容為空的話，強制大幅扣分，保證排在最後面)
+                    # C. 🛑 空內容懲罰 (如果內容為空，大幅扣分，保證排在最後面)
                     if is_empty:
-                        score -= 20000 
+                        score -= 40000 
 
                     scored_results.append((score, c))
 
-            # 按分數排序並去重
+            # 按分數排序 (從大到小)
             scored_results.sort(key=lambda x: x[0], reverse=True)
             
             seen_ids = set()
@@ -189,7 +189,7 @@ if tr_url and tr_user and tr_pw:
                     seen_ids.add(item['id'])
 
             if unique_results:
-                st.write(f"### 🎯 找到 {len(unique_results)} 個案例 (依照 Section > 完整度 > User 排序)")
+                st.write(f"### 🎯 找到 {len(unique_results)} 個案例 (已依路徑聚合與完整度排序)")
                 for item in unique_results:
                     cid, author = str(item.get('id')), user_map.get(item.get('created_by'), f"User_{item.get('created_by')}")
                     with st.container():
@@ -212,4 +212,4 @@ if tr_url and tr_user and tr_pw:
     else:
         st.error(f"❌ 同步失敗：{path_map}")
 else:
-    st.warning("👈 請在左側輸入連線資訊。")
+    st.warning("👈 請輸入連線資訊。")
