@@ -24,14 +24,31 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
+        
+        # 1. 抓取所有目錄 (Sections)
         all_sects = api.sections.get_sections(project_id=pid, suite_id=sid)
         sect_dict = {s['id']: s for s in all_sects['sections']}
+        
         def get_path(sid_in):
             curr = sect_dict.get(sid_in)
             if not curr: return "Unknown"
             return f"{get_path(curr.get('parent_id'))} > {curr['name']}" if curr.get('parent_id') else curr['name']
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
-        all_cases = api.cases.get_cases(project_id=pid, suite_id=sid)
-        return all_cases['cases'], path_map, time.strftime("%H:%M:%S"), p_info.get('name')
+
+        # 🚀 核心修正：分頁抓取所有案例 (Cases)
+        all_cases_list = []
+        offset = 0
+        while True:
+            # 每次抓 250 筆
+            response = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
+            cases = response['cases']
+            if not cases:
+                break
+            all_cases_list.extend(cases)
+            if len(cases) < 250: # 代表抓完了
+                break
+            offset += 250
+            
+        return all_cases_list, path_map, time.strftime("%H:%M:%S"), p_info.get('name')
     except Exception as e:
         return None, None, None, str(e)
