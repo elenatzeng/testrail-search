@@ -3,41 +3,43 @@ from testrail_api import TestRailAPI
 
 def clean_html(raw_html):
     if not raw_html: return "（無詳細步驟）"
+    
+    # 1. 先處理掉 HTML 標籤
     text = str(raw_html)
-    
-    # 1. 處理 HTML 換行標籤
     text = text.replace('<li>', '\n').replace('</li>', '')
-    text = re.sub(r'<(br\s*/?|/div|/p)>', '\n', text) 
-    
-    # 2. 移除所有剩餘的 HTML 標籤
+    text = re.sub(r'<(br\s*/?|/div|/p)>', '\n', text)
     cleanr = re.compile('<.*?>')
     text = re.sub(cleanr, '', text)
-    
-    # 3. 處理轉義字元
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
-    
-    # 4. 🚀 數字編號核心邏輯：將擠在一起的 "2.路徑" 拆開
-    # 在「數字+點」前面如果不是換行，就強行補一個換行
-    text = re.sub(r'(?<!\n)(\d+[\.\、])', r'\n\1', text)
-    
-    # 5. 清理空行並重新整理
-    raw_lines = [l.strip() for l in text.split('\n') if l.strip()]
-    
-    # 6. 💡 自動補全數字邏輯：
-    # 如果妳的文字裡本來就有 "1." "2."，我們會保留它
-    # 如果妳的文字只是普通句子，我們幫它加上編號
-    final_lines = []
-    for i, line in enumerate(raw_lines, 1):
-        # 如果這一行開頭已經是數字編號（例如 1. 或 2、），就直接用
-        if re.match(r'^\d+[\.\、\:]', line):
-            final_lines.append(line)
-        else:
-            # 如果沒有編號，我們幫它加上去
-            final_lines.append(f"{i}. {line}")
-            
-    return "\n".join(final_lines)
 
-# --- 以下 fetch_data_from_tr 等函數保持不變 ---
+    # 🚀 2. 核心魔法：強制在「數字.」前面加上換行符號
+    # 即使妳寫的是 "1.XXX 2.YYY"，我也會把它變成：
+    # 1.XXX
+    # 2.YYY
+    text = re.sub(r'(\d+[\.\、])', r'\n\1', text)
+
+    # 3. 把文字切開並去除多餘空格
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    
+    # 4. 再次檢查：如果每一行開頭沒編號，幫妳補上；如果有編號，維持原樣
+    final_output = []
+    current_num = 1
+    for line in lines:
+        # 檢查開頭是不是已經有 1. 或 2. 這樣的格式
+        if re.match(r'^\d+[\.\、]', line):
+            final_output.append(line)
+            # 更新計數器，確保下一個沒編號的行接得上下去
+            try:
+                current_num = int(re.search(r'^(\d+)', line).group(1)) + 1
+            except:
+                current_num += 1
+        else:
+            final_output.append(f"{current_num}. {line}")
+            current_num += 1
+
+    return "\n".join(final_output)
+
+# --- 剩下的 fetch_data_from_tr 保持不變 ---
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
