@@ -1,6 +1,7 @@
 import re, time, streamlit as st
 from testrail_api import TestRailAPI
 
+# 🚀 終極修復：自動編號與換行功能
 def clean_html(raw_html):
     if not raw_html: return "（無詳細步驟）"
     text = str(raw_html)
@@ -8,20 +9,30 @@ def clean_html(raw_html):
     # 處理 HTML 標籤
     text = text.replace('<li>', '\n').replace('</li>', '')
     text = re.sub(r'<(br\s*/?|/div|/p)>', '\n', text)
-    text = re.sub(r'<.*?>', '', text) # 清除所有剩餘標籤
+    text = re.sub(r'<.*?>', '', text) 
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
 
-    # 🚀 強制換行術：只要看到「空格+數字.」或「文字+數字.」就換行
+    # 🚀 無敵拆分術：只要看到「數字.」就強制換行
     text = re.sub(r'(\d+[\.\、])', r'\n\1', text)
     
-    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    # 清理多餘空行
+    raw_lines = [l.strip() for l in text.split('\n') if l.strip()]
     final_output = []
-    for line in lines:
+    current_num = 1
+    
+    # 💡 數字編號核心邏輯：自動補全或修正跳號
+    for line in raw_lines:
+        # 如果這一行開頭已經有 1. 或 2、 這樣的格式，我們修正它的號碼
         if re.match(r'^\d+[\.\、]', line):
-            final_output.append(line)
+            # 去除原本的編號，重新編號
+            clean_line = re.sub(r'^\d+[\.\、]\s*', '', line)
+            final_output.append(f"{current_num}. {clean_line}")
+            current_num += 1
         else:
-            # 沒編號的行如果前面沒數字，就不補數字（避免亂跳號），保持原樣
-            final_output.append(line)
+            # 如果沒有編號，我們幫它加上去
+            final_output.append(f"{current_num}. {line}")
+            current_num += 1
+            
     return "\n".join(final_output)
 
 @st.cache_data(show_spinner=False, ttl=600)
@@ -30,10 +41,11 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 確保正確抓取 Section (路徑)
+        # 正確抓取 Section 資料
         sections_data = api.sections.get_sections(project_id=pid, suite_id=sid)
         sect_dict = {s['id']: s for s in sections_data['sections']}
         
+        # 递归抓取完整目錄路徑
         def get_path(sid_in):
             curr = sect_dict.get(sid_in)
             if not curr: return "Unknown"
@@ -44,7 +56,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
 
-        # 🚀 分頁抓取 Case (確保抓到 5000 筆以上)
+        # 分頁抓取 Case 資料 (確保抓到 5000 筆以上)
         all_cases_list = []
         offset = 0
         while True:
