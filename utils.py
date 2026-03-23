@@ -4,27 +4,39 @@ from testrail_api import TestRailAPI
 def clean_html(raw_html):
     if not raw_html: return "（無詳細步驟）"
     text = str(raw_html)
-    # 清理 HTML
+    
+    # 1. 基礎清理
     text = text.replace('<li>', '\n').replace('</li>', '')
     text = re.sub(r'<(br\s*/?|/div|/p)>', '\n', text)
     text = re.sub(r'<.*?>', '', text)
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
     
-    # 強制在數字前換行
-    text = re.sub(r'(\d+[\.\、])', r'\n\1', text)
-    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    # 🚀 2. 核心拆分術：針對妳 Step 2 這種「黏死死」的文字
+    # 我們在常見的動作關鍵字（路徑、選擇、URL、點擊、登入、查看）前面強制補換行
+    keywords = ["路徑", "選擇", "URL", "點擊", "点击", "登入", "查看", "成功"]
+    for word in keywords:
+        # 如果關鍵字前面不是換行，就幫它補一個
+        text = re.sub(f'(?<!\\n)({word})', r'\n\1', text)
     
-    # 確保每一行都有正確的編號
+    # 🚀 3. 如果裡面原本就有數字編號（如 1. 2.），也強制換行
+    text = re.sub(r'(?<!\\n)(\d+[\.\、])', r'\n\1', text)
+
+    # 4. 切開所有行並去除前後空格
+    raw_lines = [l.strip() for l in text.split('\n') if l.strip()]
+    
+    # 5. 重新分配 12345 編號
     final_output = []
-    for i, line in enumerate(lines, 1):
-        if re.match(r'^\d+[\.\、]', line):
-            # 如果已有編號，去除舊的重新排號 (避免 1. 1. 重複)
-            clean_line = re.sub(r'^\d+[\.\、]\s*', '', line)
-            final_output.append(f"{i}. {clean_line}")
-        else:
-            final_output.append(f"{i}. {line}")
+    current_num = 1
+    for line in raw_lines:
+        # 去除掉 line 開頭原本可能存在的任何數字編號（避免出現 1. 1. 路徑）
+        clean_line = re.sub(r'^\d+[\.\、\:\s]*', '', line)
+        if clean_line:
+            final_output.append(f"{current_num}. {clean_line}")
+            current_num += 1
+            
     return "\n".join(final_output)
 
+# 下方的 fetch_data_from_tr 保持不變 ...
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
