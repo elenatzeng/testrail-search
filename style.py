@@ -5,7 +5,7 @@ def apply_custom_style():
         <style>
         .stApp { background-color: #0b0e14 !important; }
         
-        /* 🚀 (8) 名字標籤：膠囊形狀、發光感 */
+        /* 🚀 (8) 名字標籤：膠囊形狀、胖胖感、邊框發光基礎 */
         .author-tag { 
             font-size: 13px !important; 
             border-radius: 20px !important; 
