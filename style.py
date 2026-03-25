@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 靈魂星空背景 - 找回來了！ */
+        /* 🌌 靈魂星空背景 */
         .stApp {
             background-color: #0b0e14 !important;
             background-image: 
@@ -25,10 +25,9 @@ def apply_custom_style():
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .status-inactive { color: #FF4B4B !important; border-color: #FF4B4B !important; }
 
-        /* 🚀 Expander 透明化 */
         .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
 
-        /* 🚀 無文字內容的提示文字 - 亮灰色顯現 */
+        /* 🚀 無文字內容的提示文字 */
         .no-content-hint { 
             color: #8b949e !important; 
             font-size: 14px !important; 
@@ -37,7 +36,7 @@ def apply_custom_style():
             display: block !important;
         }
 
-        /* 🚀 火箭回到頂部按鈕 - 縮小 + 固定在右邊中間 (無白線) */
+        /* 🚀 火箭回到頂部按鈕 - 增加提示文字功能 */
         .scroll-to-top {
             position: fixed;
             top: 50% !important;
@@ -56,8 +55,31 @@ def apply_custom_style():
             z-index: 99999 !important;
             box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
             border: none !important;
-            border-bottom: none !important;
         }
+
+        /* ✨ 滑鼠移上去時顯示「回到最頂」的氣泡 */
+        .scroll-to-top::after {
+            content: "回到最頂";
+            position: absolute;
+            right: 55px; /* 在火箭左邊 */
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0; /* 平時隱藏 */
+            transition: opacity 0.3s ease;
+            pointer-events: none; /* 防止氣泡擋到點擊 */
+            border: 1px solid #f77f00;
+        }
+
+        .scroll-to-top:hover::after {
+            opacity: 1; /* 移上去時顯現 */
+        }
+
         .scroll-to-top:hover {
             transform: translateY(-50%) scale(1.1) !important;
             box-shadow: 0 0 20px rgba(247, 127, 0, 0.8) !important;
