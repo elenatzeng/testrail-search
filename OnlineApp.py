@@ -57,7 +57,6 @@ if tr_url and tr_user and tr_pw:
         # 4. 智慧搜尋與權重排序
         final_query = st.session_state.q_text
         if final_query:
-            st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             raw_input_terms = [t.lower() for t in final_query.strip().split() if len(t) > 0]
             scored_results = []
 
@@ -66,7 +65,7 @@ if tr_url and tr_user and tr_pw:
                 title = str(case_item.get('title', '')).lower()
                 section_path = str(path_map.get(case_item.get('section_id', ""), "")).lower()
                 
-                # 取得內容 (搜尋時自動濾掉圖片網址)
+                # 取得清理後的內容
                 raw_body = str(case_item.get('custom_steps','')) + str(case_item.get('custom_steps_separated',''))
                 clean_body_data = clean_html(raw_body)
                 search_text = str(clean_body_data).lower()
@@ -100,11 +99,11 @@ if tr_url and tr_user and tr_pw:
 
             for _, item, u_info in scored_results:
                 cid = str(item.get('id'))
-                # 🚀 名字弧形外框與配色 (在職綠/離職紅)
+                # 🚀 名字弧形外框與配色
                 tag_color = '#4CAF50' if u_info.get('is_active', True) else '#8b949e'
                 status_emoji = "🟢" if u_info.get('is_active', True) else "⚪"
                 
-                # ✨ 🚀 修正點：膠囊框 (2px 實線 + 25px 圓角) 並用 margin-left 拉開距離
+                # ✨ 🚀 修正點：標籤拉開距離 (margin-left: 15px) 與字體加大 (13px)
                 author_tag_html = f"""
                     <span class="author-tag" style="border-color: {tag_color} !important; box-shadow: 0 0 5px {tag_color} !important; border-radius: 25px !important; border: 2px solid !important; margin-left: 15px !important;">
                         <span style="font-size: 14px; margin-right: 6px;">{status_emoji}</span>
@@ -112,33 +111,33 @@ if tr_url and tr_user and tr_pw:
                     </span>
                 """
                 
+                # 路徑顯示
                 st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:15px;">{path_map.get(item.get("section_id"), "Unknown")}</div>', unsafe_allow_html=True)
                 
                 c_title, c_btn = st.columns([7.5, 1.5], vertical_alignment="center")
                 with c_title:
-                    # 🚀 標題與標籤對齊
                     st.markdown(f'<div style="font-size:16px; font-weight:bold; display: flex; align-items: center;">{item.get("title")} (#{cid}) {author_tag_html}</div>', unsafe_allow_html=True)
                 with c_btn:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # 🔽 查看測試步驟 (修正了 IndentationError)
+                # 🔽 查看測試步驟
                 with st.expander("🔽 查看測試步驟"):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     if isinstance(steps_data, list):
                         for i, step in enumerate(steps_data, 1):
-                            # 🚀 這裡用 \n 轉 <br> 配合 utils.py 的拆解邏輯，保證換行
+                            # 將內容與預期結果中的 \n 轉換為 <br> 以確保 HTML 換行
                             c_body = step.get('content','').replace('\n', '<br>')
                             e_body = step.get('expected','').replace('\n', '<br>')
                             st.markdown(f"""
                                 <div style="border-left:3.5px solid #2ea44f; padding-left:15px; margin-bottom: 20px;">
                                     <div style="font-weight:bold; font-size:13px; margin-bottom:5px; color:#8b949e;">Step {i}:</div>
-                                    <div class="step-content-box">{c_body}</div>
+                                    <div class="step-content-box" style="white-space: pre-wrap;">{c_body}</div>
                                     <div style="font-weight:bold; font-size:13px; margin:12px 0 5px 0; color:#8b949e;">Expected:</div>
-                                    <div class="step-content-box" style="border-left:1px dashed #444c56;">{e_body}</div>
+                                    <div class="step-content-box" style="border-left:1px dashed #444c56; white-space: pre-wrap;">{e_body}</div>
                                 </div>
                             """, unsafe_allow_html=True)
                     else:
-                        st.markdown(f'<div class="step-content-box">{steps_data if steps_data else "(無詳細步驟)"}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="step-content-box" style="white-space: pre-wrap;">{steps_data if steps_data else "(無詳細步驟)"}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     # 🚀 活力橘回到頂端按鈕
