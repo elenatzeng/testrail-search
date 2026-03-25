@@ -11,16 +11,16 @@ apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
-    # 清除隱形字元
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄設定 (儲存與刷新功能回歸)
+# 2. 側邊欄設定 (功能完全回歸)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
     tr_user = st.text_input("帳號 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
-    pid_v, sid_v = get_val("pid"), get_val("sid")
+    pid_v = get_val("pid")
+    sid_v = get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
@@ -40,7 +40,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋區按鈕 (回歸：清除與重新查詢)
+        # 搜尋區按鈕 (清除、查詢回歸)
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: 
             st.session_state.q_text = ""
@@ -72,10 +72,11 @@ if tr_url and tr_user and tr_pw:
                         break
                 if is_match:
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
+                    # 預覽分數計算
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    score = (10000 + u.get("weight", 0)) if len(clean_content) > 5 else -500000
-                    results.append((score, c, u))
+                    final_score = (10000 + u.get("weight", 0)) if len(clean_content) > 5 else -500000
+                    results.append((final_score, c, u))
 
             results.sort(key=lambda x: x[0], reverse=True) 
 
@@ -91,36 +92,44 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 核心修正：精準脫水處理器 (弄掉空白行與廢行)
-                    def purify_and_render(text):
+                    # 🔥 究極淨化渲染器 (解決怪編號與空行)
+                    def ultra_purify_render(text):
                         if not text: return ""
+                        # 處理圖片佔位
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
                         lines = text.split('\n')
-                        # 只要當行沒內容或是只有點點/減號，就弄掉
-                        clean_lines = [l.rstrip() for l in lines if l.strip() and not re.fullmatch(r'[\.\-\*•]+', l.strip())]
+                        clean_lines = []
+                        for l in lines:
+                            s_line = l.strip()
+                            # 脫水過濾條件：不只是沒字，連只有一個標點符號的行都「蒸發」
+                            if not s_line: continue
+                            if re.fullmatch(r'[\.\-\*•1]+', s_line): continue 
+                            clean_lines.append(l.rstrip())
+                        
+                        # 改回用 HTML 斷行，避開 Markdown 自作聰明的自動編號
                         return "<br>".join(clean_lines)
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         v_idx = 1
                         has_any_visible = False
                         for s in steps_data:
-                            c_html = purify_and_render(s.get('content', ''))
-                            e_html = purify_and_render(s.get('expected', ''))
+                            c_html = ultra_purify_render(s.get('content', ''))
+                            e_html = ultra_purify_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             has_any_visible = True
                             
-                            # 🔥 綠線容器鎖死結構
+                            # 🔥 綠線鎖死結構
                             st.markdown(f'''
                                 <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {v_idx}:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{c_html if c_html else "(無操作內容)"}</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{c_html if c_html else "(無內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Expected:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; white-space:pre-wrap;">{e_html if e_html else "(無預期結果)"}</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; white-space:pre-wrap;">{e_html if e_html else "(無內容)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                             v_idx += 1
                         if not has_any_visible:
-                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">💡 (此案例文字步驟已精簡脫水)</div>', unsafe_allow_html=True)
                     else:
                         st.markdown('<div class="no-content-hint">💡 (此案例目前沒有填寫測試步驟內容)</div>', unsafe_allow_html=True)
                 st.markdown("---")
