@@ -44,4 +44,33 @@ def apply_custom_style():
             margin-bottom: 20px; 
             margin-left: 5px;
         }
-        .step
+        .step-label { color: #ffffff; font-weight: bold; margin-bottom: 5px; font-size: 15px; }
+        
+        /* 捲動到頂部按鈕與作者標籤 */
+        .view-btn { display: inline-block; padding: 5px 10px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; }
+        
+        /* 🚀 回到頂部火箭按鈕 - 整個圈圈大瘦身 */
+        .scroll-to-top {
+            position: fixed;
+            bottom: 40px; /* 往下移一點點 */
+            right: 25px; /* 往右移一點點 */
+            width: 50px; /* 瘦身 1/6 */
+            height: 50px; /* 瘦身 1/6 */
+            background-color: #f77f00; /* 亮橘色 */
+            color: white !important;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px; /* 火箭縮小一點點 */
+            text-decoration: none !important;
+            z-index: 9999;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(247, 127, 0, 0.6); /* 溫和發光 */
+        }
+        .scroll-to-top:hover {
+            transform: translateY(-8px); /* 輕輕飛 */
+            box-shadow: 0 0 20px rgba(247, 127, 0, 0.9); /* ✨ 更強發光 */
+        }
+        </style>
+    """, unsafe_allow_html=True)
