@@ -34,6 +34,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases is not None:
         st.markdown(f'<div style="color:#8b949e; font-size:14px;">📍 Project：{p_name} | Suite：#{suite_id}</div>', unsafe_allow_html=True)
         
+        # 搜尋區域
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2])
         if "q_text" not in st.session_state: st.session_state.q_text = ""
 
@@ -56,7 +57,7 @@ if tr_url and tr_user and tr_pw:
         final_query = st.session_state.q_text
         if final_query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
-            # 🚀 拆分搜尋詞
+            # 🔍 功能 1：精準交集拆分
             raw_input_terms = [t.lower() for t in final_query.strip().split() if len(t) > 0]
             scored_results = []
 
@@ -64,31 +65,45 @@ if tr_url and tr_user and tr_pw:
                 cid = str(c.get('id', ''))
                 title = c.get('title', '').lower()
                 section_path = str(path_map.get(c.get('section_id', ""), "")).lower()
-                steps_raw = str(c.get('custom_steps_separated', '')) + str(c.get('custom_steps', ''))
-                searchable_pool = (title + section_path + steps_raw).lower()
+                
+                # 檢查內容完整度 (排序用)
+                steps_sep = c.get('custom_steps_separated') or []
+                steps_txt = str(c.get('custom_steps', '')).strip()
+                has_content = len(steps_sep) > 0 or len(steps_txt) > 0
+                
+                searchable_pool = (title + section_path + steps_txt + str(steps_sep)).lower()
                 
                 is_all_match = True
                 total_score = 0
                 
-                # 🚀 智慧交集：每一組詞都必須在池子裡找到分身
+                # 🔍 功能 2：三語聯動擴展比對
                 for term in raw_input_terms:
-                    expanded_synonyms = multi_lang_search(term, SEARCH_DICTIONARY)
-                    if not any(word in searchable_pool or word in cid for word in expanded_synonyms):
+                    expanded = multi_lang_search(term, SEARCH_DICTIONARY)
+                    if not any(word in searchable_pool or word in cid for word in expanded):
                         is_all_match = False
                         break
                     else:
-                        if any(word in title for word in expanded_synonyms): total_score += 1000
+                        # 📈 功能 3：智能權重排序 (標題命中權分)
+                        if any(word in title for word in expanded): total_score += 1000
+                        if any(word in section_path for word in expanded): total_score += 500
                 
                 if is_all_match:
                     u_info = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
                     total_score += u_info.get("weight", 0)
+                    
+                    # 📈 功能 3：空案例大扣分 (墊底邏輯)
+                    if not has_content:
+                        total_score -= 100000 
+                    
                     scored_results.append((total_score, c, u_info))
 
+            # 排序：分數最高排最前
             scored_results.sort(key=lambda x: x[0], reverse=True)
             st.markdown(f"### 🎯 找到 {len(scored_results)} 個案例 (已過濾交集結果)")
 
             for _, item, u_info in scored_results:
                 cid = str(item.get('id'))
+                # 🚦 功能 5：紅綠燈標籤
                 status_emoji = "🟢" if u_info.get("is_active") else "🔴"
                 author_style = "color: #4CAF50; background: rgba(76,175,80,0.15); border: 1.5px solid #4CAF50;" if u_info.get("is_active") else "color: #ff4b4b; background: rgba(255,75,75,0.15); border: 1.5px solid #ff4b4b;"
                 
@@ -102,12 +117,22 @@ if tr_url and tr_user and tr_pw:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("🔽 查看測試步驟"):
+                    # ✨ 功能 4：自動格式化渲染
                     raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or []
                     if isinstance(raw_steps, list) and len(raw_steps) > 0:
                         for i, s in enumerate(raw_steps, 1):
-                            st.markdown(f'<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{clean_html(s.get("content", ""))}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="step-content-box" style="border-left: 2px solid #4CAF50;">{clean_html(s.get("expected", ""))}</div></div>', unsafe_allow_html=True)
+                            c_body = clean_html(s.get("content", ""))
+                            e_body = clean_html(s.get("expected", ""))
+                            st.markdown(f'''
+                                <div class="step-item">
+                                    <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
+                                    <div class="step-content-box">{c_body if c_body else "（無操作內容）"}</div>
+                                    <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
+                                    <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{e_body if e_body else "（無預期結果）"}</div>
+                                </div>''', unsafe_allow_html=True)
                     else:
-                        st.markdown(f'<div class="step-content-box">{clean_html(item.get("custom_steps", ""))}</div>', unsafe_allow_html=True)
+                        body = clean_html(item.get('custom_steps', ''))
+                        st.markdown(f'<div class="step-content-box">{(body if body else "（無詳細步驟）")}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 else:
     st.info("👈 請在左側輸入資料後開始查詢。")
