@@ -31,7 +31,6 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # 🚀 修正點：Project 名稱白色粗體
         st.markdown(f"""
             <div style="color:#8b949e; font-size:14px; margin-bottom:10px;">
                 📍 Project：<span style="color:#ffffff; font-weight:bold;">{p_name}</span> | Suite：<span style="color:#ffffff; font-weight:bold;">#{sid}</span>
@@ -75,13 +74,16 @@ if tr_url and tr_user and tr_pw:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
                 
-                # 🚀 修正點：動態長路徑顯示
+                # 🚀 這裡調整：字體從 11px 加大到 14px，並移除任何背景
                 display_path = path_map.get(item.get("section_id"), "GoGaming")
-                st.markdown(f'<div style="font-size:11px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{display_path}</div>', unsafe_allow_html=True)
+                st.markdown(f'''
+                    <div style="font-size:14px; color:#adb5bd; margin-top:25px; margin-bottom:8px; background:transparent!important; padding:0!important;">
+                        {display_path}
+                    </div>
+                ''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    # 🚀 修正點：還原發光名字標籤
                     tag = f'''
                     <span class="author-tag" style="border-color:{color}!important; box-shadow: 0 0 10px {color}88!important;">
                         {"🟢" if u.get("is_active") else "⚪"} {u["name"]}
