@@ -27,7 +27,7 @@ def apply_custom_style():
 
         .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
 
-        /* 🚀 無文字內容提示 */
+        /* 🚀 無文字內容提示文字 */
         .no-content-hint { 
             color: #8b949e !important; 
             font-size: 14px !important; 
@@ -36,7 +36,7 @@ def apply_custom_style():
             display: block !important;
         }
 
-        /* 🚀 火箭回到頂部按鈕 */
+        /* 🚀 火箭回到頂部按鈕 - 固定在右邊中間 */
         .scroll-to-top {
             position: fixed;
             top: 50% !important;
@@ -57,7 +57,7 @@ def apply_custom_style():
             border: none !important;
         }
 
-        /* ✨ 提示氣泡 */
+        /* ✨ 滑鼠移上去時顯示「回到最頂」的氣泡 */
         .scroll-to-top::after {
             content: "回到最頂";
             position: absolute;
@@ -75,6 +75,7 @@ def apply_custom_style():
             pointer-events: none;
             border: 1px solid #f77f00;
         }
+
         .scroll-to-top:hover::after { opacity: 1; }
         .scroll-to-top:hover {
             transform: translateY(-50%) scale(1.1) !important;
