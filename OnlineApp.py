@@ -10,6 +10,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
+# 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -27,10 +28,18 @@ with st.sidebar:
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
+    # 這裡會拿到我們在 utils.py 修正後的 final_path_map
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
+    
     if all_cases:
-        st.markdown(f'<div style="color:#8b949e; font-size:14px;">📍 Project：{p_name} | Suite：#{sid}</div>', unsafe_allow_html=True)
+        # 🚀 這裡就是妳要的：Project 名稱變白色粗體
+        st.markdown(f"""
+            <div style="color:#8b949e; font-size:14px; margin-bottom:10px;">
+                📍 Project：<span style="color:#ffffff; font-weight:bold;">{p_name}</span> | Suite：<span style="color:#ffffff; font-weight:bold;">#{sid}</span>
+            </div>
+        """, unsafe_allow_html=True)
         
+        # 功能按鈕區
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_search:
@@ -49,8 +58,10 @@ if tr_url and tr_user and tr_pw:
             results = []
             for c in all_cases:
                 cid = str(c.get('id'))
+                # 取得長路徑
                 full_path = path_map.get(c.get('section_id'), "GoGaming")
                 title = str(c.get('title', '')).lower()
+                
                 is_match = True; score = 0
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
@@ -67,7 +78,8 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
-                # 🚀 顯示路徑 (紅圈 6)
+                
+                # 🚀 顯示長路徑
                 st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{path_map.get(item.get("section_id"), "GoGaming")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
