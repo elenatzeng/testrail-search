@@ -11,6 +11,7 @@ apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key): 
+    # 修正原始代碼中的特殊空白字元問題
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
 # 🚀 (1)-(3) 側邊欄設定
@@ -69,6 +70,7 @@ if tr_url and tr_user and tr_pw:
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    # 如果沒文字內容，權重拉低
                     final_score = (10000 + u.get("weight", 0)) if len(clean_content) > 5 else -500000
                     results.append((final_score, c, u))
 
@@ -86,35 +88,57 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 核心修正：強制斷行處理器
+                    # 🔥 核心修正：強制斷行處理器 (找回換行與縮排)
                     def final_line_fix(text):
                         if not text: return ""
                         # 移除圖片代碼
                         text = re.sub(img_pattern, '', text).strip()
-                        # 1. 處理已經存在的換行符號
+                        if not text: return ""
+                        # 1. 處理換行符號
                         text = text.replace('\n', '<br>')
-                        # 2. 針對妳貼出的那種沒點點的「用户名驗證...」內容進行正則補強
-                        # 如果文字中出現「用户名」，但在它前面不是換行，就幫它加換行
+                        # 2. 針對沒點點的清單關鍵字補強 (例如用户名...)
                         text = re.sub(r'(?<!<br>)(用户名)', r'<br>• \1', text)
                         return text
 
-                    if isinstance(steps, list):
+                    # 判斷有無內容並顯現提示文字
+                    if isinstance(steps, list) and len(steps) > 0:
                         v_idx = 1
+                        has_any_visible = False
                         for s in steps:
                             c_html = final_line_fix(s.get('content', ''))
                             e_html = final_line_fix(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
+                            has_any_visible = True
                             # 🔥 使用 inline-style 確保綠線長出來並連貫
                             st.markdown(f'''
                                 <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px;">{c_html}</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px;">{c_html if c_html else "(無操作內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Expected:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;">{e_html}</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;">{e_html if e_html else "(無預期結果)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                             v_idx += 1
+                        
+                        if not has_any_visible:
+                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容，可能僅包含圖片附件)</div>', unsafe_allow_html=True)
+                    
+                    elif isinstance(steps, str) and steps.strip():
+                        final_res = final_line_fix(steps)
+                        if final_res:
+                            st.markdown(f'''
+                                <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px;">
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9;">{final_res}</div>
+                                </div>
+                            ''', unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容，可能僅包含圖片附件)</div>', unsafe_allow_html=True)
+                    else:
+                        # 🚀 找回紅框處原本應該出現的提示
+                        st.markdown('<div class="no-content-hint">💡 (此案例目前沒有填寫測試步驟內容)</div>', unsafe_allow_html=True)
+                
                 st.markdown("---")
 
+    # 🚀 火箭回到頂部：固定在右邊中間 (搭配 style.py 裡的 scroll-to-top 樣式)
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
