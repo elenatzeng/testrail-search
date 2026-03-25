@@ -73,17 +73,22 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 
-                # 🚀 修復點：顏色換成鮮豔亮綠 (#32CD32)，不活躍改成灰 (#444)
-                tag_color = '#32CD32' if u.get('is_active') else '#444444'
-                f_path = path_map.get(item.get("section_id"), "GoGaming")
+                # 🚀 修復點：顏色換成最鮮豔的亮綠色 (#32CD32)
+                tag_color = '#32CD32' if u.get('is_active') else '#8b949e'
+                display_path = path_map.get(item.get("section_id"), "GoGaming")
                 
-                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{f_path}</div>', unsafe_allow_html=True)
+                # 🚀 修復點：路徑字體加大到 14px，顏色換成亮灰，前面加上 📁 圖示
+                st.markdown(f'''
+                    <div style="font-size:14px; color:#adb5bd; margin-top:25px; margin-bottom:8px; display:flex; align-items:center;">
+                        <span style="margin-right:8px;">📁</span> {display_path}
+                    </div>
+                ''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    # 🚀 修復點：還原發光 Box-shadow、撐開 Padding（胖胖）、圓角胶囊感（25px）
+                    # 🚀 修復點：還原胖胖發光標籤 (Box-shadow)，color 改成 white
                     tag = f'''
-                    <span class="author-tag" style="border-color:{tag_color}!important; box-shadow: 0 0 10px {tag_color}88!important;">
+                    <span class="author-tag" style="border-color:{tag_color}!important; box-shadow: 0 0 10px {tag_color}88!important; color:white;">
                         {"🟢" if u.get("is_active") else "⚪"} {u["name"]}
                     </span>
                     '''
