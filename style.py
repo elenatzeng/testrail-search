@@ -7,29 +7,34 @@ def apply_custom_style():
         
         /* ... 其他樣式 ... */
 
-        /* 🚀 (修正) 火箭回到頂部按鈕 - 妹妹專屬精緻瘦身版 */
+        /* 🚀 (修正) 火箭回到頂部按鈕 - 妹妹專屬精緻瘦身版 + 固定居右中 */
         .scroll-to-top {
             position: fixed;
-            bottom: 30px; /* 往下移，離邊緣更近 */
-            right: 20px;  /* 往右移，離邊緣更近 */
-            width: 45px;  /* 大瘦身：寬度從原本的巨大尺寸縮小到 45px */
-            height: 45px; /* 大瘦身：高度從原本的巨大尺寸縮小到 45px */
+            top: 50%; /* 🔥 固定在畫面的垂直中間 */
+            right: 15px; /* 🔥 固定在最右邊，離邊緣 15px */
+            transform: translateY(-50%); /* 🔥 完美置中補正 */
+            width: 45px; /* 大瘦身：精緻小巧 */
+            height: 45px; /* 大瘦身：精緻小巧 */
             background-color: #f77f00; /* 亮橘色不變 */
             color: white !important;
-            border-radius: 50%; /* 依然是完美的圓圈 */
+            border-radius: 50%; /* 完美的圓圈 */
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px; /* 火箭圖示也跟著縮小，保持比例 */
+            font-size: 24px; /* 火箭圖示縮小，保持比例 */
             text-decoration: none !important;
             z-index: 9999; /* 確保它在最上層 */
             transition: all 0.3s ease; /* 飛行的平滑動畫 */
-            box-shadow: 0 0 10px rgba(247, 127, 0, 0.5); /* 溫和的發光，不刺眼 */
+            box-shadow: 0 0 10px rgba(247, 127, 0, 0.5); /* 溫和的發光 */
+            
+            /* 🔥 移除底部的白線：確保 border-bottom 為 none */
+            border: none !important;
+            border-bottom: none !important;
         }
         
-        /* 懸停時的精緻飛行動畫 */
+        /* 懸停時的精緻飛行動畫 (改為向左飛，因為在右邊) */
         .scroll-to-top:hover {
-            transform: translateY(-8px); /* 輕輕飛，不飛太高 */
+            transform: translate(-5px, -50%); /* 輕輕向左飛，不影響置中 */
             box-shadow: 0 0 20px rgba(247, 127, 0, 0.8); /* 懸停時稍微加強發光 */
         }
         </style>
