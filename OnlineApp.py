@@ -5,15 +5,16 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 初始化
+# 1. 初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
+    # 這裡清除了隱形字元，確保語法正確
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 側邊欄與搜尋區
+# 2. 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -33,6 +34,7 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
+# 3. 核心抓取邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
@@ -60,8 +62,7 @@ if tr_url and tr_user and tr_pw:
             img_pattern = r'!\[\]\(index\.php\?/attachments/get/\d+\)'
 
             for c in all_cases:
-                title = str(c.get('title', ''))
-                cid = str(c.get('id'))
+                title, cid = str(c.get('title', '')), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
                 is_match = True
                 for t in terms:
@@ -94,7 +95,9 @@ if tr_url and tr_user and tr_pw:
                         if not text: return ""
                         text = re.sub(img_pattern, '', text).strip()
                         if not text: return ""
+                        # 處理換行
                         text = text.replace('\n', '<br>')
+                        # 處理清單階層誤判，針對關鍵字加點
                         text = re.sub(r'(?<!<br>)(用户名)', r'<br>• \1', text)
                         return text
 
@@ -104,12 +107,12 @@ if tr_url and tr_user and tr_pw:
                         for s in steps:
                             c_html = final_line_fix(s.get('content', ''))
                             e_html = final_line_fix(s.get('expected', ''))
+                            # 🚀 如果內容和預期結果都是空的，就跳過此 Step 編號 (修正 image_7)
                             if not c_html and not e_html: continue
                             
                             has_any_visible = True
-                            # 🔥🔥🔥 綠線鎖死結構注入
                             st.markdown(f'''
-                                <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px; display: block;">
+                                <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
                                     <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{c_html if c_html else "(無操作內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Expected:</div>
@@ -119,9 +122,17 @@ if tr_url and tr_user and tr_pw:
                             v_idx += 1
                         
                         if not has_any_visible:
-                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容，可能僅包含圖片附件)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容)</div>', unsafe_allow_html=True)
                     
                     elif isinstance(steps, str) and steps.strip():
                         final_res = final_line_fix(steps)
                         if final_res:
-                            st.markdown(f'<div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px;"><div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px
+                            st.markdown(f'<div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px;"><div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; white-space:pre-wrap;">{final_res}</div></div>', unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div class="no-content-hint">💡 (此案例無文字內容)</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="no-content-hint">💡 (此案例目前沒有填寫測試步驟內容)</div>', unsafe_allow_html=True)
+                st.markdown("---")
+
+    # 🚀 火箭按鈕
+    st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
