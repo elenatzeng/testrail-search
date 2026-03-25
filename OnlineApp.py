@@ -4,13 +4,14 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
+# 1. 頁面基礎配置
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 側邊欄設定
+# 2. 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -21,25 +22,26 @@ with st.sidebar:
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-        st.success("✅")
+        st.success("✅ 已儲存")
     if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
+# 3. 核心邏輯
 if tr_url and tr_user and tr_pw:
-    # 這裡會拿到我們在 utils.py 修正後的 final_path_map
+    # 🚀 這裡會從 utils.py 拿到修正後的長路徑地圖
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # 🚀 這裡就是妳要的：Project 名稱變白色粗體
+        # 🚀 紅圈 4：Project 名稱白色粗體優化
         st.markdown(f"""
             <div style="color:#8b949e; font-size:14px; margin-bottom:10px;">
                 📍 Project：<span style="color:#ffffff; font-weight:bold;">{p_name}</span> | Suite：<span style="color:#ffffff; font-weight:bold;">#{sid}</span>
             </div>
         """, unsafe_allow_html=True)
         
-        # 功能按鈕區
+        # 功能按鈕
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_search:
@@ -56,9 +58,10 @@ if tr_url and tr_user and tr_pw:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
+            
             for c in all_cases:
                 cid = str(c.get('id'))
-                # 取得長路徑
+                # 🚀 抓取該案例的完整長路徑
                 full_path = path_map.get(c.get('section_id'), "GoGaming")
                 title = str(c.get('title', '')).lower()
                 
@@ -79,9 +82,11 @@ if tr_url and tr_user and tr_pw:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
                 
-                # 🚀 顯示長路徑
-                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{path_map.get(item.get("section_id"), "GoGaming")}</div>', unsafe_allow_html=True)
+                # 🚀 紅圈 6：修正點！不再寫死 GoGaming，而是顯示動態長路徑
+                current_path = path_map.get(item.get("section_id"), "GoGaming")
+                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{current_path}</div>', unsafe_allow_html=True)
                 
+                # 標題與標籤
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
                     tag = f'<span class="author-tag" style="border-color:{color}!important; box-shadow: 0 0 5px {color}!important;">{"🟢" if u.get("is_active") else "⚪"} {u["name"]}</span>'
@@ -89,6 +94,7 @@ if tr_url and tr_user and tr_pw:
                 with c2:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
+                # 展開步驟
                 with st.expander("🔽 查看測試步驟"):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     if isinstance(steps, list):
@@ -103,4 +109,5 @@ if tr_url and tr_user and tr_pw:
                         st.markdown(f'<div class="step-content-box" style="white-space: pre-wrap;">{steps if steps else "(無詳細步驟)"}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
+    # 回到頂端按鈕
     st.markdown('<a href="#top-anchor" class="scroll-to-top">▲</a>', unsafe_allow_html=True)
