@@ -30,31 +30,36 @@ def apply_custom_style():
         }
         .step-label { color: #ffffff !important; font-weight: bold !important; font-size: 15px !important; margin-bottom: 8px; }
         
-        /* 🚀 核心黑盒子：強烈支持斷行與階層 */
+        /* 🚀 核心黑盒子：斷行鎖死與階層美化 */
         .step-box { 
-            background-color: #1c2128 !important; border: 1px solid #30363d !important; 
-            border-radius: 12px !important; padding: 18px 22px !important; color: #c9d1d9 !important; 
-            font-size: 14px !important; line-height: 1.8 !important; margin-bottom: 15px !important;
-            /* 🔥 這是保留換行的關鍵 */
-            white-space: pre-wrap !important; 
+            background-color: #1c2128 !important; 
+            border: 1px solid #30363d !important; 
+            border-radius: 12px !important; 
+            padding: 18px 22px !important; 
+            color: #c9d1d9 !important; 
+            font-size: 14px !important; 
+            line-height: 1.8 !important; 
+            margin-bottom: 15px !important;
+            /* 🔥 確保換行生效 */
+            white-space: pre-wrap !important;
             display: block !important;
         }
 
-        /* 🔥 處理清單階層的 CSS (對齊 image_7bc4e9 截圖) */
+        /* 🔥 核心修正：讓 Markdown 清單標號乖乖縮進去 */
+        .step-box p { margin-bottom: 0px !important; }
         .step-box ul, .step-box ol {
-            margin-left: 20px !important;
+            margin: 5px 0 5px 20px !important;
             padding-left: 5px !important;
-            margin-top: 5px !important;
-            margin-bottom: 5px !important;
         }
         .step-box li {
-            margin-bottom: 8px !important;
+            margin-bottom: 6px !important;
+            padding-left: 5px !important;
             list-style-position: outside !important;
         }
-        /* 針對第二階層以後的縮排 */
+        /* 第二階層縮排 */
         .step-box li > ul, .step-box li > ol {
-            margin-left: 25px !important;
-            list-style-type: circle !important; /* 第二階變空心圓 */
+            margin-left: 20px !important;
+            list-style-type: circle !important;
         }
 
         .no-content-hint { color: #666; font-size: 14px; margin-top: 10px; font-style: italic; }
