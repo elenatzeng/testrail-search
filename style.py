@@ -5,7 +5,7 @@ def apply_custom_style():
         <style>
         .stApp { background-color: #0b0e14 !important; }
         
-        /* 🚀 (8) 名字標籤 */
+        /* 🚀 (8) 名字標籤 (純色邊框) */
         .author-tag { 
             font-size: 13px !important; border-radius: 20px !important; 
             padding: 4px 14px !important; display: inline-flex !important;
@@ -16,46 +16,54 @@ def apply_custom_style():
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .status-inactive { color: #FF4B4B !important; border-color: #FF4B4B !important; }
 
+        /* 🚀 (9) Expander 透明化 */
         .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
         .stExpander summary { color: #8b949e !important; padding: 10px 0 !important; }
         
-        /* 🚀 靈魂綠線：左側連貫長線 */
-        .step-wrapper {
+        /* 🚀 靈魂綠線：左側連貫長線 (修正消失問題) */
+        /* 增加層級權重，確保它不被 Streamlit 內建樣式吃掉 */
+        div[class*="stMarkdown"] > div.step-wrapper {
             border-left: 4px solid #4CAF50 !important; 
             padding-left: 20px !important;
             margin-left: 2px !important;
-            margin-bottom: 25px !important;
+            margin-bottom: 30px !important;
+            display: block !important;
+            visibility: visible !important;
         }
-        .step-label { color: #ffffff !important; font-weight: bold !important; font-size: 15px !important; margin-bottom: 8px; }
         
-        /* 🚀 核心黑盒子：支援強制斷行 */
-        .step-box { 
-            background-color: #1c2128 !important; border: 1px solid #30363d !important; 
-            border-radius: 12px !important; padding: 18px 22px !important; color: #c9d1d9 !important; 
-            font-size: 14px !important; line-height: 1.8 !important; margin-bottom: 15px !important;
-            /* 🔥🔥🔥 斷行關鍵鎖死 */
-            white-space: pre-wrap !important; 
-            word-break: break-all !important;
-            overflow-wrap: anywhere !important;
+        .step-label { 
+            color: #ffffff !important; 
+            font-weight: bold !important; 
+            font-size: 15px !important; 
+            margin-bottom: 8px !important; 
             display: block !important;
         }
 
-        /* 🔥🔥🔥 修正階層：針對 Expected 內的 Markdown 清單進行縮排 */
-        .step-box p { margin-bottom: 8px !important; }
-        .step-box ul {
-            margin-left: 20px !important;
-            padding-left: 0px !important;
-            list-style-type: disc !important;
+        /* 🚀 核心黑盒子：斷行與階層鎖死 */
+        .step-box { 
+            background-color: #1c2128 !important; 
+            border: 1px solid #30363d !important; 
+            border-radius: 12px !important; 
+            padding: 18px 22px !important; 
+            color: #c9d1d9 !important; 
+            font-size: 14px !important; 
+            line-height: 1.8 !important;
+            margin-bottom: 15px !important;
+            /* 🔥🔥🔥 斷行關鍵：anywhere 確保超長文字不爆掉 */
+            white-space: pre-wrap !important; 
+            overflow-wrap: anywhere !important; 
+            word-break: break-word !important;
+            display: block !important;
+        }
+
+        /* 🔥 清單階層縮排 */
+        .step-box ul, .step-box ol {
+            margin: 5px 0 5px 20px !important;
+            padding-left: 5px !important;
         }
         .step-box li {
-            margin-bottom: 5px !important;
-            display: list-item !important;
+            margin-bottom: 6px !important;
             list-style-position: outside !important;
-        }
-        /* 第二階層清單 (image_7c2a44 紅框) */
-        .step-box li ul {
-            margin-left: 25px !important;
-            list-style-type: circle !important;
         }
 
         .no-content-hint { color: #666; font-size: 14px; margin-top: 10px; font-style: italic; }
