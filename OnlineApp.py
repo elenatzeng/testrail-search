@@ -13,30 +13,39 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄 (略，保持妳原本的邏輯)
+# 2. 側邊欄 (連線設定)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
     tr_user = st.text_input("帳號 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
-    pid_v, sid_v = get_val("pid"), get_val("sid")
+    pid_v = get_val("pid"); sid_v = get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     if st.button("💾 儲存資訊", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
+        st.success("✅ 已儲存")
     if st.button("🔄 強制刷新", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
+# 3. 搜尋邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋邏輯 (略)
-        q_input = st.text_input("搜尋內容", value=st.session_state.get("q_text", ""))
-        st.session_state.q_text = q_input
+        col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
+        if "q_text" not in st.session_state: st.session_state.q_text = ""
+        with col_s:
+            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="輸入關鍵字查詢...", label_visibility="collapsed")
+            st.session_state.q_text = q_input
+        with col_c:
+            if st.button("🗑️ 清空", use_container_width=True): st.session_state.q_text = ""; st.rerun()
+        with col_r:
+            if st.button("🔎 查詢", use_container_width=True): st.rerun()
 
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
@@ -44,7 +53,6 @@ if tr_url and tr_user and tr_pw:
             img_pattern = r'!\[\]\(index\.php\?/attachments/get/\d+\)'
 
             for c in all_cases:
-                # 搜尋比對邏輯 (保持妳原本的邏輯)
                 title, cid = str(c.get('title', '')), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
                 is_match = True
@@ -72,32 +80,29 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    def final_line_fix(text):
+                    def purify_text(text):
                         if not text: return ""
                         text = re.sub(img_pattern, '', text).strip()
-                        if not text: return ""
-                        # 讓 Markdown 保持純淨
                         return text
 
                     if isinstance(steps, list) and len(steps) > 0:
                         v_idx = 1
                         for s in steps:
-                            c_md = final_line_fix(s.get('content', ''))
-                            e_md = final_line_fix(s.get('expected', ''))
-                            if not c_md and not e_md: continue
+                            c_txt = purify_text(s.get('content', ''))
+                            e_txt = purify_text(s.get('expected', ''))
+                            if not c_txt and not e_txt: continue
                             
-                            # 🔥 結構整合：標題 + 帶綠線的黑盒子
-                            st.markdown(f'<div class="step-container">', unsafe_allow_html=True)
-                            if c_md:
+                            # 🚀 綠線容器 (包裹 Step & Expected)
+                            st.markdown('<div class="green-line-box">', unsafe_allow_html=True)
+                            
+                            if c_txt:
                                 st.markdown(f'<span class="step-label">Step {v_idx}:</span>', unsafe_allow_html=True)
-                                st.markdown(f'<div class="black-box-with-line">', unsafe_allow_html=True)
-                                st.markdown(c_md) # 用原生 Markdown，階層最漂亮
-                                st.markdown('</div>', unsafe_allow_html=True)
-                            if e_md:
-                                st.markdown(f'<span class="step-label">Expected:</span>', unsafe_allow_html=True)
-                                st.markdown(f'<div class="black-box-with-line">', unsafe_allow_html=True)
-                                st.markdown(e_md)
-                                st.markdown('</div>', unsafe_allow_html=True)
+                                st.markdown(f'<div class="black-content-box">{c_txt}</div>', unsafe_allow_html=True)
+                            
+                            if e_txt:
+                                st.markdown('<span class="step-label">Expected:</span>', unsafe_allow_html=True)
+                                st.markdown(f'<div class="black-content-box">{e_txt}</div>', unsafe_allow_html=True)
+                            
                             st.markdown('</div>', unsafe_allow_html=True)
                             v_idx += 1
                     else:
