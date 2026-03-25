@@ -28,7 +28,6 @@ st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
-    
     if all_cases:
         st.markdown(f'<div style="color:#8b949e; font-size:14px;">📍 Project：{p_name} | Suite：#{sid}</div>', unsafe_allow_html=True)
         
@@ -50,8 +49,7 @@ if tr_url and tr_user and tr_pw:
             results = []
             for c in all_cases:
                 cid = str(c.get('id'))
-                # 🚀 抓取正確的路徑地圖
-                full_path = path_map.get(c.get('section_id'), "Root")
+                full_path = path_map.get(c.get('section_id'), "GoGaming")
                 title = str(c.get('title', '')).lower()
                 is_match = True; score = 0
                 for t in terms:
@@ -70,7 +68,7 @@ if tr_url and tr_user and tr_pw:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
                 # 🚀 顯示路徑 (圓圈 6)
-                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{path_map.get(item.get("section_id"), "Root")}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{path_map.get(item.get("section_id"), "GoGaming")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
