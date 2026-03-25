@@ -11,7 +11,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key): 
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 (1)-(3) 側邊欄完整功能
+# 🚀 (1)-(3) 側邊欄
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -20,10 +20,10 @@ with st.sidebar:
     pid_v = get_val("pid"); sid_v = get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
-    if st.button("💾 儲存資訊至網址", use_container_width=True): # (2)
+    if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
-    if st.button("🔄 強制刷新數據", use_container_width=True): # (3)
+    if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
@@ -32,15 +32,15 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # (4) Intellianalyze 白色粗體顯示
+        # (4) 專案資訊
         st.markdown(f"""<div style="color:#8b949e; font-size:14px; margin-bottom:10px;">📍 Project：<span style="color:#ffffff; font-weight:bold;">{p_name}</span> | Suite：<span style="color:#ffffff; font-weight:bold;">#{sid}</span></div>""", unsafe_allow_html=True)
         
-        # (5) (11) (12) 搜尋與按鈕組
+        # (5) 搜尋組件
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_search:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="輸入關鍵字...", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="充值 CNY", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_clear:
             if st.button("🗑️ 清除條件", use_container_width=True): st.session_state.q_text = ""; st.rerun()
@@ -54,7 +54,11 @@ if tr_url and tr_user and tr_pw:
             
             for c in all_cases:
                 title = c.get('title')
-                if not title or len(str(title).strip()) < 2: continue # 🚀 排除空案例
+                if not title or len(str(title).strip()) < 2: continue
+                
+                # 🚀 內容檢查邏輯：針對無內容案例進行降權
+                steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
+                has_content = steps_raw and len(str(steps_raw)) > 10
                 
                 cid = str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "GoGaming")
@@ -63,45 +67,47 @@ if tr_url and tr_user and tr_pw:
                 
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    found_in_title = any(w in title_s for w in exp)
-                    found_in_path = any(w in f_path.lower() for w in exp)
-                    found_id = any(w == cid for w in exp)
-                    if not (found_in_title or found_in_path or found_id):
+                    f_title = any(w in title_s for w in exp)
+                    f_path_match = any(w in f_path.lower() for w in exp)
+                    f_id = any(w == cid for w in exp)
+                    
+                    if not (f_title or f_path_match or f_id):
                         is_match = False; break
                     
-                    # 🚀 排序權重絕對化
-                    if found_id: score += 5000000
-                    if found_in_title: score += 1000000
-                    if found_in_path: score += 100
+                    # 🚀 加強權重邏輯
+                    if f_id: score += 50000000
+                    if f_title: score += 10000000
+                    if f_path_match: score += 100
                 
                 if is_match:
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((score + u.get("weight", 0), c, u))
+                    # 🚀 如果沒有內容，直接把分數打到谷底
+                    final_score = (score + u.get("weight", 0)) if has_content else (score - 99999999)
+                    results.append((final_score, c, u))
 
-            results.sort(key=lambda x: x[0], reverse=True) # 🚀 依照權重排序
+            results.sort(key=lambda x: x[0], reverse=True)
             st.markdown(f"### 🎯 找到 {len(results)} 個案例")
 
             for _, item, u in results:
                 cid = str(item.get('id'))
                 is_active = u.get("is_active", False)
-                # 🚀 (8) 顏色鎖死邏輯：綠燈綠框、紅燈紅框
                 main_color = "#32CD32" if is_active else "#FF4B4B"
                 status_emoji = "🟢" if is_active else "🔴"
                 
-                # (6) 📁 路徑顯示
+                # (6) 路徑
                 st.markdown(f'''<div style="font-size:14px; color:#adb5bd; margin-top:25px; margin-bottom:8px; display:flex; align-items:center;"><span style="margin-right:8px;">📁</span> {path_map.get(item.get("section_id"), "GoGaming")}</div>''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    # (8) 紅綠燈發光名字標籤
+                    # (8) 名字標籤：顏色鎖定亮綠或亮紅
                     tag_html = f'''<span class="author-tag" style="border-color:{main_color}!important; color:{main_color}!important; box-shadow: 0 0 10px {main_color}88!important;">{status_emoji} {u["name"]}</span>'''
                     st.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
                 with c2:
-                    # (10) Open Case 按鈕
+                    # (10) 按鈕
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # 🚀 (9) 改良版：去掉怪怪的文字，用更簡約的說明
-                with st.expander("📄 Click to View Test Steps (步驟詳情)", expanded=False):
+                # 🚀 (9) 改回妳最熟悉的字眼：查閱測試步驟
+                with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     if isinstance(steps, list):
                         for i, s in enumerate(steps, 1):
@@ -111,8 +117,10 @@ if tr_url and tr_user and tr_pw:
                                 <div style="color:#ffffff; font-weight:bold; font-size:14px; margin-top:12px;">Expected:</div>
                                 <div class="step-content-box" style="border-left:1px dashed #444c56;">{s.get('expected','')}</div>
                             </div>""", unsafe_allow_html=True)
+                    elif steps:
+                        st.markdown(f'<div class="step-content-box" style="white-space: pre-wrap;">{steps}</div>', unsafe_allow_html=True)
                     else:
-                        st.markdown(f'<div class="step-content-box">{steps if steps else "(無內容)"}</div>', unsafe_allow_html=True)
+                        st.markdown('<div class="step-content-box" style="color:#8b949e;">(無內容)</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
