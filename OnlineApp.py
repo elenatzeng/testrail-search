@@ -42,7 +42,7 @@ if tr_url and tr_user and tr_pw:
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入查詢關鍵字...", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入關鍵字...", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
             if st.button("🗑️ 清除條件", use_container_width=True): 
@@ -65,13 +65,11 @@ if tr_url and tr_user and tr_pw:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
                     if not (any(w in (title.lower() + f_path.lower()) for w in exp) or any(w == cid for w in exp)):
                         is_match = False; break
-
                 if is_match:
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
-                    has_real_text = len(clean_content) > 5
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    final_score = (10000 + u.get("weight", 0)) if has_real_text else -500000
+                    final_score = (10000 + u.get("weight", 0)) if len(clean_content) > 5 else -500000
                     results.append((final_score, c, u))
 
             results.sort(key=lambda x: x[0], reverse=True) 
@@ -88,34 +86,32 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 核心修正：強制轉換函式，解決斷行與點點問題
-                    def ultra_format(text):
+                    # 🔥 核心修正：強制斷行處理器
+                    def final_line_fix(text):
                         if not text: return ""
+                        # 移除圖片代碼
                         text = re.sub(img_pattern, '', text).strip()
-                        lines = text.split('\n')
-                        html_out = []
-                        for line in lines:
-                            # 偵測點點符號或數字開頭做縮排
-                            if re.match(r'^\s*[\*\-\•\d\.]', line):
-                                html_out.append(f'<div style="margin-left:20px; margin-bottom:4px;">{line.strip()}</div>')
-                            else:
-                                html_out.append(f'<div style="margin-bottom:4px;">{line}</div>')
-                        return "".join(html_out)
+                        # 1. 處理已經存在的換行符號
+                        text = text.replace('\n', '<br>')
+                        # 2. 針對妳貼出的那種沒點點的「用户名驗證...」內容進行正則補強
+                        # 如果文字中出現「用户名」，但在它前面不是換行，就幫它加換行
+                        text = re.sub(r'(?<!<br>)(用户名)', r'<br>• \1', text)
+                        return text
 
                     if isinstance(steps, list):
                         v_idx = 1
                         for s in steps:
-                            c_html = ultra_format(s.get('content', ''))
-                            e_html = ultra_format(s.get('expected', ''))
+                            c_html = final_line_fix(s.get('content', ''))
+                            e_html = final_line_fix(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🔥 使用 inline-style 確保綠線長出來
+                            # 🔥 使用 inline-style 確保綠線長出來並連貫
                             st.markdown(f'''
-                                <div style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
+                                <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; margin-bottom:15px; white-space:pre-wrap;">{c_html}</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px;">{c_html}</div>
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Expected:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; margin-bottom:15px; white-space:pre-wrap;">{e_html}</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;">{e_html}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                             v_idx += 1
