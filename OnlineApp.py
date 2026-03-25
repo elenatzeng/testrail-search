@@ -73,30 +73,24 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 
-                # 🚀 修復點：顏色換成最鮮豔的亮綠色 (#32CD32) 
-                tag_color = '#32CD32' if u.get('is_active') else '#8b949e'
-                display_path = path_map.get(item.get("section_id"), "GoGaming")
+                # 🚀 顏色連動邏輯：徹底解決紅配綠問題
+                is_active = u.get("is_active", False)
+                status_emoji = "🟢" if is_active else "🔴"
+                # 活躍時用亮綠色 (#32CD32)，不活躍時用亮紅色 (#FF4B4B)
+                main_color = "#32CD32" if is_active else "#FF4B4B"
                 
-                # 📁 路徑圖示與圖示
+                f_path = path_map.get(item.get("section_id"), "GoGaming")
                 st.markdown(f'''
                     <div style="font-size:14px; color:#adb5bd; margin-top:25px; margin-bottom:8px; display:flex; align-items:center;">
-                        <span style="margin-right:8px;">📁</span> {display_path}
+                        <span style="margin-right:8px;">📁</span> {f_path}
                     </div>
                 ''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    # 🚀 燈號邏輯：鮮綠(🟢 + #32CD32) 或 鮮紅(🔴 + #FF4B4B)
-                    is_active = u.get("is_active", False)
-                    status_emoji = "🟢" if is_active else "🔴"
-                    # 這就是發光的關鍵
-                    tag_glow_color = "#32CD32" if is_active else "#FF4B4B"
-                    # 這就是文字跟框框的顏色
-                    tag_text_color = "#32CD32" if is_active else "#FF4B4B"
-
-                    # 🚀 自動變色發光標籤：紅燈全紅，綠燈全綠
+                    # 🚀 這裡把文字跟邊框顏色都鎖死在 main_color
                     tag = f'''
-                    <span class="author-tag" style="border-color:{tag_text_color}!important; box-shadow: 0 0 10px {tag_glow_color}88!important; color:{tag_text_color}!important;">
+                    <span class="author-tag" style="border-color:{main_color}!important; box-shadow: 0 0 10px {main_color}88!important; color:{main_color}!important;">
                         {status_emoji} {u["name"]}
                     </span>
                     '''
@@ -115,7 +109,7 @@ if tr_url and tr_user and tr_pw:
                                 <div class="step-content-box" style="border-left:1px dashed #444c56; white-space: pre-wrap;">{s.get('expected','')}</div>
                             </div>""", unsafe_allow_html=True)
                     else:
-                        st.markdown(f'<div class="step-content-box" style="white-space: pre-wrap;">{steps if steps else "(無步驟內容)"}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="step-content-box" style="white-space: pre-wrap;">{steps if steps else "(無內容)"}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
