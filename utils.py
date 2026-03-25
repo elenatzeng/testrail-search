@@ -6,7 +6,7 @@ def smart_format(text):
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
-    # 強制拆分換行
+    # 🚀 強制分行邏輯
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
@@ -41,23 +41,23 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 還原昨日最強邏輯：抓取整個 Project 的 Sections，不限 Suite！
-        all_sections = api.sections.get_sections(project_id=pid)['sections']
-        sect_dict = {s['id']: s for s in all_sections}
+        # 🚀 1. 抓取 Project 下所有目錄 (不限 Suite)
+        all_sects = api.sections.get_sections(project_id=pid)['sections']
+        # 建立 ID 對應表
+        id_to_name = {s['id']: s['name'] for s in all_sects}
+        id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
         
-        def get_full_path(s_id):
-            if s_id not in sect_dict: return ""
-            curr = sect_dict[s_id]
-            parent_id = curr.get('parent_id')
-            name = curr.get('name', '')
-            if parent_id and parent_id in sect_dict:
-                return f"{get_full_path(parent_id)} › {name}"
-            return name
-
-        # 重新建立完整路徑映射
-        path_map = {s_id: get_full_path(s_id) for s_id in sect_dict}
-        
-        # 抓取該 Suite 的案例
+        # 🚀 2. 建立全路徑地圖 (非遞迴方式更穩定)
+        path_map = {}
+        for s_id in id_to_name:
+            parts = []
+            curr = s_id
+            while curr in id_to_name:
+                parts.insert(0, id_to_name[curr])
+                curr = id_to_parent.get(curr)
+            path_map[s_id] = " › ".join(parts) if parts else "GoGaming"
+            
+        # 🚀 3. 抓取案例
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
