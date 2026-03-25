@@ -5,13 +5,15 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
+# 初始化與樣式套用
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
-def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
+def get_val(key): 
+    return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# (1) 側邊欄
+# 🚀 (1) 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -36,7 +38,7 @@ if tr_url and tr_user and tr_pw:
         # (4) 專案資訊
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # (5) 搜尋區
+        # (5) (11) (12) 搜尋區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -51,6 +53,7 @@ if tr_url and tr_user and tr_pw:
                 st.rerun()
 
         if st.session_state.q_text:
+            st.caption(f"⚡ 最後同步：{sync_time}")
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
             img_pattern = r'!\[\]\(index\.php\?/attachments/get/\d+\)'
@@ -64,16 +67,22 @@ if tr_url and tr_user and tr_pw:
                 is_match = True; score = 0
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    if not (any(w in (title.lower() + f_path.lower()) for w in exp) or any(w == cid for w in exp)):
+                    f_t = any(w in title.lower() for w in exp)
+                    f_p = any(w in f_path.lower() for w in exp)
+                    f_i = any(w == cid for w in exp)
+                    if not (f_t or f_p or f_i):
                         is_match = False; break
-                    if any(w in title.lower() for w in exp): score += 10000 
+                    if f_t: score += 10000 # 標題權重
 
                 if is_match:
+                    # 🚀 排序邏輯：檢查是否有實質文字內容
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
+                    # 移除圖片語法後計算剩餘長度
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     has_real_text = len(clean_content) > 5
                     
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    # 內容空空或只有圖片，扣除 50 萬分，確保排在最後
                     final_score = (score + u.get("weight", 0)) if has_real_text else (score - 500000)
                     results.append((final_score, c, u))
 
@@ -85,14 +94,17 @@ if tr_url and tr_user and tr_pw:
                 status_class = "status-active" if u.get("is_active") else "status-inactive"
                 status_emoji = "🟢" if u.get("is_active") else "🔴"
                 
+                # (6) 路徑
                 st.markdown(f'<div style="font-size:14px; color:#adb5bd; margin-top:25px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 tag_html = f'<span class="author-tag {status_class}">{status_emoji} {u["name"]}</span>'
-                # 🔥 這裡修正了引號報錯問題
+                # (7)(8) 標題 (#ID)
                 c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
+                # (10) Open Case
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
+                # (9) 查閱測試步驟 (高級黑盒子 + 靈魂綠線)
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
@@ -113,13 +125,4 @@ if tr_url and tr_user and tr_pw:
                         if not has_any_text:
                             st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                     elif steps:
-                        clean_steps = re.sub(img_pattern, '', steps).strip()
-                        if clean_steps:
-                            st.markdown(f'<div class="step-wrapper"><div class="step-box">{clean_steps}</div></div>', unsafe_allow_html=True)
-                        else:
-                            st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
-                    else:
-                        st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
-                st.markdown("---")
-
-    st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
+                        clean_
