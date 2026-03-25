@@ -23,10 +23,10 @@ with st.sidebar:
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
-    if st.button("💾 儲存資訊至網址", use_container_width=True): # (2)
+    if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
-    if st.button("🔄 強制刷新數據", use_container_width=True): # (3)
+    if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
@@ -35,21 +35,20 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # (4) 專案資訊
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # (5) (11) (12) 搜尋區文字鎖死
+        # 搜尋區 (5, 11, 12)
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容 (輸入關鍵字查詢；支援繁簡體與英文):</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入查詢關鍵字，若有多個請空格格開", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入查詢關鍵字...", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
-            if st.button("🗑️ 清除條件", use_container_width=True): # (11)
+            if st.button("🗑️ 清除條件", use_container_width=True): 
                 st.session_state.q_text = ""; st.rerun()
         with col_r:
-            if st.button("🔎 重新查詢", use_container_width=True): # (12)
+            if st.button("🔎 重新查詢", use_container_width=True): 
                 st.rerun()
 
         if st.session_state.q_text:
@@ -96,48 +95,62 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 終極修復函式：強制將換行符號轉為 HTML 換行
-                    def fix_line_breaks(text):
+                    # 🔥 終極內容解析器：保留換行並支援 Markdown 清單
+                    def process_final_ui_content(text):
                         if not text: return ""
+                        # 先濾掉圖片代碼
                         text = re.sub(img_pattern, '', text).strip()
-                        # 核心：把 \n 換成 <br>，並處理 Markdown 清單點點
+                        if not text: return ""
+                        
+                        # 按行拆分處理，確保斷行與階層
                         lines = text.split('\n')
-                        formatted = []
+                        html_res = []
+                        list_open = False
+                        
                         for line in lines:
-                            if re.match(r'^\s*[\*\-\•]\s+', line):
-                                clean_line = re.sub(r'^\s*[\*\-\•]\s+', '', line)
-                                formatted.append(f'<li style="margin-left:20px;">{clean_line}</li>')
+                            # 偵測 Markdown 點點清單符號
+                            match = re.match(r'^\s*[\*\-\•]\s+(.*)', line)
+                            if match:
+                                if not list_open:
+                                    html_res.append('<ul style="margin:0; padding-left:25px; list-style-type:disc;">')
+                                    list_open = True
+                                html_res.append(f'<li>{match.group(1)}</li>')
                             else:
-                                formatted.append(f'<div>{line}</div>')
-                        res = "".join(formatted)
-                        if '<li>' in res: res = f'<ul style="margin:0; padding:0;">{res}</ul>'
-                        return res
+                                if list_open:
+                                    html_res.append('</ul>')
+                                    list_open = False
+                                # 非清單行，如果不是空的就加換行顯示
+                                if line.strip():
+                                    html_res.append(f'<div>{line}</div>')
+                        
+                        if list_open: html_res.append('</ul>')
+                        return "".join(html_res)
 
                     if isinstance(steps, list):
-                        visible_idx = 1
-                        has_any = False
+                        v_idx = 1
+                        has_data = False
                         for s in steps:
-                            c_final = fix_line_breaks(s.get('content', ''))
-                            e_final = fix_line_breaks(s.get('expected', ''))
+                            c_html = process_final_ui_content(s.get('content', ''))
+                            e_html = process_final_ui_content(s.get('expected', ''))
                             
-                            if not c_final and not e_final: continue
+                            if not c_html and not e_html: continue
                             
-                            has_any = True
+                            has_data = True
                             st.markdown('<div class="step-wrapper">', unsafe_allow_html=True)
-                            if c_final:
-                                st.markdown(f'<div class="step-label">Step {visible_idx}:</div><div class="step-box">{c_final}</div>', unsafe_allow_html=True)
-                            if e_final:
-                                # 🔥 🔥 Expected 階層與斷行鎖死
-                                st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{e_final}</div>', unsafe_allow_html=True)
+                            if c_html:
+                                st.markdown(f'<div class="step-label">Step {v_idx}:</div><div class="step-box">{c_html}</div>', unsafe_allow_html=True)
+                            if e_html:
+                                # 🔥 🔥 Expected 斷行與點點鎖死
+                                st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{e_html}</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
-                            visible_idx += 1
+                            v_idx += 1
                         
-                        if not has_any:
+                        if not has_data:
                             st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                     elif steps:
-                        final_txt = fix_line_breaks(steps)
-                        if final_txt:
-                            st.markdown(f'<div class="step-wrapper"><div class="step-box">{final_txt}</div></div>', unsafe_allow_html=True)
+                        final_res = process_final_ui_content(steps)
+                        if final_res:
+                            st.markdown(f'<div class="step-wrapper"><div class="step-box">{final_res}</div></div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
