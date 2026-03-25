@@ -8,12 +8,12 @@ def smart_format(text):
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
     
-    # 2. 🚀 動作拆解：只要看到動作關鍵字，強制在前面加換行，確保 1. 2. 3. 抓得到
+    # 2. 🚀 動作拆解：在關鍵字前強制換行，確保 1. 2. 3. 抓得到
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
     
-    # 3. 補上編號，並把 > 換成漂亮符號
+    # 3. 補上編號
     lines = [l.strip() for l in t.split('\n') if l.strip()]
     final_lines = []
     count = 1
@@ -45,22 +45,25 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 關鍵修正：抓取 Project 下「所有」Sections，打破 Suite 的限制
+        # 🚀 1. 抓取 Project 下「所有」Sections
         all_sects = api.sections.get_sections(project_id=pid)['sections']
         sect_dict = {s['id']: s for s in all_sects}
         
-        # 🚀 向上溯源邏輯：從自己開始，一路抓到最頂層
+        # 🚀 2. 向上溯源邏輯：建立全路徑地圖
         def get_full_chain(s_id):
             parts = []
             curr_id = s_id
             while curr_id in sect_dict:
                 curr_sect = sect_dict[curr_id]
                 parts.insert(0, curr_sect['name'])
-                curr_id = curr_sect.get('parent_id') # 往上抓爸爸的 ID
-            # 用妳要的 › 符號串起來
+                curr_id = curr_sect.get('parent_id')
+            # 使用妳指定的 › 符號
             return " › ".join(parts) if parts else "GoGaming"
 
-        path_map = {s_id: get_full_path for s_id in sect_dict if (get_full_path := get_full_chain(s_id))}
+        # 🚀 修正點：這裡必須正確遍歷所有 Section ID
+        path_map = {}
+        for s_id in sect_dict:
+            path_map[s_id] = get_full_chain(s_id)
         
         all_cases, offset = [], 0
         while True:
