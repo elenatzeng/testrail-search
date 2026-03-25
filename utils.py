@@ -5,9 +5,8 @@ def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 移除圖片網址與 HTML 標籤
+    # 移除圖片網址
     text = re.sub(r'!\[\]\(index\.php\?/attachments/get/\d+\)', '', text)
-    text = text.replace('<br />', '\n').replace('<br>', '\n').replace('&nbsp;', ' ')
     
     # 處理分離步驟 (Separated Steps)
     if text.startswith('[') and ('content' in text or 'expected' in text):
@@ -17,16 +16,31 @@ def clean_html(raw_html):
                 for item in parsed_data:
                     for key in ['content', 'expected']:
                         val = str(item.get(key, ''))
+                        # HTML 換行轉純文字換行
+                        val = val.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
                         val = re.sub(r'<.*?>', '', val)
-                        # 💡 強制拆解關鍵字換行
+                        
+                        # 💡 關鍵字強制拆解與自動編號
                         split_keys = ["路徑", "選擇", "URL", "點擊", "点击", "登入", "查看", "成功"]
-                        for word in split_keys:
-                            val = re.sub(f'(?<!\\n)({word})', r'\n\1', val)
-                        item[key] = val.strip()
+                        lines = val.split('\n')
+                        new_lines = []
+                        line_count = 1
+                        for line in lines:
+                            line = line.strip()
+                            if not line: continue
+                            # 如果沒編號就幫它加
+                            if not re.match(r'^\d+[\.\s]', line):
+                                new_lines.append(f"{line_count}. {line}")
+                                line_count += 1
+                            else:
+                                new_lines.append(line)
+                        item[key] = "\n".join(new_lines)
                 return parsed_data 
         except:
             pass
 
+    # 處理普通文字
+    text = text.replace('<br />', '\n').replace('<br>', '\n').replace('&nbsp;', ' ')
     text = re.sub(r'<.*?>', '', text)
     return text.strip()
 
@@ -51,7 +65,6 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             p_id = curr.get('parent_id')
             return f"{get_path(p_id)} > {curr['name']}" if p_id else curr['name']
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
-        
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
