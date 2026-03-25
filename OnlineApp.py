@@ -61,17 +61,25 @@ if tr_url and tr_user and tr_pw:
                 cid = str(item.get('id'))
                 is_active = u.get("is_active", False)
                 
-                # 🚀 顏色連動：活躍用鮮綠(#32CD32)，不活躍用鮮紅(#FF4B4B)
+                # 🚀 顏色定義：最鮮豔的亮綠 (#32CD32) 和 亮紅 (#FF4B4B)
                 main_color = "#32CD32" if is_active else "#FF4B4B"
                 status_emoji = "🟢" if is_active else "🔴"
                 
-                # 路徑顯示
+                # 路徑與圖示
                 st.markdown(f'''<div style="font-size:14px; color:#adb5bd; margin-top:25px; margin-bottom:8px;"><span style="margin-right:8px;">📁</span> {path_map.get(item.get("section_id"), "GoGaming")}</div>''', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    # 🚀 名字與框框同步變色！
-                    tag_html = f'''<span class="author-tag" style="border-color:{main_color}!important; color:{main_color}!important; box-shadow: 0 0 10px {main_color}88!important;">{status_emoji} {u["name"]}</span>'''
+                    # 🚀 使用 !important 強制覆蓋：名字、框框、發光全部同步 main_color
+                    tag_html = f'''
+                    <span class="author-tag" style="
+                        border-color: {main_color} !important; 
+                        color: {main_color} !important; 
+                        box-shadow: 0 0 10px {main_color}88 !important;
+                    ">
+                        {status_emoji} {u["name"]}
+                    </span>
+                    '''
                     st.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
                 with c2:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
