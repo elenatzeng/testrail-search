@@ -5,23 +5,24 @@ def apply_custom_style():
         <style>
         .stApp { background-color: #0b0e14 !important; }
         
-        /* 🚀 還原標籤高級感：增加 Padding, 圓角, 以及發光邊框 */
+        /* 🚀 名字標籤：還原成前幾天那個胖胖發光的樣子 */
         .author-tag { 
             font-size: 13px !important; 
-            border-radius: 20px !important; /* 圓潤感 */
-            padding: 3px 12px !important; /* 撐開上下左右 */
+            border-radius: 20px !important; /* 膠囊圓角 */
+            padding: 4px 14px !important; /* 撐開上下左右讓它變胖 */
             display: inline-flex !important;
             align-items: center; 
-            margin-left: 12px !important; 
-            font-weight: bold !important; 
+            margin-left: 15px !important; 
+            font-weight: 800 !important; 
             border: 2px solid !important; 
-            background: rgba(0,0,0,0.4) !important;
+            background: rgba(0,0,0,0.5) !important;
             vertical-align: middle;
-            /* 🚀 加上妳最喜歡的發光特效 */
+            color: white !important;
+            /* 🚀 呼吸發光特效 */
             transition: all 0.3s ease;
         }
         
-        /* 🚀 測試步驟盒子 (維持穩定) */
+        /* 🚀 測試步驟盒子：維持穩定換行 */
         .step-content-box { 
             color: #c9d1d9 !important; background: #1c2128; 
             padding: 16px 20px; border-radius: 10px; border: 1px solid #30363d; 
@@ -38,12 +39,12 @@ def apply_custom_style():
             font-size: 14px; font-weight: bold; 
         }
 
-        /* 🚀 火箭按鈕位置 */
+        /* 🚀 活力橘小火箭按鈕：位置上移避免擋住控制列 */
         .scroll-to-top {
-            position: fixed; bottom: 80px; right: 25px; width: 50px; height: 50px;
+            position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
             background-color: #f77f00; color: white !important; border-radius: 50%;
             z-index: 9999; display: flex; align-items: center; justify-content: center;
-            text-decoration: none !important; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            text-decoration: none !important; font-size: 26px; box-shadow: 0 4px 15px rgba(0,0,0,0.6);
         }
         </style>
     """, unsafe_allow_html=True)
