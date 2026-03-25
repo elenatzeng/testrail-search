@@ -16,8 +16,9 @@ SEARCH_DICTIONARY = [
     ["resend", "重新發送", "重新发送", "Resend", "resend_text", "resend_text1"],
 
     # --- [Financial] 財務核心 (存提轉) ---
-    ["deposit", "存款", "存款", "Deposit", "充值", "充值", "depositList", "recharge", "creditedAmount", "depositRate"],
-    ["withdraw", "提款", "提款", "Withdrawal", "提現", "提现", "withdrawList", "withdrawal", "wdAmount", "withdrawalMethod"],
+    ["account", "帳戶", "账户", "帳號", "账号", "acct", "accountName", "memberId"],
+    ["deposit", "存款", "充值", "Deposit", "deposit", "储值", "儲值"],
+    ["withdraw", "提款", "提現", "提现", "Withdrawal", "取款"],
     ["transfer", "轉帳", "转账", "Transfer", "劃轉", "划转", "transferRecord", "transferTime", "fromWalletCategory", "toWalletCategory"],
     ["main_w", "主錢包", "主钱包", "Main Account", "Main Wallet", "masterAccount"],
     ["network_fee", "網路手續費", "网络手续费", "Network fee", "network__fee", "digitalFee", "gasFee"],
