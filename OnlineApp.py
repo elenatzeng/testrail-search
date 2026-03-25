@@ -11,7 +11,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 側邊欄與搜尋設定 (1-5, 11-12 文字鎖死)
+# 🚀 (1)-(3) 側邊欄與 (11)(12) 搜尋區文字鎖死
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -41,9 +41,11 @@ if tr_url and tr_user and tr_pw:
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入查詢關鍵字，若有多個請空格格開", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
-            if st.button("🗑️ 清除條件", use_container_width=True): st.session_state.q_text = ""; st.rerun()
+            if st.button("🗑️ 清除條件", key="btn_clear", use_container_width=True): 
+                st.session_state.q_text = ""; st.rerun()
         with col_r:
-            if st.button("🔎 重新查詢", use_container_width=True): st.rerun()
+            if st.button("🔎 重新查詢", key="btn_rerun", use_container_width=True): 
+                st.rerun()
 
         if st.session_state.q_text:
             st.caption(f"⚡ 最後同步：{sync_time}")
@@ -69,6 +71,7 @@ if tr_url and tr_user and tr_pw:
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     has_real_text = len(clean_content) > 5
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    # 排序鎖死：無實質內容案例扣 50 萬分
                     final_score = (score + u.get("weight", 0)) if has_real_text else (score - 500000)
                     results.append((final_score, c, u))
 
@@ -87,39 +90,39 @@ if tr_url and tr_user and tr_pw:
                 c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # 🚀 (9) 查閱測試步驟 (階層渲染邏輯)
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    def render_content(text):
-                        # 🔥 這裡處理 Markdown 轉 HTML 階層的小技巧
-                        # 如果文字是以點點或數字開頭，我們將其包裹在合適的標籤中
-                        clean_text = re.sub(img_pattern, '', text).strip()
-                        if not clean_text: return None
-                        return clean_text
-
                     if isinstance(steps, list):
-                        has_any_text = False
-                        for i, s in enumerate(steps, 1):
-                            c_text = render_content(s.get('content', ''))
-                            e_text = render_content(s.get('expected', ''))
+                        visible_index = 1
+                        has_any_visible = False
+                        for s in steps:
+                            content = re.sub(img_pattern, '', s.get('content', '')).strip()
+                            expected = re.sub(img_pattern, '', s.get('expected', '')).strip()
                             
-                            if c_text or e_text:
-                                has_any_text = True
-                                st.markdown('<div class="step-wrapper">', unsafe_allow_html=True)
-                                if c_text:
-                                    st.markdown(f'<div class="step-label">Step {i}:</div><div class="step-box">{c_text}</div>', unsafe_allow_html=True)
-                                if e_text:
-                                    st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{e_text}</div>', unsafe_allow_html=True)
-                                st.markdown('</div>', unsafe_allow_html=True)
-                        if not has_any_text:
+                            # 🚀 關鍵修正：如果這一步過濾後完全沒內容，直接跳過，不給標號
+                            if not content and not expected:
+                                continue
+                            
+                            has_any_visible = True
+                            st.markdown('<div class="step-wrapper">', unsafe_allow_html=True)
+                            if content:
+                                st.markdown(f'<div class="step-label">Step {visible_index}:</div><div class="step-box">{content}</div>', unsafe_allow_html=True)
+                            if expected:
+                                st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{expected}</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            visible_index += 1
+                        
+                        if not has_any_visible:
                             st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                     elif steps:
-                        clean_steps = render_content(steps)
+                        clean_steps = re.sub(img_pattern, '', steps).strip()
                         if clean_steps:
                             st.markdown(f'<div class="step-wrapper"><div class="step-box">{clean_steps}</div></div>', unsafe_allow_html=True)
                         else:
                             st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
