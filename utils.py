@@ -1,6 +1,24 @@
 import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
 
+def add_numbering(text):
+    if not text: return ""
+    # 移除 HTML 標籤
+    text = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
+    text = re.sub(r'<.*?>', '', text)
+    
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    new_lines = []
+    count = 1
+    for line in lines:
+        # 如果這一行開頭還沒有數字編號，就幫它加上去
+        if not re.match(r'^\d+[\.\s]', line):
+            new_lines.append(f"{count}. {line}")
+            count += 1
+        else:
+            new_lines.append(line)
+    return "\n".join(new_lines)
+
 def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
@@ -8,41 +26,19 @@ def clean_html(raw_html):
     # 移除圖片網址
     text = re.sub(r'!\[\]\(index\.php\?/attachments/get/\d+\)', '', text)
     
-    # 處理分離步驟 (Separated Steps)
+    # 情況 A：處理「分離步驟」(Separated Steps)
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
             if isinstance(parsed_data, list):
                 for item in parsed_data:
-                    for key in ['content', 'expected']:
-                        val = str(item.get(key, ''))
-                        # HTML 換行轉純文字換行
-                        val = val.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
-                        val = re.sub(r'<.*?>', '', val)
-                        
-                        # 💡 關鍵字強制拆解與自動編號
-                        split_keys = ["路徑", "選擇", "URL", "點擊", "点击", "登入", "查看", "成功"]
-                        lines = val.split('\n')
-                        new_lines = []
-                        line_count = 1
-                        for line in lines:
-                            line = line.strip()
-                            if not line: continue
-                            # 如果沒編號就幫它加
-                            if not re.match(r'^\d+[\.\s]', line):
-                                new_lines.append(f"{line_count}. {line}")
-                                line_count += 1
-                            else:
-                                new_lines.append(line)
-                        item[key] = "\n".join(new_lines)
+                    item['content'] = add_numbering(item.get('content', ''))
+                    item['expected'] = add_numbering(item.get('expected', ''))
                 return parsed_data 
-        except:
-            pass
+        except: pass
 
-    # 處理普通文字
-    text = text.replace('<br />', '\n').replace('<br>', '\n').replace('&nbsp;', ' ')
-    text = re.sub(r'<.*?>', '', text)
-    return text.strip()
+    # 情況 B：處理「通用步驟」
+    return add_numbering(text)
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
