@@ -137,4 +137,20 @@ if tr_url and tr_user and tr_pw:
                             # 使用自定義 HTML 注入，確保綠線與內容鎖死
                             st.markdown(f'''
                                 <div class="custom-step-container" style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px; margin-bottom: 30px;">
-                                    <div class="custom-label" style="color:white; font
+                                    <div class="custom-label" style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
+                                    <div class="custom-box" style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 22px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{c_html}</div>
+                                    <div class="custom-label" style="color:white; font-weight:bold; margin-bottom:8px;">Expected:</div>
+                                    <div class="custom-box" style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 22px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{e_html}</div>
+                                </div>
+                            ''', unsafe_allow_html=True)
+                            v_idx += 1
+                        
+                        if not has_data:
+                            st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
+                    elif steps:
+                        final_res = final_format_helper(steps)
+                        if final_res:
+                            st.markdown(f'<div class="custom-step-container" style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px;"><div class="custom-box" style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 22px; color:#c9d1d9; white-space:pre-wrap;">{final_res}</div></div>', unsafe_allow_html=True)
+                st.markdown("---")
+
+    st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
