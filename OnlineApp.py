@@ -10,7 +10,7 @@ apply_custom_style()
 
 def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 側邊欄 (1)-(3)
+# 側邊欄與搜尋控制
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -29,7 +29,6 @@ if tr_url and tr_user and tr_pw:
         st.title("🧪 TestRail 智能檢索中心")
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # (5) 搜尋區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         q_input = col_s.text_input("● 搜尋內容:", value=st.session_state.get("q_text", ""))
         st.session_state.q_text = q_input
@@ -46,6 +45,7 @@ if tr_url and tr_user and tr_pw:
                 cid = str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
                 
+                # 🚀 排序邏輯：標題匹配給予最高原始分
                 is_match = True; score = 0
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
@@ -54,13 +54,21 @@ if tr_url and tr_user and tr_pw:
                     f_i = any(w == cid for w in exp)
                     if not (f_t or f_p or f_i):
                         is_match = False; break
-                    if f_t: score += 10000 # 標題匹配權重最高
-                
-                if is_match:
-                    u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((score + u.get("weight", 0), c, u))
+                    if f_t: score += 10000 
 
-            results.sort(key=lambda x: x[0], reverse=True) # 🚀 找回排序
+                if is_match:
+                    # 🚀 內容檢查：判斷是否只有圖片或空內容
+                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
+                    # 過濾掉 TestRail 附件語法後是否還有實質文字
+                    clean_text_check = re.sub(r'!\[\]\(index\.php\?/attachments/get/\d+\)', '', str(steps_raw)).strip()
+                    has_real_content = len(clean_text_check) > 5
+                    
+                    u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    # 🚀 排序修正：若無實質文字內容，權重強行拉低，確保排在後面
+                    final_score = (score + u.get("weight", 0)) if has_real_content else (score - 50000)
+                    results.append((final_score, c, u))
+
+            results.sort(key=lambda x: x[0], reverse=True) 
             st.markdown(f"### 🎯 找到 {len(results)} 個案例")
 
             for _, item, u in results:
@@ -68,7 +76,7 @@ if tr_url and tr_user and tr_pw:
                 status_class = "status-active" if u.get("is_active") else "status-inactive"
                 status_emoji = "🟢" if u.get("is_active") else "🔴"
                 
-                # (6) 路徑
+                # (6) 路徑顯示
                 st.markdown(f'<div style="font-size:14px; color:#adb5bd; margin-top:25px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
@@ -76,26 +84,35 @@ if tr_url and tr_user and tr_pw:
                 c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # 🚀 (9) 步驟渲染：過濾圖片附件語法
+                # (9) 步驟渲染：清爽版
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    def is_image_only(text): # 🚀 檢查是否為純圖片附件語法
+                    def is_image_only(text):
                         return bool(re.match(r'^!\[\]\(index\.php\?/attachments/get/\d+\)$', str(text).strip()))
 
                     if isinstance(steps, list):
+                        has_any_visible_step = False
                         for i, s in enumerate(steps, 1):
                             content = s.get('content', '').strip()
                             expected = s.get('expected', '').strip()
                             
-                            # 🚀 如果 content 或 expected 是圖片，就不顯示該部分
-                            if content or expected:
+                            # 🚀 過濾純圖片步驟
+                            show_content = content and not is_image_only(content)
+                            show_expected = expected and not is_image_only(expected)
+                            
+                            if show_content or show_expected:
+                                has_any_visible_step = True
                                 st.markdown('<div class="step-container">', unsafe_allow_html=True)
-                                if content and not is_image_only(content):
+                                if show_content:
                                     st.markdown(f'<div class="step-label">Step {i}:</div><div class="step-text">{content}</div>', unsafe_allow_html=True)
-                                if expected and not is_image_only(expected):
+                                if show_expected:
                                     st.markdown(f'<div class="step-label">Expected:</div><div class="step-text">{expected}</div>', unsafe_allow_html=True)
                                 st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        if not has_any_visible_step:
+                            st.markdown('<div style="color:#666; font-size:14px; margin-left:15px;">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
+                    
                     elif steps and not is_image_only(steps):
                         st.markdown(f'<div class="step-container"><div class="step-text">{steps}</div></div>', unsafe_allow_html=True)
                     else:
