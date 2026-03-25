@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 初始化樣式與配置
+# 初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
@@ -37,7 +37,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋區 (5, 11, 12)
+        # 搜尋區 (5, 11, 12) 文字鎖死
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -92,46 +92,46 @@ if tr_url and tr_user and tr_pw:
                 c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # (9) 查閱測試步驟
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 終極內容處理：同時解決換行與點點階層
-                    def process_final_content(text):
+                    # 🔥 核心修正：讓 Markdown 點點清單真正長出來的小幫手
+                    def process_content_with_lists(text):
                         if not text: return ""
                         # 先濾掉圖片
                         text = re.sub(img_pattern, '', text).strip()
                         if not text: return ""
                         
                         lines = text.split('\n')
-                        formatted = []
-                        in_list = False
+                        html_output = []
+                        list_active = False
                         
                         for line in lines:
-                            # 偵測 Markdown 點點 (階層)
-                            if re.match(r'^\s*[\*\-\•]\s+', line):
-                                if not in_list:
-                                    formatted.append('<ul style="margin:0; padding-left:20px;">')
-                                    in_list = True
-                                clean_line = re.sub(r'^\s*[\*\-\•]\s+', '', line)
-                                formatted.append(f'<li>{clean_line}</li>')
+                            # 偵測是否有 Markdown 清單符號 (*, -, •)
+                            match = re.match(r'^\s*[\*\-\•]\s+(.*)', line)
+                            if match:
+                                if not list_active:
+                                    html_output.append('<ul style="margin:0; padding-left:25px;">')
+                                    list_active = True
+                                html_output.append(f'<li>{match.group(1)}</li>')
                             else:
-                                if in_list:
-                                    formatted.append('</ul>')
-                                    in_list = False
-                                # 這裡強迫換行變成 HTML 換行
-                                formatted.append(f"{line}<br>")
+                                if list_active:
+                                    html_output.append('</ul>')
+                                    list_active = False
+                                # 一般文字保留換行
+                                html_output.append(f'{line}<br>')
                         
-                        if in_list: formatted.append('</ul>')
-                        return "".join(formatted)
+                        if list_active: html_output.append('</ul>')
+                        return "".join(html_output)
 
                     if isinstance(steps, list):
                         visible_idx = 1
                         has_any = False
                         for s in steps:
-                            c_final = process_final_content(s.get('content', ''))
-                            e_final = process_final_content(s.get('expected', ''))
+                            c_final = process_content_with_lists(s.get('content', ''))
+                            e_final = process_content_with_lists(s.get('expected', ''))
                             
+                            # 空步驟完全跳過，不給標號
                             if not c_final and not e_final: continue
                             
                             has_any = True
@@ -139,7 +139,7 @@ if tr_url and tr_user and tr_pw:
                             if c_final:
                                 st.markdown(f'<div class="step-label">Step {visible_idx}:</div><div class="step-box">{c_final}</div>', unsafe_allow_html=True)
                             if e_final:
-                                # 🔥 Expected 斷行與點點鎖死
+                                # 🔥 Expected 斷行與點點縮排鎖死
                                 st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{e_final}</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             visible_idx += 1
@@ -147,11 +147,9 @@ if tr_url and tr_user and tr_pw:
                         if not has_any:
                             st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                     elif steps:
-                        final_txt = process_final_content(steps)
+                        final_txt = process_content_with_lists(steps)
                         if final_txt:
                             st.markdown(f'<div class="step-wrapper"><div class="step-box">{final_txt}</div></div>', unsafe_allow_html=True)
-                        else:
-                            st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
