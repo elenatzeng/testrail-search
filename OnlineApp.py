@@ -62,13 +62,13 @@ if tr_url and tr_user and tr_pw:
             for c in all_cases:
                 cid = str(c.get('id'))
                 # 🚀 抓取該案例的完整長路徑
-                full_path = path_map.get(c.get('section_id'), "GoGaming")
+                full_path_str = path_map.get(c.get('section_id'), "GoGaming")
                 title = str(c.get('title', '')).lower()
                 
                 is_match = True; score = 0
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    if not (any(w in (title + full_path.lower()) for w in exp) or any(w == cid for w in exp)):
+                    if not (any(w in (title + full_path_str.lower()) for w in exp) or any(w == cid for w in exp)):
                         is_match = False; break
                     if any(w in title for w in exp): score += 5000
                 if is_match:
@@ -82,9 +82,9 @@ if tr_url and tr_user and tr_pw:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
                 
-                # 🚀 紅圈 6：修正點！不再寫死 GoGaming，而是顯示動態長路徑
-                current_path = path_map.get(item.get("section_id"), "GoGaming")
-                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{current_path}</div>', unsafe_allow_html=True)
+                # 🚀 紅圈 6：不再寫死 GoGaming，而是顯示從 path_map 抓到的完整鏈條
+                display_path = path_map.get(item.get("section_id"), "GoGaming")
+                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{display_path}</div>', unsafe_allow_html=True)
                 
                 # 標題與標籤
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
