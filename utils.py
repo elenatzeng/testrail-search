@@ -4,32 +4,39 @@ from testrail_api import TestRailAPI
 def clean_html(raw_html):
     if not raw_html: return ""
     
-    # 🚀 關鍵修復：如果是 list 或 dict 格式（JSON 亂碼），先提取文字
+    # 🚀 關鍵修復 1：處理 TestRail 的分離步驟 (Separated Steps) 格式
     text = str(raw_html)
-    if text.startswith('[') or text.startswith('{'):
+    if text.startswith('[') and 'content' in text:
         try:
-            # 嘗試解析 TestRail 的步驟格式
             parsed_data = ast.literal_eval(text)
             if isinstance(parsed_data, list):
-                text = "\n".join([f"{i+1}. {item.get('content', '')} {item.get('expected', '')}" for i, item in enumerate(parsed_data)])
+                combined_steps = []
+                for i, item in enumerate(parsed_data, 1):
+                    # 取得左欄內容與右欄預期
+                    c = item.get('content', '').strip()
+                    e = item.get('expected', '').strip()
+                    # 格式化輸出：如果有預期結果，就換行標註
+                    step_str = f"【步驟 {i}】\n{c}"
+                    if e: step_str += f"\n👉 [預期]: {e}"
+                    combined_steps.append(step_str)
+                return "\n\n".join(combined_steps)
         except:
             pass
 
-    # 原有的清理邏輯
+    # 🚀 關鍵修復 2：處理純文字格式，避免編號重複
     text = text.replace('<li>', '\n').replace('</li>', '')
     text = re.sub(r'<(br\s*/?|/div|/p)>', '\n', text)
     text = re.sub(r'<.*?>', '', text)
     text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
     
-    split_keys = ["路徑", "選擇", "URL", "點擊", "点击", "登入", "查看", "成功", "Request", "Expected"]
-    for word in split_keys:
-        text = re.sub(f'(?<!\\n)({word})', r'\n\1', text)
-    
     lines = [l.strip() for l in text.split('\n') if l.strip()]
     final_output = []
     for i, line in enumerate(lines, 1):
-        clean_line = re.sub(r'^\d+[\.\、\:\s]*', '', line)
-        if clean_line: final_output.append(f"{i}. {clean_line}")
+        # 如果原文已經有數字編號 (如 1. 或是 1、)，我們就直接用，不另外加
+        if re.match(r'^\d+[\.\、\:\s]', line):
+            final_output.append(line)
+        else:
+            final_output.append(f"{i}. {line}")
     return "\n".join(final_output)
 
 def multi_lang_search(text, dictionary):
@@ -51,8 +58,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         def get_path(sid_in):
             curr = sect_dict.get(sid_in)
             if not curr: return "Unknown"
-            p_id = curr.get('parent_id')
-            return f"{get_path(p_id)} > {curr['name']}" if p_id else curr['name']
+            return f"{get_path(curr.get('parent_id'))} > {curr['name']}" if curr.get('parent_id') else curr['name']
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
         
         all_cases_list, offset = [], 0
