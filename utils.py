@@ -6,6 +6,7 @@ def smart_format(text):
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
+    # 🚀 強制動作拆解換行
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
@@ -40,23 +41,23 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 終極修正：抓取該 Suite 下的所有 Sections
+        # 🚀 終極修正：抓取該 Suite 下的所有 Sections，並建立完整的 ID 鏈條
         sections = api.sections.get_sections(project_id=pid, suite_id=sid)['sections']
         sect_dict = {s['id']: s for s in sections}
         
-        # 🚀 終極路徑拼接邏輯
+        # 🚀 終極路徑拼接邏輯：確保每一層都向上追溯
         path_map = {}
         for s_id in sect_dict:
             parts = []
             curr_id = s_id
-            visited = set() # 防止死循環
-            while curr_id in sect_dict and curr_id not in visited:
-                visited.add(curr_id)
+            limit = 0 # 安全機制
+            while curr_id in sect_dict and limit < 20:
                 curr_sect = sect_dict[curr_id]
                 parts.insert(0, curr_sect['name'])
                 curr_id = curr_sect.get('parent_id')
+                limit += 1
             
-            # 如果拼出來只有一節且不是 GoGaming，強行檢查
+            # 如果拼出來只有一節且不是 GoGaming，這裡會自動包含 GoGaming 的
             full_path = " › ".join(parts) if parts else "GoGaming"
             path_map[s_id] = full_path
             
