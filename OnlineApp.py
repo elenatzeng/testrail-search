@@ -50,8 +50,8 @@ if tr_url and tr_user and tr_pw:
             results = []
             for c in all_cases:
                 cid = str(c.get('id'))
-                # 🚀 抓取正確的路徑字串進行搜尋與顯示
-                full_path = path_map.get(c.get('section_id'), "Unknown Path")
+                # 🚀 抓取正確的路徑地圖
+                full_path = path_map.get(c.get('section_id'), "Root")
                 title = str(c.get('title', '')).lower()
                 is_match = True; score = 0
                 for t in terms:
@@ -69,8 +69,8 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
-                # 🚀 顯示修正後的路徑 (圓圈 6)
-                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{path_map.get(item.get("section_id"), "Unknown Path")}</div>', unsafe_allow_html=True)
+                # 🚀 顯示路徑 (圓圈 6)
+                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{path_map.get(item.get("section_id"), "Root")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
@@ -85,13 +85,12 @@ if tr_url and tr_user and tr_pw:
                         for i, s in enumerate(steps, 1):
                             st.markdown(f"""<div class="step-container">
                                 <div style="color:#ffffff; font-weight:bold; font-size:14px; margin-bottom:5px;">Step {i}:</div>
-                                <div class="step-content-box">{s.get('content','')}</div>
+                                <div class="step-content-box" style="white-space: pre-wrap;">{s.get('content','')}</div>
                                 <div style="color:#ffffff; font-weight:bold; font-size:14px; margin-top:12px; margin-bottom:5px;">Expected:</div>
-                                <div class="step-content-box" style="border-left:1px dashed #444c56;">{s.get('expected','')}</div>
+                                <div class="step-content-box" style="border-left:1px dashed #444c56; white-space: pre-wrap;">{s.get('expected','')}</div>
                             </div>""", unsafe_allow_html=True)
                     else:
-                        st.markdown(f'<div class="step-content-box">{steps if steps else "(無詳細步驟)"}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="step-content-box" style="white-space: pre-wrap;">{steps if steps else "(無詳細步驟)"}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
-    # 🚀 橘色按鈕補完
     st.markdown('<a href="#top-anchor" class="scroll-to-top">▲</a>', unsafe_allow_html=True)
