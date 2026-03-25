@@ -3,12 +3,12 @@ from testrail_api import TestRailAPI
 
 def smart_split_and_number(text):
     if not text: return ""
-    # 清理 HTML
+    # 清理 HTML 並統一換行
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = re.sub(r'<.*?>', '', t).replace('&nbsp;', ' ')
     
-    # 針對妳的內容進行強制拆分 (遇到冒號或關鍵字)
-    keys = ["路徑", "URL", "點擊", "点击", "登入", "登錄", "進入", "查看", "確認", "正確"]
+    # 🚀 強制拆分關鍵字 (確保 123 編號會出現)
+    keys = ["路徑", "選擇", "URL", "點擊", "点击", "登入", "登錄", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
     
@@ -43,21 +43,24 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 關鍵修正：抓取所有 Section 並建立完整的父子關係地圖
+        # 🚀 1. 抓取該 Suite 下所有的 Sections
         sections = api.sections.get_sections(project_id=pid, suite_id=sid)['sections']
-        sect_dict = {s['id']: s for s in sections}
         
-        def get_full_path(s_id):
-            parts = []
-            curr_id = s_id
-            while curr_id in sect_dict:
-                curr_sect = sect_dict[curr_id]
-                parts.insert(0, curr_sect['name'])
-                curr_id = curr_sect.get('parent_id')
-            return " > ".join(parts) if parts else "Unknown Path"
-
-        path_map = {s_id: get_full_path(s_id) for s_id in sect_dict}
+        # 🚀 2. 建立 ID 對應表
+        name_map = {s['id']: s['name'] for s in sections}
+        parent_map = {s['id']: s.get('parent_id') for s in sections}
         
+        # 🚀 3. 建立完整路徑地圖
+        path_map = {}
+        for s_id in name_map:
+            path_parts = []
+            curr = s_id
+            while curr:
+                path_parts.insert(0, name_map[curr])
+                curr = parent_map.get(curr)
+                if curr is None: break
+            path_map[s_id] = " > ".join(path_parts)
+            
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
