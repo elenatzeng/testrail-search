@@ -25,7 +25,7 @@ with st.sidebar:
     if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
-st.title("🧪 TestRail 智能檢檢索中心")
+st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
@@ -41,7 +41,7 @@ if tr_url and tr_user and tr_pw:
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_search:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="輸入關鍵字...", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="充值 CNY", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_clear:
             if st.button("🗑️ 清除條件", use_container_width=True):
@@ -73,14 +73,11 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 
-                # 🚀 燈號邏輯：活躍=鮮綠(#32CD32)，不活躍=紅色(#FF4B4B)
-                is_active = u.get("is_active", False)
-                status_emoji = "🟢" if is_active else "🔴"
-                tag_color = "#32CD32" if is_active else "#FF4B4B"
-                
+                # 🚀 修復點：顏色換成最鮮豔的亮綠色 (#32CD32) 
+                tag_color = '#32CD32' if u.get('is_active') else '#8b949e'
                 display_path = path_map.get(item.get("section_id"), "GoGaming")
                 
-                # 📁 路徑與圖示
+                # 📁 路徑圖示與圖示
                 st.markdown(f'''
                     <div style="font-size:14px; color:#adb5bd; margin-top:25px; margin-bottom:8px; display:flex; align-items:center;">
                         <span style="margin-right:8px;">📁</span> {display_path}
@@ -89,9 +86,17 @@ if tr_url and tr_user and tr_pw:
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    # 🚀 自動變色發光標籤：亮綠燈或紅燈
+                    # 🚀 燈號邏輯：鮮綠(🟢 + #32CD32) 或 鮮紅(🔴 + #FF4B4B)
+                    is_active = u.get("is_active", False)
+                    status_emoji = "🟢" if is_active else "🔴"
+                    # 這就是發光的關鍵
+                    tag_glow_color = "#32CD32" if is_active else "#FF4B4B"
+                    # 這就是文字跟框框的顏色
+                    tag_text_color = "#32CD32" if is_active else "#FF4B4B"
+
+                    # 🚀 自動變色發光標籤：紅燈全紅，綠燈全綠
                     tag = f'''
-                    <span class="author-tag" style="border-color:{tag_color}!important; box-shadow: 0 0 10px {tag_color}88!important; color:white;">
+                    <span class="author-tag" style="border-color:{tag_text_color}!important; box-shadow: 0 0 10px {tag_glow_color}88!important; color:{tag_text_color}!important;">
                         {status_emoji} {u["name"]}
                     </span>
                     '''
@@ -105,12 +110,12 @@ if tr_url and tr_user and tr_pw:
                         for i, s in enumerate(steps, 1):
                             st.markdown(f"""<div class="step-container">
                                 <div style="color:#ffffff; font-weight:bold; font-size:14px; margin-bottom:5px;">Step {i}:</div>
-                                <div class="step-content-box">{s.get('content','')}</div>
+                                <div class="step-content-box" style="white-space: pre-wrap;">{s.get('content','')}</div>
                                 <div style="color:#ffffff; font-weight:bold; font-size:14px; margin-top:12px; margin-bottom:5px;">Expected:</div>
-                                <div class="step-content-box" style="border-left:1px dashed #444c56;">{s.get('expected','')}</div>
+                                <div class="step-content-box" style="border-left:1px dashed #444c56; white-space: pre-wrap;">{s.get('expected','')}</div>
                             </div>""", unsafe_allow_html=True)
                     else:
-                        st.markdown(f'<div class="step-content-box">{steps if steps else "(無步驟)"}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="step-content-box" style="white-space: pre-wrap;">{steps if steps else "(無步驟內容)"}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
