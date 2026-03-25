@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key): 
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 側邊欄與搜尋區
+# 🚀 側邊欄與搜尋區設定 (保持原本邏輯)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -85,57 +85,42 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 核心修正：避免 1. 2. 3. 誤判，強制將點點格式鎖死
-                    def final_line_fix(text):
+                    # 🔥 核心修正：讓 Markdown 自動處理階層
+                    def md_format(text):
                         if not text: return ""
+                        # 只濾掉圖片，保留原始的 \n 和 1. 或 * 符號
                         text = re.sub(img_pattern, '', text).strip()
-                        if not text: return ""
-                        
-                        lines = text.split('\n')
-                        html_output = []
-                        for line in lines:
-                            line = line.strip()
-                            # 如果是數位開頭如 1. 2.，我們強行在前面加一個點點，打破自動編號邏輯
-                            if re.match(r'^\d+\.', line):
-                                html_output.append(f'• {line}<br>')
-                            # 如果已經是點點開頭的，保留並換行
-                            elif line.startswith(('*', '-', '•')):
-                                clean_l = re.sub(r'^[\*\-\•]\s*', '', line)
-                                html_output.append(f'• {clean_l}<br>')
-                            # 針對妳遇到的「用户名」這類關鍵字強制換行加點點
-                            elif "用户名" in line and not line.startswith('•'):
-                                html_output.append(f'• {line}<br>')
-                            else:
-                                html_output.append(f'{line}<br>')
-                        
-                        return "".join(html_output)
+                        return text
 
                     if isinstance(steps, list) and len(steps) > 0:
                         v_idx = 1
-                        has_any_visible = False
                         for s in steps:
-                            c_html = final_line_fix(s.get('content', ''))
-                            e_html = final_line_fix(s.get('expected', ''))
+                            c_raw = md_format(s.get('content', ''))
+                            e_raw = md_format(s.get('expected', ''))
                             
-                            # 🚀 如果內容和預期結果濾掉圖片後都是空的，則完全跳過此步驟編號
-                            if not c_html and not e_html:
+                            # 跳過完全沒內容的步驟
+                            if not c_raw and not e_raw:
                                 continue
                             
-                            has_any_visible = True
-                            st.markdown(f'''
-                                <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
-                                    <div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px;">{c_html if c_html else "(無操作內容)"}</div>
-                                    <div style="color:white; font-weight:bold; margin-bottom:8px;">Expected:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;">{e_html if e_html else "(無預期結果)"}</div>
-                                </div>
-                            ''', unsafe_allow_html=True)
+                            # 🔥 使用 Step Wrapper + Streamlit Markdown 渲染以支持原生階層
+                            st.markdown(f'<div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">', unsafe_allow_html=True)
+                            
+                            if c_raw:
+                                st.markdown(f'<div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>', unsafe_allow_html=True)
+                                # 💡 這裡很關鍵：改用 st.markdown 渲染內容，讓它自動辨識 1. 2. 或是點點
+                                with st.container(border=True): # 這是為了做出黑盒子的效果
+                                    st.markdown(c_raw)
+                            
+                            if e_raw:
+                                st.markdown(f'<div style="color:white; font-weight:bold; margin-top:10px; margin-bottom:8px;">Expected:</div>', unsafe_allow_html=True)
+                                with st.container(border=True):
+                                    st.markdown(e_raw)
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)
                             v_idx += 1
-                        
-                        if not has_any_visible:
-                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容)</div>', unsafe_allow_html=True)
                     else:
                         st.markdown('<div class="no-content-hint">💡 (此案例目前沒有填寫測試步驟內容)</div>', unsafe_allow_html=True)
+                
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
