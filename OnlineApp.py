@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄設定 (功能完全守護)
+# 2. 側邊欄與按鈕功能守護
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -27,24 +27,23 @@ with st.sidebar:
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
     if st.button("🔄 強制刷新數據", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
+        st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心抓取與搜尋邏輯
+# 3. 核心數據邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋區按鈕 (回歸)
+        # 搜尋功能區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.get("q_text", ""), placeholder="輸入關鍵字查詢...", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="輸入關鍵字查詢...", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
             if st.button("🗑️ 清除條件", use_container_width=True): 
@@ -85,36 +84,36 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 複印機渲染器：將文字切碎成獨立 div，完全避開 Markdown 自動編號
-                    def copier_render(text):
+                    # 🔥 像素還原渲染器：將每一行都封鎖在獨立 div，絕對不讓 Markdown 引擎插手
+                    def pixel_copier(text):
                         if not text: return ""
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
                         lines = text.split('\n')
                         html_res = ""
                         for l in lines:
                             s = l.strip()
-                            # 脫水廢行：如果整行只有符號或是全空就弄掉
+                            # 脫水過濾：如果是純符號废行就蒸發
                             if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
-                            # 每一行都是獨立的個體，絕對不連在一起
-                            html_res += f'<div style="margin-bottom:2px; min-height:1.2em;">{s}</div>'
+                            # 關鍵：每一行都是獨立 div，防止瀏覽器把不同行連起來做列表
+                            html_res += f'<div style="margin-bottom:3px; white-space:nowrap;">{s}</div>'
                         return html_res
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = copier_render(s.get('content', ''))
-                            e_html = copier_render(s.get('expected', ''))
+                            c_html = pixel_copier(s.get('content', ''))
+                            e_html = pixel_copier(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 靈魂綠線與黑盒子鎖死結構
-                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;"
+                            # 🟢 靈魂綠線絕對鎖死樣式
+                            green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px;"
+                            inner_black_box = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6;"
                             
                             st.markdown(f'''
-                                <div style="{green_line_style}">
+                                <div style="{green_line_box}">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
+                                    <div style="{inner_black_box}">{c_html if c_html else "(無內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:15px; margin-bottom:8px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
+                                    <div style="{inner_black_box}">{e_html if e_html else "(無內容)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
