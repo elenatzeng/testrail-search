@@ -3,7 +3,16 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        .stApp { background-color: #0b0e14 !important; }
+        /* 🌌 靈魂星空背景 */
+        .stApp {
+            background-color: #0b0e14 !important;
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px) !important;
+            background-size: 550px 550px, 350px 350px, 250px 250px !important;
+            background-position: 0 0, 40px 60px, 130px 270px !important;
+        }
         
         /* 🚀 名字標籤 */
         .author-tag { 
@@ -16,43 +25,29 @@ def apply_custom_style():
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .status-inactive { color: #FF4B4B !important; border-color: #FF4B4B !important; }
 
-        /* 🚀 靈魂綠線容器 */
-        .custom-step-container {
-            border-left: 4px solid #4CAF50 !important;
-            padding-left: 20px !important;
-            margin: 10px 0 30px 5px !important;
-            display: block !important;
-        }
+        /* Expander 透明化 */
+        .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
 
-        .custom-label { 
-            color: #ffffff !important; 
-            font-weight: bold !important; 
-            font-size: 15px !important; 
-            margin-bottom: 8px !important;
-            display: block !important;
-        }
-
-        /* 🚀 核心黑盒子：斷行鎖死 */
-        .custom-box { 
-            background-color: #1c2128 !important; 
-            border: 1px solid #30363d !important; 
-            border-radius: 12px !important; 
-            padding: 18px 22px !important; 
-            color: #c9d1d9 !important; 
+        /* 🚀 無文字內容提示 */
+        .no-content-hint { 
+            color: #8b949e !important; 
             font-size: 14px !important; 
-            line-height: 1.8 !important;
-            margin-bottom: 15px !important;
-            /* 強制斷行 */
-            white-space: pre-wrap !important; 
-            word-break: break-all !important;
+            padding: 10px 0 10px 25px !important; 
+            font-style: italic !important;
             display: block !important;
         }
 
-        /* 🚀 處理清單點點 */
-        .custom-box ul { margin: 5px 0 5px 20px !important; padding: 0 !important; }
-        .custom-box li { margin-bottom: 5px !important; list-style-type: disc !important; }
-
-        .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
-        .scroll-to-top { position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px; background-color: #f77f00; color: white !important; border-radius: 50%; z-index: 9999; display: flex; align-items: center; justify-content: center; font-size: 26px; }
-        </style>
-    """, unsafe_allow_html=True)
+        /* 🚀 火箭回到頂部按鈕 - 固定在右邊中間 */
+        .scroll-to-top {
+            position: fixed;
+            top: 50% !important;
+            right: 15px !important;
+            transform: translateY(-50%) !important;
+            width: 42px !important;
+            height: 42px !important;
+            background-color: #f77f00 !important;
+            color: white !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
