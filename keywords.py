@@ -38,7 +38,7 @@ SEARCH_DICTIONARY = [
 
     # --- [Bonus & VIP] 紅利、活動與流水 ---
     ["bonus_wallet", "獎金錢包", "奖金钱包", "Bonus wallet", "bonusWalletEvent", "bonusWalletAcc"],
-    ["Fragment", "網址片段", "錨點", "锚点", "Hash"],
+    ["Fragment", "網址片段", "錨點", "锚点"],
     ["Routing", "路由", "跳轉", "跳转", "導航", "Navigation"],
     ["deposit_bonus", "存款紅利", "存款红利", "Deposit Bonus", "depositBonusEvent", "extraDepositBonus"],
     ["bonus_fs", "免費旋轉", "免费旋转", "Free Spin", "fs", "bonus_fs_tag", "bonus_fs_count", "numberOfSpins", "spin_value", "freeSpinPrize"],
