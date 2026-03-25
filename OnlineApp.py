@@ -4,7 +4,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面基礎配置 (紅圈 1)
+# 1. 頁面基礎配置
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
@@ -12,7 +12,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key): 
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄設定 (紅圈 1-3)
+# 2. 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -22,33 +22,28 @@ with st.sidebar:
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
-    # 紅圈 2
     if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
     
-    # 紅圈 3
     if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
-# 🚀 主標題
 st.markdown('<h1 style="text-align:left;">🧪 TestRail 智能檢索中心</h1>', unsafe_allow_html=True)
 
 # 3. 核心邏輯
 if tr_url and tr_user and tr_pw:
-    # 從 utils.py 獲取數據與長路徑地圖
-    all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, pw=tr_pw, pid=pid, sid=sid)
+    # 🚀 修正點：移除 pw= 標籤，直接傳入參數，避免 TypeError
+    all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # 🚀 紅圈 4：Project 白色粗體優化
         st.markdown(f"""
             <div style="color:#8b949e; font-size:14px; margin-bottom:10px;">
                 📍 Project：<span style="color:#ffffff; font-weight:bold;">{p_name}</span> | Suite：<span style="color:#ffffff; font-weight:bold;">#{sid}</span>
             </div>
         """, unsafe_allow_html=True)
         
-        # 🚀 紅圈 5, 11, 12：搜尋框與功能鈕
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         
@@ -58,23 +53,20 @@ if tr_url and tr_user and tr_pw:
             st.session_state.q_text = q_input
             
         with col_clear:
-            if st.button("🗑️ 清除條件", use_container_width=True): # 紅圈 11
+            if st.button("🗑️ 清除條件", use_container_width=True):
                 st.session_state.q_text = ""
                 st.rerun()
                 
         with col_run:
-            if st.button("🔎 重新查詢", use_container_width=True): # 紅圈 12
+            if st.button("🔎 重新查詢", use_container_width=True):
                 st.rerun()
 
         if st.session_state.q_text:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
-            
-            # 搜尋過濾邏輯
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
             for c in all_cases:
                 cid = str(c.get('id'))
-                # 取得動態長路徑
                 full_path_str = path_map.get(c.get('section_id'), "GoGaming")
                 title = str(c.get('title', '')).lower()
                 
@@ -91,16 +83,14 @@ if tr_url and tr_user and tr_pw:
             results.sort(key=lambda x: x[0], reverse=True)
             st.markdown(f"### 🎯 找到 {len(results)} 個案例 (已過濾交集結果)")
 
-            # 🚀 循環渲染結果
             for _, item, u in results:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
                 
-                # 🚀 紅圈 6：動態顯示長路徑 (GoGaming › 內容管理 › ...)
+                # 🚀 紅圈 6：動態顯示長路徑
                 display_path = path_map.get(item.get("section_id"), "GoGaming")
                 st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{display_path}</div>', unsafe_allow_html=True)
                 
-                # 🚀 紅圈 7, 8, 10：標題與 Open Case
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
                     tag = f'<span class="author-tag" style="border-color:{color}!important; box-shadow: 0 0 5px {color}!important;">{"🟢" if u.get("is_active") else "⚪"} {u["name"]}</span>'
@@ -108,7 +98,6 @@ if tr_url and tr_user and tr_pw:
                 with c2:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # 🚀 紅圈 9：展開步驟
                 with st.expander("🔽 查看測試步驟"):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     if isinstance(steps, list):
@@ -124,7 +113,6 @@ if tr_url and tr_user and tr_pw:
                 
                 st.markdown('<hr style="border:0; border-top:1px solid #30363d; margin:20px 0;">', unsafe_allow_html=True)
 
-    # 🚀 回到頂端火箭按鈕 (橘色 🚀)
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
 
 else:
