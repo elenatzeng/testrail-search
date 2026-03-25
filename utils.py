@@ -5,16 +5,25 @@ def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 🚀 1. 處理 TestRail 分離步驟 (如果是清單格式就直接回傳)
+    # 🚀 清除 HTML 標籤內的 style 屬性（解決白背景問題）
+    text = re.sub(r'style="[^"]*"', '', text, flags=re.IGNORECASE)
+    
+    # 🚀 1. 處理 TestRail 分離步驟 (Separated Steps)
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
             if isinstance(parsed_data, list):
+                for item in parsed_data:
+                    for key in ['content', 'expected']:
+                        val = item.get(key, '')
+                        # 清除標籤並保留純文字
+                        val = re.sub(r'<.*?>', '', val)
+                        item[key] = val.replace('&nbsp;', ' ').strip()
                 return parsed_data 
         except:
             pass
 
-    # 🚀 2. 處理普通純文字 (清理 HTML 標籤)
+    # 🚀 2. 處理普通文字
     text = text.replace('&nbsp;', ' ').replace('<br />', '\n').replace('<br>', '\n')
     text = re.sub(r'<.*?>', '', text)
     return text.strip()
@@ -40,7 +49,6 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             p_id = curr.get('parent_id')
             return f"{get_path(p_id)} > {curr['name']}" if p_id else curr['name']
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
-        
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
