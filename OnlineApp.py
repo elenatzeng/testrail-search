@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化
+# 1. 初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與搜尋區
+# 2. 側邊欄與搜尋區 (保持妳原本的邏輯)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -34,7 +34,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        q_input = st.text_input("搜尋內容", value=st.session_state.get("q_text", ""), placeholder="請輸入關鍵字...")
+        q_input = st.text_input("搜尋內容", value=st.session_state.get("q_text", ""))
         st.session_state.q_text = q_input
 
         if st.session_state.q_text:
@@ -65,28 +65,25 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 原汁原味處理器：只負責換行與濾圖片，不加任何點點或編號
-                    def pure_render(text):
+                    # 🔥 原汁原味處理器：圖片變佔位，換行變<br>
+                    def raw_pure_render(text):
                         if not text: return ""
-                        # 1. 濾掉圖片代碼
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
-                        # 2. 將換行符轉為網頁換行
-                        text = text.replace('\n', '<br>')
-                        return text
+                        return text.replace('\n', '<br>')
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = pure_render(s.get('content', ''))
-                            e_html = pure_render(s.get('expected', ''))
+                            c_html = raw_pure_render(s.get('content', ''))
+                            e_html = raw_pure_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🔥 綠線容器：完全包覆 Step 與 Expected
+                            # 🔥🔥🔥 核心鎖死：用 HTML div 包覆並強制設定左綠邊框
                             st.markdown(f'''
                                 <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px;">{c_html if c_html else "(無內容)"}</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{c_html if c_html else "(無操作內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Expected:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;">{e_html if e_html else "(無內容)"}</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; white-space:pre-wrap;">{e_html if e_html else "(無預期結果)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
