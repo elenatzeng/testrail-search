@@ -5,10 +5,15 @@ def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 💡 核心修正：清除 HTML 內的 style 屬性（解決白背景問題）
+    # 🚀 1. 核心修正：刪除 TestRail 圖片標記 (index.php?/attachments/get/...)
+    # 包含 Markdown 格式 ![](...) 或 HTML 格式 <img ...>
+    text = re.sub(r'!\[\]\(index\.php\?/attachments/get/\d+\)', '', text)
+    text = re.sub(r'<img[^>]*index\.php\?/attachments/get/\d+[^>]*>', '', text)
+    
+    # 清除 HTML style (解決白背景問題)
     text = re.sub(r'style="[^"]*"', '', text, flags=re.IGNORECASE)
     
-    # 🚀 1. 處理 TestRail 分離步驟 (Separated Steps)
+    # 🚀 2. 處理分離步驟 (Separated Steps)
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
@@ -16,7 +21,8 @@ def clean_html(raw_html):
                 for item in parsed_data:
                     for key in ['content', 'expected']:
                         val = str(item.get(key, ''))
-                        # 移除標籤但保留換行語意
+                        # 分離步驟內也要濾掉圖片網址
+                        val = re.sub(r'!\[\]\(index\.php\?/attachments/get/\d+\)', '', val)
                         val = val.replace('<br />', '\n').replace('<br>', '\n')
                         val = re.sub(r'<.*?>', '', val)
                         item[key] = val.replace('&nbsp;', ' ').strip()
@@ -24,7 +30,7 @@ def clean_html(raw_html):
         except:
             pass
 
-    # 🚀 2. 處理普通文字 (Markdown/純文字)
+    # 🚀 3. 處理普通文字
     text = text.replace('&nbsp;', ' ').replace('<br />', '\n').replace('<br>', '\n')
     text = re.sub(r'<.*?>', '', text)
     return text.strip()
