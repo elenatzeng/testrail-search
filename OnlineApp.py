@@ -41,7 +41,7 @@ if tr_url and tr_user and tr_pw:
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
-            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容 (輸入關鍵字查詢；支援繁簡體與英文):</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入查詢關鍵字...", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
@@ -60,95 +60,65 @@ if tr_url and tr_user and tr_pw:
                 title = str(c.get('title', ''))
                 cid = str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
-                
-                is_match = True; score = 0
+                is_match = True
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
                     if not (any(w in (title.lower() + f_path.lower()) for w in exp) or any(w == cid for w in exp)):
                         is_match = False; break
-                    if any(w in title.lower() for w in exp): score += 10000 
 
                 if is_match:
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     has_real_text = len(clean_content) > 5
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    final_score = (score + u.get("weight", 0)) if has_real_text else (score - 500000)
+                    final_score = (10000 + u.get("weight", 0)) if has_real_text else -500000
                     results.append((final_score, c, u))
 
             results.sort(key=lambda x: x[0], reverse=True) 
-            st.markdown(f"### 🎯 找到 {len(results)} 個案例")
 
             for _, item, u in results:
                 cid = str(item.get('id'))
-                status_class = "status-active" if u.get("is_active") else "status-inactive"
-                status_emoji = "🟢" if u.get("is_active") else "🔴"
-                
                 st.markdown(f'<div style="font-size:14px; color:#adb5bd; margin-top:25px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                tag_html = f'<span class="author-tag {status_class}">{status_emoji} {u["name"]}</span>'
+                tag_html = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                 c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 核心修正：強制轉換函式
-                    def ultra_format_content(text):
+                    # 🔥 核心修正：強制轉換函式，解決斷行與點點問題
+                    def ultra_format(text):
                         if not text: return ""
-                        # 先濾掉圖片
                         text = re.sub(img_pattern, '', text).strip()
-                        if not text: return ""
-                        
-                        # 把 \n 換成真正的 HTML 斷行，並針對點點符號做縮排
                         lines = text.split('\n')
-                        html_output = []
-                        list_active = False
-                        
+                        html_out = []
                         for line in lines:
-                            # 偵測縮排或點點 (如果是 * 或 - 或空格開頭)
-                            match = re.match(r'^(\s*[\*\-\•]|\s+)(.*)', line)
-                            if match:
-                                if not list_active:
-                                    html_output.append('<div style="margin-top:5px; margin-bottom:5px; padding-left:15px;">')
-                                    list_active = True
-                                html_output.append(f'• {match.group(2)}<br>')
+                            # 偵測點點符號或數字開頭做縮排
+                            if re.match(r'^\s*[\*\-\•\d\.]', line):
+                                html_out.append(f'<div style="margin-left:20px; margin-bottom:4px;">{line.strip()}</div>')
                             else:
-                                if list_active:
-                                    html_output.append('</div>')
-                                    list_active = False
-                                html_output.append(f'<div style="margin-bottom:2px;">{line}</div>')
-                        
-                        if list_active: html_output.append('</div>')
-                        return "".join(html_output)
+                                html_out.append(f'<div style="margin-bottom:4px;">{line}</div>')
+                        return "".join(html_out)
 
                     if isinstance(steps, list):
                         v_idx = 1
-                        has_data = False
                         for s in steps:
-                            c_html = ultra_format_content(s.get('content', ''))
-                            e_html = ultra_format_content(s.get('expected', ''))
-                            
+                            c_html = ultra_format(s.get('content', ''))
+                            e_html = ultra_format(s.get('expected', ''))
                             if not c_html and not e_html: continue
-                            has_data = True
                             
-                            # 🔥 使用 HTML 注入，保證綠線 (border-left) 長出來
+                            # 🔥 使用 inline-style 確保綠線長出來
                             st.markdown(f'''
                                 <div style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
-                                    <div style="color:white; font-weight:bold; font-size:15px; margin-bottom:8px;">Step {v_idx}:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6; margin-bottom:15px;">{c_html}</div>
-                                    <div style="color:white; font-weight:bold; font-size:15px; margin-bottom:8px;">Expected:</div>
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6; margin-bottom:15px;">{e_html}</div>
+                                    <div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; margin-bottom:15px; white-space:pre-wrap;">{c_html}</div>
+                                    <div style="color:white; font-weight:bold; margin-bottom:8px;">Expected:</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; margin-bottom:15px; white-space:pre-wrap;">{e_html}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                             v_idx += 1
-                        if not has_data:
-                            st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
-                    elif steps:
-                        final_res = ultra_format_content(steps)
-                        if final_res:
-                            st.markdown(f'<div style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px;"><div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9;">{final_res}</div></div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
