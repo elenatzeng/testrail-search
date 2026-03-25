@@ -11,30 +11,33 @@ apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
+    # 清除隱形字元
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與搜尋區 (保持妳原本的邏輯)
+# 2. 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
     tr_user = st.text_input("帳號 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
-    pid_v = get_val("pid"); sid_v = get_val("sid")
+    pid_v, sid_v = get_val("pid"), get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
-    if st.button("💾 儲存資訊", use_container_width=True):
+    if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-    if st.button("🔄 刷新", use_container_width=True):
+        st.success("✅ 已儲存")
+    if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
+# 3. 核心抓取邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        q_input = st.text_input("搜尋內容", value=st.session_state.get("q_text", ""))
+        q_input = st.text_input("搜尋內容", value=st.session_state.get("q_text", ""), placeholder="請輸入關鍵字...")
         st.session_state.q_text = q_input
 
         if st.session_state.q_text:
@@ -51,8 +54,13 @@ if tr_url and tr_user and tr_pw:
                     if not (any(w in (title.lower() + f_path.lower()) for w in exp) or any(w == cid for w in exp)):
                         is_match = False; break
                 if is_match:
+                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
+                    clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((100, c, u))
+                    score = (10000 + u.get("weight", 0)) if len(clean_content) > 5 else -500000
+                    results.append((score, c, u))
+
+            results.sort(key=lambda x: x[0], reverse=True)
 
             for _, item, u in results:
                 cid = str(item.get('id'))
@@ -65,27 +73,32 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 原汁原味處理器：圖片變佔位，換行變<br>
+                    # 🔥 原汁原味還原器：只換圖片跟斷行，不讓 Markdown 引擎插手
                     def raw_pure_render(text):
                         if not text: return ""
+                        # 1. 濾掉圖片
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
-                        return text.replace('\n', '<br>')
+                        # 2. 將換行符轉為 <br>
+                        text = text.replace('\n', '<br>')
+                        return text
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
-                        for s_idx, s in enumerate(steps_data, 1):
+                        v_idx = 1
+                        for s in steps_data:
                             c_html = raw_pure_render(s.get('content', ''))
                             e_html = raw_pure_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🔥🔥🔥 核心鎖死：用 HTML div 包覆並強制設定左綠邊框
+                            # 🔥 使用 HTML 容器包覆，鎖死綠線跟黑盒子
                             st.markdown(f'''
                                 <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
-                                    <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {s_idx}:</div>
+                                    <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {v_idx}:</div>
                                     <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{c_html if c_html else "(無操作內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Expected:</div>
                                     <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8; white-space:pre-wrap;">{e_html if e_html else "(無預期結果)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
+                            v_idx += 1
                     else:
                         st.markdown('<div class="no-content-hint">💡 (此案例目前沒有填寫測試步驟內容)</div>', unsafe_allow_html=True)
                 st.markdown("---")
