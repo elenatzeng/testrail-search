@@ -5,15 +5,10 @@ def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 🚀 1. 核心修正：刪除 TestRail 圖片標記 (index.php?/attachments/get/...)
-    # 包含 Markdown 格式 ![](...) 或 HTML 格式 <img ...>
+    # 移除圖片網址
     text = re.sub(r'!\[\]\(index\.php\?/attachments/get/\d+\)', '', text)
-    text = re.sub(r'<img[^>]*index\.php\?/attachments/get/\d+[^>]*>', '', text)
     
-    # 清除 HTML style (解決白背景問題)
-    text = re.sub(r'style="[^"]*"', '', text, flags=re.IGNORECASE)
-    
-    # 🚀 2. 處理分離步驟 (Separated Steps)
+    # 處理分離步驟清單
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
@@ -21,27 +16,31 @@ def clean_html(raw_html):
                 for item in parsed_data:
                     for key in ['content', 'expected']:
                         val = str(item.get(key, ''))
-                        # 分離步驟內也要濾掉圖片網址
-                        val = re.sub(r'!\[\]\(index\.php\?/attachments/get/\d+\)', '', val)
-                        val = val.replace('<br />', '\n').replace('<br>', '\n')
+                        # HTML 換行轉純文字換行
+                        val = val.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
                         val = re.sub(r'<.*?>', '', val)
-                        item[key] = val.replace('&nbsp;', ' ').strip()
+                        
+                        # 🚀 自動拆解與補編號
+                        split_keys = ["路徑", "選擇", "URL", "點擊", "点击", "登入", "查看", "成功"]
+                        lines = val.split('\n')
+                        new_lines = []
+                        line_count = 1
+                        for line in lines:
+                            line = line.strip()
+                            if not line: continue
+                            if not re.match(r'^\d+[\.\s]', line):
+                                new_lines.append(f"{line_count}. {line}")
+                                line_count += 1
+                            else:
+                                new_lines.append(line)
+                        item[key] = "\n".join(new_lines)
                 return parsed_data 
         except:
             pass
 
-    # 🚀 3. 處理普通文字
-    text = text.replace('&nbsp;', ' ').replace('<br />', '\n').replace('<br>', '\n')
+    text = text.replace('<br />', '\n').replace('<br>', '\n')
     text = re.sub(r'<.*?>', '', text)
     return text.strip()
-
-def multi_lang_search(text, dictionary):
-    t_lower = text.lower().strip()
-    res = {t_lower}
-    for group in dictionary:
-        g_lower = [str(w).lower() for w in group]
-        if t_lower in g_lower: res.update(g_lower)
-    return list(res)
 
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
@@ -56,7 +55,6 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             p_id = curr.get('parent_id')
             return f"{get_path(p_id)} > {curr['name']}" if p_id else curr['name']
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
-        
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
@@ -68,3 +66,11 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name')
     except Exception as e:
         return None, None, str(e), None
+
+def multi_lang_search(text, dictionary):
+    t_lower = text.lower().strip()
+    res = {t_lower}
+    for group in dictionary:
+        g_lower = [str(w).lower() for w in group]
+        if t_lower in g_lower: res.update(g_lower)
+    return list(res)
