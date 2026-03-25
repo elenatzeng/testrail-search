@@ -4,12 +4,14 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
+# 初始化配置
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 
 def get_val(key, default=""):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", default))
 
+# 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -34,19 +36,21 @@ if tr_url and tr_user and tr_pw:
     if all_cases is not None:
         st.markdown(f'<div style="color:#8b949e; font-size:14px;">📍 Project：{p_name} | Suite：#{suite_id}</div>', unsafe_allow_html=True)
         
-        # 搜尋區域
+        # 搜尋區域 (修復清除按鈕報錯邏輯)
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2])
-        if "q_text" not in st.session_state: st.session_state.q_text = ""
+        if "q_text" not in st.session_state: 
+            st.session_state.q_text = ""
 
         with col_search:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容 (輸入關鍵字查詢：支援繁體簡體與英文):</div>', unsafe_allow_html=True)
-            query = st.text_input("", placeholder="多關鍵字請以空格分隔 (交集搜尋)", key="search_box", label_visibility="collapsed")
-            st.session_state.q_text = query
+            # 使用 value 連動，不綁定 key 避免鎖死 session_state
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="多關鍵字請以空格分隔 (交集搜尋)", label_visibility="collapsed")
+            st.session_state.q_text = q_input
 
         with col_clear:
             st.markdown('<p style="margin-bottom: 23px;"></p>', unsafe_allow_html=True) 
             if st.button("🗑️ 清除條件", use_container_width=True):
-                st.session_state["search_box"] = ""
+                st.session_state.q_text = "" # 直接清空 state
                 st.rerun()
 
         with col_run:
@@ -54,10 +58,10 @@ if tr_url and tr_user and tr_pw:
             if st.button("🔎 重新查詢", use_container_width=True):
                 st.rerun()
 
+        # 核心搜尋與排序邏輯
         final_query = st.session_state.q_text
         if final_query:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
-            # 🔍 功能 1：精準交集拆分
             raw_input_terms = [t.lower() for t in final_query.strip().split() if len(t) > 0]
             scored_results = []
 
@@ -66,7 +70,6 @@ if tr_url and tr_user and tr_pw:
                 title = c.get('title', '').lower()
                 section_path = str(path_map.get(c.get('section_id', ""), "")).lower()
                 
-                # 檢查內容完整度 (排序用)
                 steps_sep = c.get('custom_steps_separated') or []
                 steps_txt = str(c.get('custom_steps', '')).strip()
                 has_content = len(steps_sep) > 0 or len(steps_txt) > 0
@@ -76,34 +79,26 @@ if tr_url and tr_user and tr_pw:
                 is_all_match = True
                 total_score = 0
                 
-                # 🔍 功能 2：三語聯動擴展比對
                 for term in raw_input_terms:
                     expanded = multi_lang_search(term, SEARCH_DICTIONARY)
                     if not any(word in searchable_pool or word in cid for word in expanded):
                         is_all_match = False
                         break
                     else:
-                        # 📈 功能 3：智能權重排序 (標題命中權分)
                         if any(word in title for word in expanded): total_score += 1000
-                        if any(word in section_path for word in expanded): total_score += 500
                 
                 if is_all_match:
                     u_info = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
                     total_score += u_info.get("weight", 0)
-                    
-                    # 📈 功能 3：空案例大扣分 (墊底邏輯)
-                    if not has_content:
-                        total_score -= 100000 
-                    
+                    # 💡 空案例權重墊底
+                    if not has_content: total_score -= 100000 
                     scored_results.append((total_score, c, u_info))
 
-            # 排序：分數最高排最前
             scored_results.sort(key=lambda x: x[0], reverse=True)
             st.markdown(f"### 🎯 找到 {len(scored_results)} 個案例 (已過濾交集結果)")
 
             for _, item, u_info in scored_results:
                 cid = str(item.get('id'))
-                # 🚦 功能 5：紅綠燈標籤
                 status_emoji = "🟢" if u_info.get("is_active") else "🔴"
                 author_style = "color: #4CAF50; background: rgba(76,175,80,0.15); border: 1.5px solid #4CAF50;" if u_info.get("is_active") else "color: #ff4b4b; background: rgba(255,75,75,0.15); border: 1.5px solid #ff4b4b;"
                 
@@ -117,7 +112,6 @@ if tr_url and tr_user and tr_pw:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("🔽 查看測試步驟"):
-                    # ✨ 功能 4：自動格式化渲染
                     raw_steps = item.get('custom_steps_separated') or item.get('custom_steps') or []
                     if isinstance(raw_steps, list) and len(raw_steps) > 0:
                         for i, s in enumerate(raw_steps, 1):
