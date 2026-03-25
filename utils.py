@@ -5,7 +5,7 @@ def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 🚀 清除 HTML 標籤內的 style 屬性（解決白背景問題）
+    # 清除 HTML 標籤內的 style 屬性
     text = re.sub(r'style="[^"]*"', '', text, flags=re.IGNORECASE)
     
     # 🚀 1. 處理 TestRail 分離步驟 (Separated Steps)
@@ -15,15 +15,15 @@ def clean_html(raw_html):
             if isinstance(parsed_data, list):
                 for item in parsed_data:
                     for key in ['content', 'expected']:
-                        val = item.get(key, '')
-                        # 清除標籤並保留純文字
+                        val = str(item.get(key, ''))
+                        # 移除標籤但保留內容
                         val = re.sub(r'<.*?>', '', val)
                         item[key] = val.replace('&nbsp;', ' ').strip()
                 return parsed_data 
         except:
             pass
 
-    # 🚀 2. 處理普通文字
+    # 🚀 2. 處理普通文字 (Markdown/純文字)
     text = text.replace('&nbsp;', ' ').replace('<br />', '\n').replace('<br>', '\n')
     text = re.sub(r'<.*?>', '', text)
     return text.strip()
