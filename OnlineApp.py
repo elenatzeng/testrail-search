@@ -95,31 +95,33 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 核心修正：讓 Markdown 點點清單真正長出來的小幫手
-                    def process_content_with_lists(text):
+                    # 🔥 核心修正邏輯：處理 Markdown 清單、標點符號與換行
+                    def process_content_logic(text):
                         if not text: return ""
-                        # 先濾掉圖片
+                        # 過濾圖片
                         text = re.sub(img_pattern, '', text).strip()
                         if not text: return ""
                         
+                        # 處理常見的 TestRail Markdown 列表符號與換行
                         lines = text.split('\n')
                         html_output = []
                         list_active = False
                         
                         for line in lines:
-                            # 偵測是否有 Markdown 清單符號 (*, -, •)
+                            # 偵測是否為清單項 (支援 *, -, •)
                             match = re.match(r'^\s*[\*\-\•]\s+(.*)', line)
                             if match:
                                 if not list_active:
-                                    html_output.append('<ul style="margin:0; padding-left:25px;">')
+                                    html_output.append('<ul style="margin:0; padding-left:25px; list-style-type:disc;">')
                                     list_active = True
                                 html_output.append(f'<li>{match.group(1)}</li>')
                             else:
                                 if list_active:
                                     html_output.append('</ul>')
                                     list_active = False
-                                # 一般文字保留換行
-                                html_output.append(f'{line}<br>')
+                                # 非清單文字強制換行，並處理內容
+                                if line.strip():
+                                    html_output.append(f'<div>{line}</div>')
                         
                         if list_active: html_output.append('</ul>')
                         return "".join(html_output)
@@ -128,10 +130,10 @@ if tr_url and tr_user and tr_pw:
                         visible_idx = 1
                         has_any = False
                         for s in steps:
-                            c_final = process_content_with_lists(s.get('content', ''))
-                            e_final = process_content_with_lists(s.get('expected', ''))
+                            c_final = process_content_logic(s.get('content', ''))
+                            e_final = process_content_logic(s.get('expected', ''))
                             
-                            # 空步驟完全跳過，不給標號
+                            # 空步驟跳過
                             if not c_final and not e_final: continue
                             
                             has_any = True
@@ -139,7 +141,7 @@ if tr_url and tr_user and tr_pw:
                             if c_final:
                                 st.markdown(f'<div class="step-label">Step {visible_idx}:</div><div class="step-box">{c_final}</div>', unsafe_allow_html=True)
                             if e_final:
-                                # 🔥 Expected 斷行與點點縮排鎖死
+                                # 🔥 🔥 Expected 階層鎖死
                                 st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{e_final}</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             visible_idx += 1
@@ -147,7 +149,7 @@ if tr_url and tr_user and tr_pw:
                         if not has_any:
                             st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                     elif steps:
-                        final_txt = process_content_with_lists(steps)
+                        final_txt = process_content_logic(steps)
                         if final_txt:
                             st.markdown(f'<div class="step-wrapper"><div class="step-box">{final_txt}</div></div>', unsafe_allow_html=True)
                 st.markdown("---")
