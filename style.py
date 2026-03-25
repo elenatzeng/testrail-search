@@ -3,37 +3,37 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 基礎背景與文字 */
         .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div { background-color: #0b0e14 !important; }
         h1, h2, h3, h4, h5, p, span, label, small, .stMarkdown { color: #ffffff !important; }
 
-        /* 側邊欄輸入框 */
+        /* 輸入框樣式 */
         .stTextInput input, .stNumberInput input {
             background-color: #161b22 !important; border: 1px solid #30363d !important;
-            color: #ffffff !important; border-radius: 8px !important;
-        }
-        div[data-testid="stSidebar"] .stButton button { 
-            background-color: #31333f !important; color: #ffffff !important; 
-            border: 1px solid #444c56 !important; border-radius: 8px !important; width: 100% !important;
+            color: #ffffff !important; border-radius: 8px !important; height: 45px !important;
         }
 
-        /* 檔案路徑與標籤 */
+        /* 按鈕基礎樣式 */
+        button[kind="secondary"] {
+            height: 45px !important; width: 100% !important;
+            background-color: #31333f !important; color: #ffffff !important; 
+            border: 1px solid #444c56 !important; border-radius: 8px !important;
+        }
+
         .case-path-text { font-size: 13px; color: #8b949e !important; margin-bottom: 8px; display: block; }
         .author-tag { font-size: 11px; border-radius: 12px; padding: 3px 12px; display: inline-block; margin-left: 10px; font-weight: bold; }
         
-        /* 綠色功能按鈕 */
         .view-btn { 
-            display: inline-block; padding: 6px 16px; background-color: #2ea44f; 
-            color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; 
+            display: inline-block; padding: 8px 20px; background-color: #2ea44f; 
+            color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; 
         }
 
-        /* 測試步驟容器 (深色主題優化) */
+        /* ✨ 漂亮步驟版本容器 */
         .step-content-box { 
-            color: #c9d1d9 !important; background: #161b22; padding: 18px; 
-            border-radius: 10px; border: 1px solid #30363d; margin-top: 5px; white-space: pre-wrap;
-            line-height: 1.6;
+            color: #c9d1d9 !important; background: #161b22; padding: 20px; 
+            border-radius: 10px; border: 1px solid #30363d; margin-top: 10px; white-space: pre-wrap;
+            line-height: 1.8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .expected-text { color: #79c0ff; font-weight: bold; margin-top: 8px; display: block; }
+        .expected-text { color: #f77f00; font-weight: bold; margin-top: 10px; display: block; border-top: 1px dashed #30363d; padding-top: 10px; }
 
         /* 🚀 活力橘回到頂端按鈕 */
         .scroll-to-top {
