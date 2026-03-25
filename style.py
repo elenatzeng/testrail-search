@@ -6,40 +6,56 @@ def apply_custom_style():
         .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div { background-color: #0b0e14 !important; }
         h1, h2, h3, h4, h5, p, span, label, small, .stMarkdown { color: #ffffff !important; }
 
-        /* 🚀 名字弧形外框：在職綠/離職紅由 OnlineApp 帶入顏色 */
-        .author-tag { 
-            font-size: 11px; 
-            border-radius: 25px; 
-            padding: 2px 14px; 
-            display: inline-block; 
-            margin-left: 10px; 
-            font-weight: bold; 
-            border: 2px solid !important; 
-            background: rgba(0,0,0,0.3) !important;
-            vertical-align: middle;
-        }
-        
-        /* 測試步驟深色方塊與換行 */
-        .step-content-box { 
-            color: #c9d1d9 !important; background: #1c2128; padding: 15px; 
-            border-radius: 10px; border: 1px solid #30363d; margin-top: 5px; 
-            white-space: pre-wrap; line-height: 1.6;
+        /* 輸入框樣式 */
+        .stTextInput input, .stNumberInput input {
+            background-color: #161b22 !important; border: 1px solid #30363d !important;
+            color: #ffffff !important; border-radius: 8px !important; height: 45px !important;
         }
 
-        /* 🚀 活力橘回到頂端按鈕 */
+        /* 按鈕基礎樣式 */
+        button[kind="secondary"] {
+            height: 45px !important; width: 100% !important;
+            background-color: #31333f !important; color: #ffffff !important; 
+            border: 1px solid #444c56 !important; border-radius: 8px !important;
+        }
+
+        .case-path-text { font-size: 13px; color: #8b949e !important; margin-bottom: 8px; display: block; }
+        
+        /* 🚀 Elena 的膠囊弧形發光標籤 (定義基礎結構) */
+        .author-tag { 
+            font-size: 11px; 
+            font-weight: bold;
+            border-radius: 20px !important; /* 💡 完美膠囊弧形 */
+            padding: 2px 14px; 
+            display: inline-flex;
+            align-items: center;
+            margin-left: 10px; 
+            vertical-align: middle;
+            background-color: rgba(0, 0, 0, 0.2); /* 稍微深色背景讓框更明顯 */
+            border: 2px solid !important; /* 💡 固定粗細，顏色由 OnlineApp 帶入 */
+        }
+        
+        .view-btn { 
+            display: inline-block; padding: 8px 20px; background-color: #2ea44f; 
+            color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; 
+        }
+
+        /* 漂亮步驟容器 */
+        .step-content-box { 
+            color: #c9d1d9 !important; background: #161b22; padding: 20px; 
+            border-radius: 10px; border: 1px solid #30363d; margin-top: 10px; white-space: pre-wrap; 
+        }
+        .step-item { border-left: 4px solid #2ea44f; padding-left: 20px; margin-bottom: 25px; }
+
+        /* 🚀 活力橘回到頂端按鈕 (調整位置避開遮擋) */
         .scroll-to-top {
             position: fixed; bottom: 85px; right: 30px; width: 48px; height: 48px;
             background-color: #f77f00; color: white !important; border-radius: 50%;
             z-index: 999999; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-            text-decoration: none !important; display: flex; align-items: center; justify-content: center;
-            font-size: 20px; transition: 0.3s;
+            text-decoration: none !important; transition: all 0.3s ease;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
         }
         .scroll-to-top:hover { transform: translateY(-5px); background-color: #e67600; }
-
-        .view-btn { 
-            display: inline-block; padding: 6px 16px; background-color: #2ea44f; 
-            color: white !important; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; 
-        }
 
         header[data-testid="stHeader"] { background: transparent !important; }
         [data-testid="stTopBar"] { display: none !important; }
