@@ -6,7 +6,6 @@ def smart_format(text):
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
-    # 🚀 強制動作拆解換行
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
@@ -36,26 +35,30 @@ def clean_html(raw_html):
     return smart_format(text)
 
 @st.cache_data(show_spinner=False, ttl=600)
-def fetch_data_from_tr(_url, _user, _pw, pid, sid):
+def fetch_data_from_tr(url, user, key, pid, sid):
     try:
-        api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
+        api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 關鍵修復：抓取該 Suite 下所有 Sections
-        all_sects = api.sections.get_sections(project_id=pid, suite_id=sid)['sections']
-        sect_dict = {s['id']: s for s in all_sects}
+        # 🚀 終極修正：抓取該 Suite 下的所有 Sections
+        sections = api.sections.get_sections(project_id=pid, suite_id=sid)['sections']
+        sect_dict = {s['id']: s for s in sections}
         
-        # 🚀 強力路徑拼湊邏輯 (不再依賴遞迴順序)
-        final_path_map = {}
+        # 🚀 終極路徑拼接邏輯
+        path_map = {}
         for s_id in sect_dict:
-            path_parts = []
+            parts = []
             curr_id = s_id
-            while curr_id in sect_dict:
+            visited = set() # 防止死循環
+            while curr_id in sect_dict and curr_id not in visited:
+                visited.add(curr_id)
                 curr_sect = sect_dict[curr_id]
-                path_parts.insert(0, curr_sect['name'])
+                parts.insert(0, curr_sect['name'])
                 curr_id = curr_sect.get('parent_id')
-            # 串接長路徑
-            final_path_map[s_id] = " › ".join(path_parts) if path_parts else "GoGaming"
+            
+            # 如果拼出來只有一節且不是 GoGaming，強行檢查
+            full_path = " › ".join(parts) if parts else "GoGaming"
+            path_map[s_id] = full_path
             
         all_cases, offset = [], 0
         while True:
@@ -66,7 +69,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             if len(cases) < 250: break
             offset += 250
             
-        return all_cases, final_path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
+        return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e:
         return None, None, str(e), None
 
