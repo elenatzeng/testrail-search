@@ -11,7 +11,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 (1) 側邊欄設定
+# (1) 側邊欄
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -36,7 +36,7 @@ if tr_url and tr_user and tr_pw:
         # (4) 專案資訊
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # (5) (11) (12) 搜尋區
+        # (5) 搜尋區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -51,7 +51,6 @@ if tr_url and tr_user and tr_pw:
                 st.rerun()
 
         if st.session_state.q_text:
-            st.caption(f"⚡ 最後同步：{sync_time}")
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
             img_pattern = r'!\[\]\(index\.php\?/attachments/get/\d+\)'
@@ -70,14 +69,11 @@ if tr_url and tr_user and tr_pw:
                     if any(w in title.lower() for w in exp): score += 10000 
 
                 if is_match:
-                    # 🚀 排序鎖死：檢查是否只有圖片附件
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
-                    # 排除掉圖片代碼後，計算剩餘文字長度
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     has_real_text = len(clean_content) > 5
                     
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    # 只有圖片或完全沒內容的，扣除 50 萬分，確保排到最後
                     final_score = (score + u.get("weight", 0)) if has_real_text else (score - 500000)
                     results.append((final_score, c, u))
 
@@ -89,17 +85,14 @@ if tr_url and tr_user and tr_pw:
                 status_class = "status-active" if u.get("is_active") else "status-inactive"
                 status_emoji = "🟢" if u.get("is_active") else "🔴"
                 
-                # (6) 路徑
                 st.markdown(f'<div style="font-size:14px; color:#adb5bd; margin-top:25px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 tag_html = f'<span class="author-tag {status_class}">{status_emoji} {u["name"]}</span>'
-                # (7)(8) 標題
+                # 🔥 這裡修正了引號報錯問題
                 c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
-                # (10) Open Case 按鈕
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # (9) 查閱測試步驟
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
