@@ -3,12 +3,17 @@ from testrail_api import TestRailAPI
 
 def smart_format(text):
     if not text: return ""
+    # 清理 HTML
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
+    
+    # 動作關鍵字拆分
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
+    
+    # 補上 1. 2. 3.
     lines = [l.strip() for l in t.split('\n') if l.strip()]
     final_lines = []
     count = 1
@@ -40,7 +45,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 終極修正：分頁抓取所有目錄，不再只抓第一頁
+        # 🚀 抓取全量目錄（解決 GoGaming 問題）
         all_sects = []
         offset = 0
         while True:
