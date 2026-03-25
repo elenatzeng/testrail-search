@@ -39,7 +39,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases is not None:
         st.markdown(f'<div style="color:#8b949e; font-size:14px;">📍 Project：{p_name} | Suite：#{suite_id}</div>', unsafe_allow_html=True)
         
-        # 搜尋區域 (修復清除按鈕報錯邏輯)
+        # 搜尋區域
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2])
         if "q_text" not in st.session_state: 
             st.session_state.q_text = ""
@@ -97,7 +97,7 @@ if tr_url and tr_user and tr_pw:
                     scored_results.append((total_score, c, u_info))
 
             scored_results.sort(key=lambda x: x[0], reverse=True)
-            st.markdown(f"### 🎯 找到 {len(scored_results)} 個案例 (已過濾交集結果)")
+            st.markdown(f"### 🎯 找到 {len(scored_results)} 個案例")
 
             for _, item, u_info in scored_results:
                 cid = str(item.get('id'))
@@ -119,24 +119,15 @@ if tr_url and tr_user and tr_pw:
                         for i, s in enumerate(raw_steps, 1):
                             c_body = clean_html(s.get("content", ""))
                             e_body = clean_html(s.get("expected", ""))
-                            st.markdown(f'''
-                                <div class="step-item">
-                                    <span style="color:#79c0ff; font-weight:800;">Step {i}:</span>
-                                    <div class="step-content-box">{c_body if c_body else "（無操作內容）"}</div>
-                                    <div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div>
-                                    <div class="step-content-box" style="border-left: 2px solid #4CAF50;">{e_body if e_body else "（無預期結果）"}</div>
-                                </div>''', unsafe_allow_html=True)
+                            st.markdown(f'''<div class="step-item"><span style="color:#79c0ff; font-weight:800;">Step {i}:</span><div class="step-content-box">{c_body if c_body else "（無操作內容）"}</div><div style="margin-top:10px;"><span style="color:#8b949e; font-weight:bold;">Expected:</span></div><div class="step-content-box" style="border-left: 2px solid #4CAF50;">{e_body if e_body else "（無預期結果）"}</div></div>''', unsafe_allow_html=True)
                     else:
                         body = clean_html(item.get('custom_steps', ''))
                         st.markdown(f'<div class="step-content-box">{(body if body else "（無詳細步驟）")}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
-# 🚀 顯示懸浮「回到頂部」按鈕 (HTML 連結到頂部錨點)
-st.markdown("""
-    <a href="#top-anchor" class="scroll-to-top" title="回到頂部">
-        ▲
-    </a>
-""", unsafe_allow_html=True)
+    # 🚀 顯示懸浮按鈕 (確保在 if all_cases 區塊內)
+    st.markdown("""<a href="#top-anchor" class="scroll-to-top" title="回到頂部">▲</a>""", unsafe_allow_html=True)
 
 else:
+    # 這裡的 else 對應的是 if tr_url and tr_user and tr_pw:
     st.info("👈 請在左側輸入資料後開始查詢。")
