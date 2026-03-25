@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 初始化樣式與配置
+# 初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key): 
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 (1)-(3) 側邊欄與搜尋設定
+# 🚀 (1)-(3) 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -37,7 +37,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋區 (5, 11, 12) 文字鎖死
+        # 搜尋區 (5, 11, 12)
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -94,63 +94,61 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 🔥 🔥 斷行與階層解析邏輯
-                    def final_format_helper(text):
+                    # 🔥 核心修正：強制轉換函式
+                    def ultra_format_content(text):
                         if not text: return ""
-                        # 先濾掉圖片代碼
+                        # 先濾掉圖片
                         text = re.sub(img_pattern, '', text).strip()
                         if not text: return ""
                         
+                        # 把 \n 換成真正的 HTML 斷行，並針對點點符號做縮排
                         lines = text.split('\n')
                         html_output = []
                         list_active = False
                         
                         for line in lines:
-                            # 偵測是否為 Markdown 清單項目 (支援 *, -, •)
-                            match = re.match(r'^\s*[\*\-\•]\s+(.*)', line)
+                            # 偵測縮排或點點 (如果是 * 或 - 或空格開頭)
+                            match = re.match(r'^(\s*[\*\-\•]|\s+)(.*)', line)
                             if match:
                                 if not list_active:
-                                    html_output.append('<ul style="margin-top:0; margin-bottom:10px; padding-left:20px;">')
+                                    html_output.append('<div style="margin-top:5px; margin-bottom:5px; padding-left:15px;">')
                                     list_active = True
-                                html_output.append(f'<li>{match.group(1)}</li>')
+                                html_output.append(f'• {match.group(2)}<br>')
                             else:
                                 if list_active:
-                                    html_output.append('</ul>')
+                                    html_output.append('</div>')
                                     list_active = False
-                                # 💡 這裡很關鍵：強迫每一行文字都包在 <div> 裡，強迫瀏覽器斷行
-                                if line.strip():
-                                    html_output.append(f'<div style="margin-bottom:2px;">{line.strip()}</div>')
+                                html_output.append(f'<div style="margin-bottom:2px;">{line}</div>')
                         
-                        if list_active: html_output.append('</ul>')
+                        if list_active: html_output.append('</div>')
                         return "".join(html_output)
 
                     if isinstance(steps, list):
                         v_idx = 1
                         has_data = False
                         for s in steps:
-                            c_html = final_format_helper(s.get('content', ''))
-                            e_html = final_format_helper(s.get('expected', ''))
+                            c_html = ultra_format_content(s.get('content', ''))
+                            e_html = ultra_format_content(s.get('expected', ''))
                             
                             if not c_html and not e_html: continue
-                            
                             has_data = True
-                            # 使用自定義 HTML 注入，確保綠線與內容鎖死
+                            
+                            # 🔥 使用 HTML 注入，保證綠線 (border-left) 長出來
                             st.markdown(f'''
-                                <div class="custom-step-container" style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px; margin-bottom: 30px;">
-                                    <div class="custom-label" style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
-                                    <div class="custom-box" style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 22px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{c_html}</div>
-                                    <div class="custom-label" style="color:white; font-weight:bold; margin-bottom:8px;">Expected:</div>
-                                    <div class="custom-box" style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 22px; color:#c9d1d9; font-size:14px; line-height:1.8; margin-bottom:15px; white-space:pre-wrap;">{e_html}</div>
+                                <div style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
+                                    <div style="color:white; font-weight:bold; font-size:15px; margin-bottom:8px;">Step {v_idx}:</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6; margin-bottom:15px;">{c_html}</div>
+                                    <div style="color:white; font-weight:bold; font-size:15px; margin-bottom:8px;">Expected:</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6; margin-bottom:15px;">{e_html}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                             v_idx += 1
-                        
                         if not has_data:
                             st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                     elif steps:
-                        final_res = final_format_helper(steps)
+                        final_res = ultra_format_content(steps)
                         if final_res:
-                            st.markdown(f'<div class="custom-step-container" style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px;"><div class="custom-box" style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 22px; color:#c9d1d9; white-space:pre-wrap;">{final_res}</div></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div style="border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px;"><div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9;">{final_res}</div></div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
