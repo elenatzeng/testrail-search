@@ -41,7 +41,7 @@ if tr_url and tr_user and tr_pw:
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容 (輸入關鍵字查詢；支援繁簡體與英文):</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="充值 CNY", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入查詢關鍵字，若有多個請空格格開", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
             if st.button("🗑️ 清除條件", use_container_width=True): # (11)
@@ -116,15 +116,15 @@ if tr_url and tr_user and tr_pw:
                                     st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{expected}</div>', unsafe_allow_html=True)
                                 st.markdown('</div>', unsafe_allow_html=True)
                         if not has_any_text:
-                            st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">(無測試案例步驟)</div>', unsafe_allow_html=True)
                     elif steps:
                         clean_steps = re.sub(img_pattern, '', steps).strip()
                         if clean_steps:
                             st.markdown(f'<div class="step-wrapper"><div class="step-box">{clean_steps}</div></div>', unsafe_allow_html=True)
                         else:
-                            st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">(無測試案例步驟)</div>', unsafe_allow_html=True)
                     else:
-                        st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
+                        st.markdown('<div class="no-content-hint">(無測試案例步驟)</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
