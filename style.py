@@ -3,11 +3,15 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 背景與文字基礎 */
-        .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div { background-color: #0b0e14 !important; }
-        h1, h2, h3, h4, h5, p, span, label, small, .stMarkdown { color: #ffffff !important; }
+        /* 1. 全局背景與文字基礎 (GitHub Dark 風格) */
+        .stApp, [data-testid="stSidebar"], section[data-testid="stSidebar"] > div { 
+            background-color: #0b0e14 !important; 
+        }
+        h1, h2, h3, h4, h5, p, span, label, small, .stMarkdown { 
+            color: #ffffff !important; 
+        }
 
-        /* 側邊欄輸入框與按鈕 */
+        /* 2. 側邊欄輸入框與按鈕美化 */
         .stTextInput input, .stNumberInput input {
             background-color: #161b22 !important;
             border: 1px solid #30363d !important;
@@ -20,17 +24,23 @@ def apply_custom_style():
             border: 1px solid #444c56 !important;
             border-radius: 8px !important;
             width: 100% !important;
+            transition: 0.2s;
+        }
+        div[data-testid="stSidebar"] .stButton button:hover {
+            border-color: #8b949e !important;
+            background-color: #444c56 !important;
         }
 
-        /* 📂 淺灰色路徑字體 */
+        /* 3. 📂 案例路徑字體 (淺灰色小字) */
         .case-path-text { 
             font-size: 13px; 
-            color: #a1a1a1 !important; 
+            color: #8b949e !important; 
             margin-bottom: 8px; 
             display: block;
+            font-family: sans-serif;
         }
 
-        /* 🚦 作者標籤與燈號 */
+        /* 4. 🚦 作者標籤與紅綠燈號 */
         .author-tag { 
             font-size: 11px; 
             border-radius: 12px; 
@@ -38,64 +48,81 @@ def apply_custom_style():
             display: inline-block; 
             margin-left: 10px; 
             font-weight: bold; 
+            text-transform: uppercase;
         }
         
-        /* 📖 Open Case 綠色按鈕 */
+        /* 5. 📖 Open Case 按鈕 (綠色亮眼) */
         .view-btn { 
             display: inline-block; 
             padding: 6px 16px; 
-            background-color: #4CAF50; 
+            background-color: #2ea44f; 
             color: white !important; 
             border-radius: 6px; 
             text-decoration: none; 
             font-size: 13px; 
             font-weight: bold; 
+            transition: 0.2s;
+        }
+        .view-btn:hover {
+            background-color: #2c974b;
+            box-shadow: 0 0 10px rgba(46,164,79,0.4);
         }
 
-        /* ✨ 步驟美化容器 */
+        /* 6. ✨ 測試步驟容器 (深色卡片感) */
         .step-content-box { 
-            color: #ffffff !important; 
-            background: #1c2128; 
+            color: #c9d1d9 !important; 
+            background: #161b22; 
             padding: 15px; 
             border-radius: 10px; 
             border: 1px solid #30363d; 
             margin-top: 5px; 
             white-space: pre-wrap; 
+            font-size: 14px;
+            line-height: 1.6;
         }
         .step-item { 
-            border-left: 5px solid #4CAF50; 
+            border-left: 4px solid #2ea44f; 
             padding-left: 20px; 
             margin-bottom: 25px; 
         }
 
-        /* 🚀 回到頂端懸浮按鈕 (Fixed Position) */
+        /* 7. 🚀 回到頂端懸浮按鈕 (修正版：避開 Manage App 工具列) */
         .scroll-to-top {
             position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 45px;
-            height: 45px;
-            background-color: #4CAF50;
+            bottom: 75px; /* 💡 向上提至 75px，確保不會被 Manage app 擋住 */
+            right: 25px;  
+            width: 46px;
+            height: 46px;
+            background-color: #2ea44f;
             color: white !important;
             border-radius: 50%;
             text-align: center;
-            line-height: 42px;
+            line-height: 42px; /* 垂直居中微調 */
             font-size: 20px;
             cursor: pointer;
-            z-index: 99999;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 999999; /* 確保在最上層 */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
             text-decoration: none !important;
-            transition: all 0.3s ease;
-            border: 2px solid rgba(255,255,255,0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .scroll-to-top:hover {
             transform: translateY(-5px);
-            background-color: #45a049;
-            box-shadow: 0 6px 20px rgba(76,175,80,0.4);
+            background-color: #2c974b;
+            box-shadow: 0 6px 20px rgba(46,164,79,0.5);
         }
 
-        /* 隱藏 Streamlit 預設裝飾 */
+        /* 8. 隱藏 Streamlit 頂部預設白色橫條 */
         header[data-testid="stHeader"] { background: transparent !important; }
         [data-testid="stTopBar"] { display: none !important; }
+
+        /* 調整 Expander 樣式使更符合暗色主題 */
+        .stExpander {
+            border: 1px solid #30363d !important;
+            background-color: transparent !important;
+        }
         </style>
     """, unsafe_allow_html=True)
