@@ -5,25 +5,27 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
+# 初始化樣式
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 (1)-(3) 側邊欄與 (11)(12) 搜尋區文字鎖死
+# 🚀 (1)-(3) 側邊欄文字鎖死
 with st.sidebar:
-    st.header("🔐 連線設定")
+    st.header("🔐 連連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
     tr_user = st.text_input("帳號 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
     pid_v = get_val("pid"); sid_v = get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
-    if st.button("💾 儲存資訊至網址", use_container_width=True):
+    
+    if st.button("💾 儲存資訊至網址", use_container_width=True): # (2)
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
-    if st.button("🔄 強制刷新數據", use_container_width=True):
+    if st.button("🔄 強制刷新數據", use_container_width=True): # (3)
         st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
@@ -32,8 +34,10 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
+        # (4) 專案資訊
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
+        # (5) (11) (12) 搜尋區文字鎖死
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -41,10 +45,10 @@ if tr_url and tr_user and tr_pw:
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入查詢關鍵字，若有多個請空格格開", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
-            if st.button("🗑️ 清除條件", key="btn_clear", use_container_width=True): 
+            if st.button("🗑️ 清除條件", use_container_width=True): # (11)
                 st.session_state.q_text = ""; st.rerun()
         with col_r:
-            if st.button("🔎 重新查詢", key="btn_rerun", use_container_width=True): 
+            if st.button("🔎 重新查詢", use_container_width=True): # (12)
                 st.rerun()
 
         if st.session_state.q_text:
@@ -67,11 +71,13 @@ if tr_url and tr_user and tr_pw:
                     if any(w in title.lower() for w in exp): score += 10000 
 
                 if is_match:
+                    # 🚀 排序邏輯：內容排除圖片後的文字權重
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     has_real_text = len(clean_content) > 5
+                    
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    # 排序鎖死：無實質內容案例扣 50 萬分
+                    # 內容空空或只有圖片，權重拉低
                     final_score = (score + u.get("weight", 0)) if has_real_text else (score - 500000)
                     results.append((final_score, c, u))
 
@@ -83,13 +89,17 @@ if tr_url and tr_user and tr_pw:
                 status_class = "status-active" if u.get("is_active") else "status-inactive"
                 status_emoji = "🟢" if u.get("is_active") else "🔴"
                 
+                # (6) 路徑
                 st.markdown(f'<div style="font-size:14px; color:#adb5bd; margin-top:25px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 tag_html = f'<span class="author-tag {status_class}">{status_emoji} {u["name"]}</span>'
+                # (7)(8) 標題
                 c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
+                # (10) Open Case
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
+                # (9) 查閱測試步驟
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
@@ -97,19 +107,20 @@ if tr_url and tr_user and tr_pw:
                         visible_index = 1
                         has_any_visible = False
                         for s in steps:
-                            content = re.sub(img_pattern, '', s.get('content', '')).strip()
-                            expected = re.sub(img_pattern, '', s.get('expected', '')).strip()
+                            # 🚀 這裡過濾掉圖片語法
+                            c_text = re.sub(img_pattern, '', s.get('content', '')).strip()
+                            e_text = re.sub(img_pattern, '', s.get('expected', '')).strip()
                             
-                            # 🚀 關鍵修正：如果這一步過濾後完全沒內容，直接跳過，不給標號
-                            if not content and not expected:
+                            # 🚀 如果兩邊都沒文字內容，就完全不顯示這一步（包含標號）
+                            if not c_text and not e_text:
                                 continue
                             
                             has_any_visible = True
                             st.markdown('<div class="step-wrapper">', unsafe_allow_html=True)
-                            if content:
-                                st.markdown(f'<div class="step-label">Step {visible_index}:</div><div class="step-box">{content}</div>', unsafe_allow_html=True)
-                            if expected:
-                                st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{expected}</div>', unsafe_allow_html=True)
+                            if c_text:
+                                st.markdown(f'<div class="step-label">Step {visible_index}:</div><div class="step-box">{c_text}</div>', unsafe_allow_html=True)
+                            if e_text:
+                                st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{e_text}</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             visible_index += 1
                         
