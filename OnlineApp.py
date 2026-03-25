@@ -8,6 +8,9 @@ from keywords import SEARCH_DICTIONARY
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 
+# 🚀 埋下頂部錨點 (隱藏在最上方)
+st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+
 def get_val(key, default=""):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", default))
 
@@ -43,14 +46,13 @@ if tr_url and tr_user and tr_pw:
 
         with col_search:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容 (輸入關鍵字查詢：支援繁體簡體與英文):</div>', unsafe_allow_html=True)
-            # 使用 value 連動，不綁定 key 避免鎖死 session_state
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="多關鍵字請以空格分隔 (交集搜尋)", label_visibility="collapsed")
             st.session_state.q_text = q_input
 
         with col_clear:
             st.markdown('<p style="margin-bottom: 23px;"></p>', unsafe_allow_html=True) 
             if st.button("🗑️ 清除條件", use_container_width=True):
-                st.session_state.q_text = "" # 直接清空 state
+                st.session_state.q_text = "" 
                 st.rerun()
 
         with col_run:
@@ -86,11 +88,11 @@ if tr_url and tr_user and tr_pw:
                         break
                     else:
                         if any(word in title for word in expanded): total_score += 1000
+                        if any(word in section_path for word in expanded): total_score += 500
                 
                 if is_all_match:
                     u_info = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
                     total_score += u_info.get("weight", 0)
-                    # 💡 空案例權重墊底
                     if not has_content: total_score -= 100000 
                     scored_results.append((total_score, c, u_info))
 
@@ -128,5 +130,13 @@ if tr_url and tr_user and tr_pw:
                         body = clean_html(item.get('custom_steps', ''))
                         st.markdown(f'<div class="step-content-box">{(body if body else "（無詳細步驟）")}</div>', unsafe_allow_html=True)
                 st.markdown("---")
+
+# 🚀 顯示懸浮「回到頂部」按鈕 (HTML 連結到頂部錨點)
+st.markdown("""
+    <a href="#top-anchor" class="scroll-to-top" title="回到頂部">
+        ▲
+    </a>
+""", unsafe_allow_html=True)
+
 else:
     st.info("👈 請在左側輸入資料後開始查詢。")
