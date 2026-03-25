@@ -92,7 +92,7 @@ if tr_url and tr_user and tr_pw:
                         html_res = ""
                         for l in lines:
                             s = l.strip()
-                            # 脫水過濾：如果是純符號废行就蒸發
+                            # 脫水過濾：如果是純符號廢行就蒸發
                             if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
                             # 關鍵：每一行都是獨立 div，防止瀏覽器把不同行連起來做列表
                             html_res += f'<div style="margin-bottom:3px; white-space:nowrap;">{s}</div>'
