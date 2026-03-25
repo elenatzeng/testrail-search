@@ -7,7 +7,6 @@ from keywords import SEARCH_DICTIONARY
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 
-# 🚀 頂部錨點
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key, default=""):
@@ -45,13 +44,11 @@ if tr_url and tr_user and tr_pw:
             st.session_state.q_text = q_input
 
         with col_clear:
-            st.markdown('<p style="margin-bottom: 23px;"></p>', unsafe_allow_html=True) 
             if st.button("🗑️ 清除條件", use_container_width=True):
                 st.session_state.q_text = "" 
                 st.rerun()
 
         with col_run:
-            st.markdown('<p style="margin-bottom: 23px;"></p>', unsafe_allow_html=True)
             if st.button("🔎 重新查詢", use_container_width=True): st.rerun()
 
         final_query = st.session_state.q_text
@@ -65,7 +62,7 @@ if tr_url and tr_user and tr_pw:
                 title = str(c.get('title', '')).lower()
                 section_path = str(path_map.get(c.get('section_id', ""), "")).lower()
                 
-                # 🚀 修復核心：搜尋前先用 clean_html 過濾掉所有 HTML/JSON 亂碼
+                # 🚀 搜尋前清理內容
                 raw_c_body = str(c.get('custom_steps', '')) + str(c.get('custom_steps_separated', ''))
                 clean_c_body = clean_html(raw_c_body).lower()
                 
@@ -77,37 +74,4 @@ if tr_url and tr_user and tr_pw:
                     expanded = multi_lang_search(term, SEARCH_DICTIONARY)
                     text_hit = any(word in searchable_pool for word in expanded)
                     id_hit = any(word == cid for word in expanded)
-                    if not (text_hit or id_hit):
-                        is_all_match = False
-                        break
-                    else:
-                        if any(word in title for word in expanded): total_score += 1000
-                
-                if is_all_match:
-                    u_info = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
-                    total_score += u_info.get("weight", 0)
-                    if len(clean_c_body.strip()) < 10: total_score -= 100000 
-                    scored_results.append((total_score, c, u_info))
-
-            scored_results.sort(key=lambda x: x[0], reverse=True)
-            st.markdown(f"### 🎯 找到 {len(scored_results)} 個案例")
-
-            for _, item, u_info in scored_results:
-                cid = str(item.get('id'))
-                status_emoji = "🟢" if u_info.get("is_active") else "🔴"
-                author_style = "color: #4CAF50; background: rgba(76,175,80,0.15); border: 1.5px solid #4CAF50;" if u_info.get("is_active") else "color: #ff4b4b; background: rgba(255,75,75,0.15); border: 1.5px solid #ff4b4b;"
-                st.markdown(f'<div class="case-path-text">{path_map.get(item.get("section_id"), "Unknown")}</div>', unsafe_allow_html=True)
-                c_title, c_btn = st.columns([7, 1.5])
-                with c_title:
-                    st.markdown(f'<div style="font-size:16px; font-weight:bold;">{item.get("title")} <small>(#{cid})</small> <span class="author-tag" style="{author_style}">{status_emoji} {u_info["name"]}</span></div>', unsafe_allow_html=True)
-                with c_btn:
-                    st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
-                with st.expander("🔽 查看測試步驟"):
-                    body = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
-                    st.markdown(f'<div class="step-content-box">{body}</div>', unsafe_allow_html=True)
-                st.markdown("---")
-
-    # 🚀 回到頂部按鈕
-    st.markdown("""<a href="#top-anchor" class="scroll-to-top" title="回到頂部">▲</a>""", unsafe_allow_html=True)
-else:
-    st.info("👈 請在左側輸入資料後開始查詢。")
+                    if not (
