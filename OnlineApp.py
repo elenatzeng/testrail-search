@@ -4,11 +4,11 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 基礎頁面配置 (修正了剛才那個致命的引號錯誤)
+# 1. 基礎頁面配置
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 
-# 🚀 埋下頂部錨點
+# 🚀 埋下頂端錨點
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key, default=""):
@@ -40,7 +40,6 @@ if tr_url and tr_user and tr_pw:
     if all_cases is not None:
         st.markdown(f'<div style="color:#8b949e; font-size:14px; margin-bottom:20px;">📍 Project：{p_name} | Suite：#{suite_id}</div>', unsafe_allow_html=True)
         
-        # 🚀 解決「歪掉」：使用 vertical_alignment="bottom" 讓搜尋框與按鈕對齊
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
         if "q_text" not in st.session_state: 
@@ -72,11 +71,11 @@ if tr_url and tr_user and tr_pw:
                 title = str(c.get('title', '')).lower()
                 section_path = str(path_map.get(c.get('section_id', ""), "")).lower()
                 
-                # 內容池：先清理標籤再搜尋，避免誤撞
-                raw_c_body = str(c.get('custom_steps', '')) + str(c.get('custom_steps_separated', ''))
-                clean_c_body = clean_html(raw_c_body).lower()
+                # 🚀 修正點：搜尋時將內容轉為字串比對，避免 AttributeError
+                raw_data = clean_html(str(c.get('custom_steps','')) + str(c.get('custom_steps_separated','')))
+                search_text = str(raw_data).lower() 
                 
-                searchable_pool = title + section_path + clean_c_body
+                searchable_pool = title + section_path + search_text
                 
                 is_all_match = True
                 total_score = 0
@@ -96,13 +95,11 @@ if tr_url and tr_user and tr_pw:
                     u_info = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
                     total_score += u_info.get("weight", 0)
                     
-                    # 排序：內容太短的沉底
-                    if len(clean_c_body.strip()) < 10: 
+                    if len(search_text.strip()) < 10: 
                         total_score -= 500000 
                     
                     scored_results.append((total_score, c, u_info))
 
-            # 5. 排序與顯示
             scored_results.sort(key=lambda x: x[0], reverse=True)
             st.markdown(f"### 🎯 找到 {len(scored_results)} 個案例")
 
@@ -119,15 +116,22 @@ if tr_url and tr_user and tr_pw:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("🔽 查看測試步驟"):
-                    body = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
-                    if body:
-                        st.markdown(f'<div class="step-content-box">{body}</div>', unsafe_allow_html=True)
+                    # 🚀 這裡會根據 utils.py 回傳的格式，畫出妳要的綠邊版
+                    steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
+                    
+                    if isinstance(steps_data, list):
+                        for i, step in enumerate(steps_data, 1):
+                            st.markdown(f"""
+                                <div style="border-left: 4px solid #2ea44f; padding-left: 15px; margin-bottom: 20px;">
+                                    <div style="font-weight:bold; color:#ffffff; margin-bottom:8px;">Step {i}:</div>
+                                    <div style="background:#161b22; padding:12px; border-radius:8px; border:1px solid #30363d; color:#c9d1d9;">{step.get('content','')}</div>
+                                    <div style="font-weight:bold; color:#ffffff; margin: 12px 0 8px 0;">Expected:</div>
+                                    <div style="background:#1c2128; padding:12px; border-radius:8px; border:1px dashed #444c56; color:#c9d1d9;">{step.get('expected','')}</div>
+                                </div>
+                            """, unsafe_allow_html=True)
                     else:
-                        st.markdown('<div class="step-content-box">（無詳細步驟內容）</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="background:#161b22; padding:15px; border-radius:8px; border:1px solid #30363d;">{steps_data if steps_data else "（無詳細步驟）"}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
-    # 🚀 回到頂部按鈕 (活力橘)
-    st.markdown("""<a href="#top-anchor" class="scroll-to-top" title="回到頂部">▲</a>""", unsafe_allow_html=True)
-
-else:
-    st.info("👈 請在左側輸入資料後開始查詢。")
+    # 🚀 活力橘回頂端按鈕
+    st.markdown('<a href="#top-anchor" class="scroll-to-top" style="position:fixed; bottom:30px; right:30px; width:50px; height:50px; background:#f77f00; color:white; border-radius:50%; display:flex; align-
