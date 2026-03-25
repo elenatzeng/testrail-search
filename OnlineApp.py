@@ -28,7 +28,7 @@ with st.sidebar:
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
-    # 🚀 參數順序校對：url, user, key, pid, sid
+    # 🚀 呼叫：url, user, key, pid, sid
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
@@ -41,7 +41,7 @@ if tr_url and tr_user and tr_pw:
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_search:
-            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容 (輸入關鍵字查詢；支援繁簡體與英文):</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="充值 CNY", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_clear:
@@ -51,7 +51,7 @@ if tr_url and tr_user and tr_pw:
             if st.button("🔎 重新查詢", use_container_width=True): st.rerun()
 
         if st.session_state.q_text:
-            st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
+            st.caption(f"⚡ 最後同步：{sync_time}")
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
             for c in all_cases:
@@ -69,18 +69,17 @@ if tr_url and tr_user and tr_pw:
                     results.append((score + u.get("weight", 0), c, u))
 
             results.sort(key=lambda x: x[0], reverse=True)
-            st.markdown(f"### 🎯 找到 {len(results)} 個案例 (已過濾交集結果)")
+            st.markdown(f"### 🎯 找到 {len(results)} 個案例")
 
             for _, item, u in results:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
-                # 🚀 這裡！確保顯示的是 path_map 裡抓到的長路徑
                 display_path = path_map.get(item.get("section_id"), "GoGaming")
                 st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{display_path}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    tag = f'<span class="author-tag" style="border-color:{color}!important; box-shadow: 0 0 5px {color}!important;">{"🟢" if u.get("is_active") else "⚪"} {u["name"]}</span>'
+                    tag = f'<span class="author-tag" style="border-color:{color}!important;">{"🟢" if u.get("is_active") else "⚪"} {u["name"]}</span>'
                     st.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 with c2:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
