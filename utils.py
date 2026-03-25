@@ -5,7 +5,7 @@ def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 清除 HTML 標籤內的 style 屬性
+    # 💡 核心修正：清除 HTML 內的 style 屬性（解決白背景問題）
     text = re.sub(r'style="[^"]*"', '', text, flags=re.IGNORECASE)
     
     # 🚀 1. 處理 TestRail 分離步驟 (Separated Steps)
@@ -16,7 +16,8 @@ def clean_html(raw_html):
                 for item in parsed_data:
                     for key in ['content', 'expected']:
                         val = str(item.get(key, ''))
-                        # 移除標籤但保留內容
+                        # 移除標籤但保留換行語意
+                        val = val.replace('<br />', '\n').replace('<br>', '\n')
                         val = re.sub(r'<.*?>', '', val)
                         item[key] = val.replace('&nbsp;', ' ').strip()
                 return parsed_data 
@@ -49,6 +50,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             p_id = curr.get('parent_id')
             return f"{get_path(p_id)} > {curr['name']}" if p_id else curr['name']
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
+        
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
