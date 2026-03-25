@@ -11,10 +11,9 @@ apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key): 
-    # 修正原始代碼中的特殊空白字元問題
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 (1)-(3) 側邊欄設定
+# 🚀 側邊欄與搜尋區
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -38,12 +37,11 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋區 (5, 11, 12)
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入查詢關鍵字，若有多個請空格格開", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入關鍵字...", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
             if st.button("🗑️ 清除條件", use_container_width=True): 
@@ -70,7 +68,6 @@ if tr_url and tr_user and tr_pw:
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    # 如果沒文字內容，權重拉低
                     final_score = (10000 + u.get("weight", 0)) if len(clean_content) > 5 else -500000
                     results.append((final_score, c, u))
 
@@ -88,29 +85,43 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 核心修正：強制斷行處理器 (找回換行與縮排)
+                    # 🔥 核心修正：避免 1. 2. 3. 誤判，強制將點點格式鎖死
                     def final_line_fix(text):
                         if not text: return ""
-                        # 移除圖片代碼
                         text = re.sub(img_pattern, '', text).strip()
                         if not text: return ""
-                        # 1. 處理換行符號
-                        text = text.replace('\n', '<br>')
-                        # 2. 針對沒點點的清單關鍵字補強 (例如用户名...)
-                        text = re.sub(r'(?<!<br>)(用户名)', r'<br>• \1', text)
-                        return text
+                        
+                        lines = text.split('\n')
+                        html_output = []
+                        for line in lines:
+                            line = line.strip()
+                            # 如果是數位開頭如 1. 2.，我們強行在前面加一個點點，打破自動編號邏輯
+                            if re.match(r'^\d+\.', line):
+                                html_output.append(f'• {line}<br>')
+                            # 如果已經是點點開頭的，保留並換行
+                            elif line.startswith(('*', '-', '•')):
+                                clean_l = re.sub(r'^[\*\-\•]\s*', '', line)
+                                html_output.append(f'• {clean_l}<br>')
+                            # 針對妳遇到的「用户名」這類關鍵字強制換行加點點
+                            elif "用户名" in line and not line.startswith('•'):
+                                html_output.append(f'• {line}<br>')
+                            else:
+                                html_output.append(f'{line}<br>')
+                        
+                        return "".join(html_output)
 
-                    # 判斷有無內容並顯現提示文字
                     if isinstance(steps, list) and len(steps) > 0:
                         v_idx = 1
                         has_any_visible = False
                         for s in steps:
                             c_html = final_line_fix(s.get('content', ''))
                             e_html = final_line_fix(s.get('expected', ''))
-                            if not c_html and not e_html: continue
+                            
+                            # 🚀 如果內容和預期結果濾掉圖片後都是空的，則完全跳過此步驟編號
+                            if not c_html and not e_html:
+                                continue
                             
                             has_any_visible = True
-                            # 🔥 使用 inline-style 確保綠線長出來並連貫
                             st.markdown(f'''
                                 <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
@@ -122,23 +133,9 @@ if tr_url and tr_user and tr_pw:
                             v_idx += 1
                         
                         if not has_any_visible:
-                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容，可能僅包含圖片附件)</div>', unsafe_allow_html=True)
-                    
-                    elif isinstance(steps, str) and steps.strip():
-                        final_res = final_line_fix(steps)
-                        if final_res:
-                            st.markdown(f'''
-                                <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px;">
-                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9;">{final_res}</div>
-                                </div>
-                            ''', unsafe_allow_html=True)
-                        else:
-                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容，可能僅包含圖片附件)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容)</div>', unsafe_allow_html=True)
                     else:
-                        # 🚀 找回紅框處原本應該出現的提示
                         st.markdown('<div class="no-content-hint">💡 (此案例目前沒有填寫測試步驟內容)</div>', unsafe_allow_html=True)
-                
                 st.markdown("---")
 
-    # 🚀 火箭回到頂部：固定在右邊中間 (搭配 style.py 裡的 scroll-to-top 樣式)
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
