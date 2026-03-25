@@ -39,10 +39,14 @@ def fetch_data_from_tr(url, user, key, pid, sid):
     try:
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
-        # 抓取全量目錄
-        all_sects = api.sections.get_sections(project_id=pid)['sections']
+        
+        # 🚀 修正點：確保正確抓取 sections 列表
+        sect_resp = api.sections.get_sections(project_id=pid)
+        all_sects = sect_resp['sections'] if isinstance(sect_resp, dict) else sect_resp
+        
         id_to_name = {s['id']: s['name'] for s in all_sects}
         id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
+        
         path_map = {}
         for s_id in id_to_name:
             parts = []
@@ -51,7 +55,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
                 parts.insert(0, id_to_name[curr])
                 curr = id_to_parent.get(curr)
             path_map[s_id] = " › ".join(parts)
-        # 抓案例
+            
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
