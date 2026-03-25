@@ -57,7 +57,6 @@ if tr_url and tr_user and tr_pw:
                 title = str(c.get('title', '')).lower()
                 section_path = str(path_map.get(c.get('section_id', ""), "")).lower()
                 
-                # 處理步驟內容用於搜尋
                 raw_body = str(c.get('custom_steps','')) + str(c.get('custom_steps_separated',''))
                 clean_body_data = clean_html(raw_body)
                 search_text = str(clean_body_data).lower()
@@ -66,32 +65,26 @@ if tr_url and tr_user and tr_pw:
                 total_score = 0
                 for term in raw_input_terms:
                     expanded = multi_lang_search(term, SEARCH_DICTIONARY)
-                    # ID 匹配最高優先
                     if any(word == cid for word in expanded): total_score += 1000000
-                    
                     if not (any(word in (title + section_path + search_text) for word in expanded) or any(word == cid for word in expanded)):
                         is_all_match = False; break
                     else:
                         if any(word in title for word in expanded): total_score += 5000
                 
                 if is_all_match:
-                    # 🚀 抓取作者設定並計算權重
                     u_info = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
                     total_score += u_info.get("weight", 0)
-                    
-                    # 🚀 排序核心：空內容案例權重直接扣到底 (一百萬分)
+                    # 🚀 空內容案例權重沉底
                     if len(search_text.strip()) < 10 or "(無詳細步驟)" in search_text:
                         total_score -= 2000000 
-                    
                     scored_results.append((total_score, c, u_info))
 
-            # 依照分數從高到低排序
             scored_results.sort(key=lambda x: x[0], reverse=True)
             st.markdown(f"### 🎯 找到 {len(scored_results)} 個案例")
 
             for _, item, u_info in scored_results:
                 cid = str(item.get('id'))
-                # 🚀 決定燈號與框框顏色
+                # 🚀 名字弧形外框顯色
                 author_color = '#4CAF50' if u_info.get('is_active') else '#ff4b4b'
                 author_html = f'<span class="author-tag" style="color:{author_color}; border-color:{author_color};">{"🟢" if u_info.get("is_active") else "🔴"} {u_info["name"]}</span>'
                 
@@ -106,12 +99,11 @@ if tr_url and tr_user and tr_pw:
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     if isinstance(steps_data, list):
                         for i, step in enumerate(steps_data, 1):
-                            # 🚀 渲染漂亮的分離步驟與換行
                             st.markdown(f"""
-                                <div style="border-left:3px solid #4CAF50; padding-left:15px; margin-bottom:20px;">
+                                <div style="border-left:3px solid #4CAF50; padding-left:15px; margin-bottom: 20px;">
                                     <div style="font-weight:bold; font-size:13px; margin-bottom:5px;">Step {i}:</div>
                                     <div class="step-content-box">{step.get('content','').replace('\n', '<br>')}</div>
-                                    <div style="font-weight:bold; font-size:13px; margin:12px 0 5px 0;">Expected:</div>
+                                    <div style="font-weight:bold; font-size:13px; margin: 12px 0 5px 0;">Expected:</div>
                                     <div class="step-content-box" style="border-left:1px dashed #444c56;">{step.get('expected','').replace('\n', '<br>')}</div>
                                 </div>
                             """, unsafe_allow_html=True)
@@ -119,7 +111,6 @@ if tr_url and tr_user and tr_pw:
                         st.markdown(f'<div class="step-content-box">{steps_data if steps_data else "(無詳細步驟)"}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
-    # 🚀 橘色回到頂端按鈕
     st.markdown('<a href="#top-anchor" class="scroll-to-top">▲</a>', unsafe_allow_html=True)
 else:
     st.info("👈 請在左側輸入資料開始查詢。")
