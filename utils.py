@@ -3,21 +3,23 @@ from testrail_api import TestRailAPI
 
 def smart_split_and_number(text):
     if not text: return ""
-    # 清理 HTML 標籤
+    # 1. 清理 HTML 標籤
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = re.sub(r'<.*?>', '', t).replace('&nbsp;', ' ')
     
-    # 🚀 強制拆分關鍵字：遇到動作詞就換行，保證 123 編號能抓到
+    # 2. 🚀 強制拆分引擎：針對關鍵動作詞前面強加換行
+    # 這樣 1. 2. 3. 才能精準地抓到每一行
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "登錄", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
     
+    # 3. 重新拆分並補編號
     raw_lines = [l.strip() for l in t.split('\n') if l.strip()]
     final_lines = []
     count = 1
     for line in raw_lines:
         if not line: continue
-        # 如果這一行還沒有編號，就幫它加上
+        # 如果這一行開頭沒有編號，幫它加
         if not re.match(r'^\d+[\.\s]', line):
             final_lines.append(f"{count}. {line}")
             count += 1
@@ -28,7 +30,6 @@ def smart_split_and_number(text):
 def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
-    # 處理分離步驟 (Separated Steps)
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
@@ -38,7 +39,6 @@ def clean_html(raw_html):
                     item['expected'] = smart_split_and_number(item.get('expected', ''))
                 return parsed_data 
         except: pass
-    # 處理通用文字
     return smart_split_and_number(text)
 
 @st.cache_data(show_spinner=False, ttl=600)
@@ -47,18 +47,18 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 1. 抓取專案內「所有」Section，不限 Suite，確保地圖完整
+        # 🚀 1. 抓取該 Project 所有的 Sections (不限 Suite，徹底解決 Root 問題)
         all_sections = api.sections.get_sections(project_id=pid)['sections']
         sect_dict = {s['id']: s for s in all_sections}
         
-        # 🚀 2. 建立递归路徑地圖
+        # 🚀 2. 深度遞迴路徑算法
         def get_full_path(s_id):
             if s_id not in sect_dict: return ""
             curr = sect_dict[s_id]
-            parent_id = curr.get('parent_id')
+            p_id = curr.get('parent_id')
             name = curr.get('name', '')
-            if parent_id and parent_id in sect_dict:
-                return f"{get_full_path(parent_id)} > {name}"
+            if p_id and p_id in sect_dict:
+                return f"{get_full_path(p_id)} > {name}"
             return name
 
         path_map = {s_id: get_full_path(s_id) for s_id in sect_dict}
@@ -72,7 +72,7 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             all_cases.extend(cases)
             if len(cases) < 250: break
             offset += 250
-        return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name')
+        return all_cases, path_map, time.strftime("%H:%M:%S"), p_name if (p_name := p_info.get('name')) else "Project"
     except Exception as e:
         return None, None, str(e), None
 
