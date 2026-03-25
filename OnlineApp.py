@@ -11,16 +11,17 @@ apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
-    # 清除隱形字元
+    # 確保沒有隱形特殊字元
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄設定
+# 2. 側邊欄與搜尋區
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
     tr_user = st.text_input("帳號 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
-    pid_v, sid_v = get_val("pid"), get_val("sid")
+    pid_v = get_val("pid")
+    sid_v = get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
@@ -33,7 +34,6 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
@@ -88,9 +88,8 @@ if tr_url and tr_user and tr_pw:
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("查閱測試步驟", expanded=False):
-                    steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
+                    steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 終極階層鎖死處理器 (確保斷行與 1. 2. 3. 階層)
                     def final_render_html(text):
                         if not text: return ""
                         text = re.sub(img_pattern, '', text).strip()
@@ -99,26 +98,36 @@ if tr_url and tr_user and tr_pw:
                         for line in lines:
                             line = line.strip()
                             if not line: continue
-                            # 偵測是否為編號或點點開頭
                             if re.match(r'^(\d+\.|\*|\-|•)', line):
                                 formatted_lines.append(f'<div style="margin-left:20px; margin-bottom:6px;">{line}</div>')
                             else:
                                 formatted_lines.append(f'<div style="margin-bottom:6px;">{line}</div>')
                         return "".join(formatted_lines)
 
-                    if isinstance(steps, list) and len(steps) > 0:
+                    if isinstance(steps_data, list) and len(steps_data) > 0:
                         v_idx = 1
                         has_any_visible = False
-                        for s in steps:
+                        for s in steps_data:
                             c_html = final_render_html(s.get('content', ''))
                             e_html = final_render_html(s.get('expected', ''))
-                            
                             if not c_html and not e_html: continue
                             has_any_visible = True
-
-                            # 🔥 綠線容器鎖死
+                            
+                            # 🟢 綠線容器與黑盒子
                             st.markdown(f'''
                                 <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
                                     <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6; margin-bottom:15px;">{c_html if c_html else "(無操作內容)"}</div>
-                                    <div style="color
+                                    <div style="color:white; font-weight:bold; margin-bottom:8px;">Expected:</div>
+                                    <div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6;">{e_html if e_html else "(無預期結果)"}</div>
+                                </div>
+                            ''', unsafe_allow_html=True)
+                            v_idx += 1
+                        if not has_any_visible:
+                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容)</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="no-content-hint">💡 (此案例目前沒有填寫測試步驟內容)</div>', unsafe_allow_html=True)
+                st.markdown("---")
+
+    # 🚀 火箭按鈕
+    st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
