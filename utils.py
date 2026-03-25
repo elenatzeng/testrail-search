@@ -3,17 +3,13 @@ from testrail_api import TestRailAPI
 
 def smart_format(text):
     if not text: return ""
-    # 1. 徹底清理 HTML
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
-    
-    # 2. 🚀 動作拆解：在關鍵字前強制換行
+    # 🚀 強制動作拆解換行
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
-    
-    # 3. 補上編號
     lines = [l.strip() for l in t.split('\n') if l.strip()]
     final_lines = []
     count = 1
@@ -45,27 +41,22 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 關鍵修正：必須傳入 suite_id，API 才會回傳該 Suite 下的所有子目錄
-        all_sects_resp = api.sections.get_sections(project_id=pid, suite_id=sid)
-        all_sects = all_sects_resp['sections']
+        # 🚀 關鍵修復：抓取該 Suite 下所有 Sections
+        all_sects = api.sections.get_sections(project_id=pid, suite_id=sid)['sections']
         sect_dict = {s['id']: s for s in all_sects}
         
-        # 🚀 向上溯源邏輯
-        def get_full_chain(s_id):
-            parts = []
+        # 🚀 強力路徑拼湊邏輯 (不再依賴遞迴順序)
+        final_path_map = {}
+        for s_id in sect_dict:
+            path_parts = []
             curr_id = s_id
             while curr_id in sect_dict:
                 curr_sect = sect_dict[curr_id]
-                parts.insert(0, curr_sect['name'])
+                path_parts.insert(0, curr_sect['name'])
                 curr_id = curr_sect.get('parent_id')
-            return " › ".join(parts) if parts else "GoGaming"
-
-        # 生成路徑映射表
-        final_path_map = {}
-        for section_id in sect_dict:
-            final_path_map[section_id] = get_full_chain(section_id)
-        
-        # 抓取案例
+            # 串接長路徑
+            final_path_map[s_id] = " › ".join(path_parts) if path_parts else "GoGaming"
+            
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
