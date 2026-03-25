@@ -18,7 +18,7 @@ with st.sidebar:
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
     project_id = st.number_input("Project ID", value=int(get_val("pid", "10")))
     suite_id = st.number_input("Suite ID", value=int(get_val("sid", "10")))
-    if st.button("💾 儲存資訊至網址", use_container_width=True):
+    if st.button("💾 儲存資訊", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=project_id, sid=suite_id)
         st.success("✅ 已儲存")
     if st.button("🔄 強制刷新數據", use_container_width=True):
@@ -56,16 +56,21 @@ if tr_url and tr_user and tr_pw:
                 cid = str(c.get('id', '')).strip()
                 title = str(c.get('title', '')).lower()
                 section_path = str(path_map.get(c.get('section_id', ""), "")).lower()
-                raw_data = clean_html(str(c.get('custom_steps','')) + str(c.get('custom_steps_separated','')))
                 
-                # 🚀 評分邏輯加強：空案例沉底
-                search_text = str(raw_data).lower()
+                # 取得內容並偵測是否為空
+                raw_body = str(c.get('custom_steps','')) + str(c.get('custom_steps_separated',''))
+                search_text = str(clean_html(raw_body)).lower()
+                
                 searchable_pool = title + section_path + search_text
                 
                 is_all_match = True
                 total_score = 0
                 for term in raw_input_terms:
                     expanded = multi_lang_search(term, SEARCH_DICTIONARY)
+                    # ID 優先
+                    if any(word == cid for word in expanded):
+                        total_score += 500000 
+                    
                     if not (any(word in searchable_pool for word in expanded) or any(word == cid for word in expanded)):
                         is_all_match = False; break
                     else:
@@ -75,8 +80,8 @@ if tr_url and tr_user and tr_pw:
                     u_info = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
                     total_score += u_info.get("weight", 0)
                     
-                    # 🚀 終極沉底：完全沒步驟或是只有 (無詳細步驟) 字眼的直接扣一百萬分
-                    if len(search_text.strip()) < 5 or "(無詳細步驟)" in search_text:
+                    # 🚀 排序絕對沉底邏輯：只要內容太短或含有「無詳細步驟」，直接扣一百萬分
+                    if len(search_text.strip()) < 10 or "(無詳細步驟)" in search_text:
                         total_score -= 1000000 
                     
                     scored_results.append((total_score, c, u_info))
@@ -87,8 +92,8 @@ if tr_url and tr_user and tr_pw:
             for _, item, u_info in scored_results:
                 cid = str(item.get('id'))
                 author_color = '#4CAF50' if u_info.get('is_active') else '#ff4b4b'
-                # 🚀 標籤改為更完整的弧形
-                author_html = f'<span class="author-tag" style="color:{author_color}; border:1px solid {author_color}; border-radius:15px; background:rgba(0,0,0,0.2);">{"🟢" if u_info.get("is_active") else "🔴"} {u_info["name"]}</span>'
+                # 🚀 修正：名字框框弧形與樣式
+                author_html = f'<span class="author-tag" style="color:{author_color}; border-color:{author_color};">{"🟢" if u_info.get("is_active") else "🔴"} {u_info["name"]}</span>'
                 
                 st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:15px;">{path_map.get(item.get("section_id"), "Unknown")}</div>', unsafe_allow_html=True)
                 c_title, c_btn = st.columns([7.5, 1.5], vertical_alignment="center")
@@ -99,30 +104,21 @@ if tr_url and tr_user and tr_pw:
                 
                 with st.expander("🔽 查看測試步驟"):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
-                    
                     if isinstance(steps_data, list):
                         for i, step in enumerate(steps_data, 1):
-                            # 🚀 加入 .replace('\n', '<br>') 確保內容跟預期結果內的換行能顯示
-                            c_body = step.get('content','').replace('\n', '<br>')
-                            e_body = step.get('expected','').replace('\n', '<br>')
                             st.markdown(f"""
                                 <div style="border-left:3px solid #4CAF50; padding-left:15px; margin-bottom:20px;">
                                     <div style="font-weight:bold; font-size:13px; margin-bottom:5px;">Step {i}:</div>
-                                    <div class="step-content-box">{c_body}</div>
-                                    <div style="font-weight:bold; font-size:13px; margin:15px 0 5px 0;">Expected:</div>
-                                    <div class="step-content-box" style="border-left:1px dashed #444c56;">{e_body}</div>
+                                    <div class="step-content-box">{step.get('content','').replace('\\n', '<br>')}</div>
+                                    <div style="font-weight:bold; font-size:13px; margin:12px 0 5px 0;">Expected:</div>
+                                    <div class="step-content-box" style="border-left:1px dashed #444c56;">{step.get('expected','').replace('\\n', '<br>')}</div>
                                 </div>
                             """, unsafe_allow_html=True)
                     else:
                         st.markdown(f'<div class="step-content-box">{steps_data if steps_data else "(無詳細步驟)"}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
-    # 🚀 橘色按鈕補丁
-    st.markdown("""
-        <a href="#top-anchor" style="position:fixed; bottom:85px; right:30px; width:48px; height:48px; 
-           background:#f77f00; color:white; border-radius:50%; display:flex; align-items:center; 
-           justify-content:center; text-decoration:none; font-size:20px; z-index:9999; 
-           box-shadow:0 4px 12px rgba(0,0,0,0.4); transition:0.3s;">▲</a>
-    """, unsafe_allow_html=True)
+    # 🚀 回到頂端
+    st.markdown('<a href="#top-anchor" class="scroll-to-top">▲</a>', unsafe_allow_html=True)
 else:
     st.info("👈 請在左側輸入資料開始查詢。")
