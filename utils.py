@@ -6,7 +6,6 @@ def smart_format(text):
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
-    # 🚀 強制分行邏輯
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
@@ -40,14 +39,10 @@ def fetch_data_from_tr(url, user, key, pid, sid):
     try:
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
-        
-        # 🚀 1. 抓取 Project 下所有目錄 (不限 Suite)
+        # 抓取全量目錄
         all_sects = api.sections.get_sections(project_id=pid)['sections']
-        # 建立 ID 對應表
         id_to_name = {s['id']: s['name'] for s in all_sects}
         id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
-        
-        # 🚀 2. 建立全路徑地圖 (非遞迴方式更穩定)
         path_map = {}
         for s_id in id_to_name:
             parts = []
@@ -55,9 +50,8 @@ def fetch_data_from_tr(url, user, key, pid, sid):
             while curr in id_to_name:
                 parts.insert(0, id_to_name[curr])
                 curr = id_to_parent.get(curr)
-            path_map[s_id] = " › ".join(parts) if parts else "GoGaming"
-            
-        # 🚀 3. 抓取案例
+            path_map[s_id] = " › ".join(parts)
+        # 抓案例
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
@@ -66,7 +60,6 @@ def fetch_data_from_tr(url, user, key, pid, sid):
             all_cases.extend(cases)
             if len(cases) < 250: break
             offset += 250
-            
         return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e:
         return None, None, str(e), None
