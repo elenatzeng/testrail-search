@@ -57,6 +57,8 @@ if tr_url and tr_user and tr_pw:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
+            
+            # 🚀 排序邏輯回歸：計算 score
             for c in all_cases:
                 cid = str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "GoGaming")
@@ -64,6 +66,7 @@ if tr_url and tr_user and tr_pw:
                 is_match = True; score = 0
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
+                    # 搜尋標題、路徑或 ID
                     if not (any(w in (title + f_path.lower()) for w in exp) or any(w == cid for w in exp)):
                         is_match = False; break
                     if any(w in title for w in exp): score += 5000
@@ -71,6 +74,7 @@ if tr_url and tr_user and tr_pw:
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     results.append((score + u.get("weight", 0), c, u))
 
+            # 🚀 權重排序回歸
             results.sort(key=lambda x: x[0], reverse=True)
             st.markdown(f"### 🎯 找到 {len(results)} 個案例 (已過濾交集結果)")
 
@@ -87,7 +91,7 @@ if tr_url and tr_user and tr_pw:
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    # (7) (8) 標題 (#ID) + 自動變色標籤
+                    # 🚀 (8) 顏色鎖死：名字、框框、發光強制同步
                     tag_html = f'''<span class="author-tag" style="border-color:{main_color}!important; color:{main_color}!important; box-shadow: 0 0 10px {main_color}88!important;">{status_emoji} {u["name"]}</span>'''
                     st.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
                 with c2:
