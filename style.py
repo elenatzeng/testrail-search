@@ -5,7 +5,7 @@ def apply_custom_style():
         <style>
         .stApp { background-color: #0b0e14 !important; }
         
-        /* 🚀 (8) 名字標籤 */
+        /* 🚀 (8) 名字標籤 (純色邊框) */
         .author-tag { 
             font-size: 13px !important; border-radius: 20px !important; 
             padding: 4px 14px !important; display: inline-flex !important;
@@ -20,38 +20,40 @@ def apply_custom_style():
         .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
         .stExpander summary { color: #8b949e !important; padding: 10px 0 !important; }
         
-        /* 🚀 靈魂綠線：垂直長線 */
+        /* 🚀 靈魂綠線：左側連貫長線 */
         .step-wrapper {
             border-left: 4px solid #4CAF50 !important; 
             padding-left: 20px !important;
             margin-left: 2px !important;
             margin-bottom: 25px !important;
-            box-shadow: -5px 0 10px rgba(76, 175, 80, 0.1);
+            display: block !important;
         }
-        .step-label { color: #ffffff !important; font-weight: bold !important; font-size: 15px !important; margin-bottom: 6px; }
+        .step-label { color: #ffffff !important; font-weight: bold !important; font-size: 15px !important; margin-bottom: 8px; }
         
-        /* 🚀 核心黑盒子：斷行與階層支持 */
+        /* 🚀 核心黑盒子：強烈支持斷行與階層 */
         .step-box { 
             background-color: #1c2128 !important; border: 1px solid #30363d !important; 
             border-radius: 12px !important; padding: 18px 22px !important; color: #c9d1d9 !important; 
             font-size: 14px !important; line-height: 1.8 !important; margin-bottom: 15px !important;
+            /* 🔥 這是保留換行的關鍵 */
             white-space: pre-wrap !important; 
+            display: block !important;
         }
 
-        /* 🔥 處理清單階層的關鍵 CSS (解決第二階顯示問題) */
+        /* 🔥 處理清單階層的 CSS (對齊 image_7bc4e9 截圖) */
         .step-box ul, .step-box ol {
+            margin-left: 20px !important;
+            padding-left: 5px !important;
             margin-top: 5px !important;
             margin-bottom: 5px !important;
-            padding-left: 25px !important; /* 基礎縮排 */
-            list-style-position: outside !important;
         }
         .step-box li {
-            margin-bottom: 4px !important;
-            display: list-item !important; /* 確保清單點點出現 */
+            margin-bottom: 8px !important;
+            list-style-position: outside !important;
         }
-        /* 針對第二階層清單進一步縮排 */
+        /* 針對第二階層以後的縮排 */
         .step-box li > ul, .step-box li > ol {
-            margin-left: 15px !important;
+            margin-left: 25px !important;
             list-style-type: circle !important; /* 第二階變空心圓 */
         }
 
