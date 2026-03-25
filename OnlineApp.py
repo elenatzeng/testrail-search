@@ -21,17 +21,17 @@ with st.sidebar:
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-        st.success("✅")
+        st.success("✅ 已儲存")
     if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
 if tr_url and tr_user and tr_pw:
-    # 🚀 呼叫：url, user, key, pid, sid
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
+        # 🚀 修正點：Project 名稱白色粗體
         st.markdown(f"""
             <div style="color:#8b949e; font-size:14px; margin-bottom:10px;">
                 📍 Project：<span style="color:#ffffff; font-weight:bold;">{p_name}</span> | Suite：<span style="color:#ffffff; font-weight:bold;">#{sid}</span>
@@ -42,7 +42,7 @@ if tr_url and tr_user and tr_pw:
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_search:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入關鍵字，兩個以上請用空格格開", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="充值 CNY", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_clear:
             if st.button("🗑️ 清除條件", use_container_width=True):
@@ -74,12 +74,19 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
+                
+                # 🚀 修正點：動態長路徑顯示
                 display_path = path_map.get(item.get("section_id"), "GoGaming")
-                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{display_path}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:11px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{display_path}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
-                    tag = f'<span class="author-tag" style="border-color:{color}!important;">{"🟢" if u.get("is_active") else "⚪"} {u["name"]}</span>'
+                    # 🚀 修正點：還原發光名字標籤
+                    tag = f'''
+                    <span class="author-tag" style="border-color:{color}!important; box-shadow: 0 0 10px {color}88!important;">
+                        {"🟢" if u.get("is_active") else "⚪"} {u["name"]}
+                    </span>
+                    '''
                     st.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 with c2:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
