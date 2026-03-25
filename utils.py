@@ -3,42 +3,21 @@ from testrail_api import TestRailAPI
 
 def clean_html(raw_html):
     if not raw_html: return ""
-    text = str(raw_html)
+    text = str(raw_html).strip()
     
-    # 🚀 處理分離步驟 (JSON 格式)
-    if (text.startswith('[') and 'content' in text) or (text.startswith('[') and 'expected' in text):
+    # 🚀 處理分離步驟 (如果是清單格式就直接回傳，讓 App 去畫綠邊)
+    if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
             if isinstance(parsed_data, list):
-                combined_steps = []
-                for i, item in enumerate(parsed_data, 1):
-                    c = re.sub(r'<.*?>', '', item.get('content', '')).strip()
-                    e = re.sub(r'<.*?>', '', item.get('expected', '')).strip()
-                    
-                    # 避免編號疊加
-                    has_num = re.match(r'^\d+[\.\、]', c)
-                    step_prefix = "" if has_num else f"{i}. "
-                    
-                    res = f"{step_prefix}{c}"
-                    if e:
-                        res += f"\n<span class='expected-text'>💡 [預期結果]: {e}</span>"
-                    combined_steps.append(res)
-                return "\n\n".join(combined_steps)
+                return parsed_data 
         except:
             pass
 
-    # 🚀 處理普通文字
-    text = text.replace('<li>', '\n').replace('</li>', '')
-    text = re.sub(r'<(br\s*/?|/div|/p)>', '\n', text)
+    # 🚀 處理普通純文字 (Markdown 格式)
+    text = text.replace('&nbsp;', ' ').replace('<br />', '\n').replace('<br>', '\n')
     text = re.sub(r'<.*?>', '', text)
-    text = text.replace('&nbsp;', ' ').replace('&amp;', '&')
-    
-    lines = [l.strip() for l in text.split('\n') if l.strip()]
-    final = []
-    for i, line in enumerate(lines, 1):
-        if re.match(r'^\d+[\.\、]', line): final.append(line)
-        else: final.append(f"{i}. {line}")
-    return "\n".join(final)
+    return text.strip()
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
