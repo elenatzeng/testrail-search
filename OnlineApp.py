@@ -63,16 +63,20 @@ if tr_url and tr_user and tr_pw:
             for c in all_cases:
                 cid = str(c.get('id', '')).strip()
                 title = str(c.get('title', '')).lower()
-                section_path = str(path_map.get(c.get('section_id'), ""), "").lower()
-                steps_txt = (str(c.get('custom_steps', '')) + str(c.get('custom_steps_separated', ''))).lower()
-                searchable_pool = title + section_path + steps_txt
+                # 🚀 這裡已經修正了 TypeError！
+                section_path = str(path_map.get(c.get('section_id'), "")).lower()
+                
+                # 內容池拼接
+                steps_txt = str(c.get('custom_steps', '')).lower()
+                steps_sep = str(c.get('custom_steps_separated', '')).lower()
+                has_content = len(steps_txt.strip()) > 0 or "content" in steps_sep
+                searchable_pool = title + section_path + steps_txt + steps_sep
                 
                 is_all_match = True
                 total_score = 0
                 
                 for term in raw_input_terms:
                     expanded = multi_lang_search(term, SEARCH_DICTIONARY)
-                    # 🚀 精確判斷：ID 必須全等比對，內容池是包含比對
                     text_hit = any(word in searchable_pool for word in expanded)
                     id_hit = any(word == cid for word in expanded)
                     
@@ -85,7 +89,7 @@ if tr_url and tr_user and tr_pw:
                 if is_all_match:
                     u_info = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
                     total_score += u_info.get("weight", 0)
-                    if not steps_txt.strip(): total_score -= 100000 
+                    if not has_content: total_score -= 100000 
                     scored_results.append((total_score, c, u_info))
 
             scored_results.sort(key=lambda x: x[0], reverse=True)
@@ -106,7 +110,7 @@ if tr_url and tr_user and tr_pw:
                     st.markdown(f'<div class="step-content-box">{(body if body else "（無詳細步驟）")}</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
-    # 🚀 回到頂端按鈕
+    # 🚀 回到頂部按鈕
     st.markdown("""<a href="#top-anchor" class="scroll-to-top" title="回到頂部">▲</a>""", unsafe_allow_html=True)
 
 else:
