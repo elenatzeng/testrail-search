@@ -6,7 +6,6 @@ from keywords import SEARCH_DICTIONARY
 
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
-st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
@@ -20,9 +19,10 @@ with st.sidebar:
     sid_v = get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
-    if st.button("💾 儲存資訊", use_container_width=True):
+    if st.button("💾 儲存並刷新", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-        st.success("✅ 已儲存")
+        st.cache_data.clear()
+        st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
@@ -40,6 +40,7 @@ if tr_url and tr_user and tr_pw:
             for c in all_cases:
                 cid = str(c.get('id'))
                 title = str(c.get('title', '')).lower()
+                # 🚀 這裡修正 path 的抓取關鍵字
                 path = str(path_map.get(c.get('section_id'), '')).lower()
                 steps_raw = str(c.get('custom_steps','')) + str(c.get('custom_steps_separated',''))
                 
@@ -65,8 +66,9 @@ if tr_url and tr_user and tr_pw:
                 is_active = u_info.get('is_active', True)
                 author_color = '#4CAF50' if is_active else '#8b949e'
                 
-                # 🚀 1. 路徑 (圓圈 6)
-                st.markdown(f'<div class="case-path-box">{path_map.get(item.get("section_id"), "Unknown")}</div>', unsafe_allow_html=True)
+                # 🚀 1. 路徑 (圓圈 6) - 修正 Unknown 問題
+                display_path = path_map.get(item.get("section_id"), "Root")
+                st.markdown(f'<div class="case-path-box">{display_path}</div>', unsafe_allow_html=True)
                 
                 # 2. 標題與標籤 (圓圈 7 & 8)
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
@@ -91,6 +93,4 @@ if tr_url and tr_user and tr_pw:
                             """, unsafe_allow_html=True)
                     else:
                         st.markdown(f'<div class="step-content-box">{steps if steps else "(無詳細步驟)"}</div>', unsafe_allow_html=True)
-                st.markdown("---")
-
-    st.markdown('<a href="#top-anchor" class="scroll-to-top">▲</a>', unsafe_allow_html=True)
+                st.markdown('<hr style="border:0.5px solid #30363d; margin: 20px 0;">', unsafe_allow_html=True)
