@@ -8,7 +8,7 @@ def smart_format(text):
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
     
-    # 2. 🚀 動作拆解：在關鍵字前強制換行，確保 1. 2. 3. 抓得到
+    # 2. 🚀 動作拆解：在關鍵字前強制換行
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
@@ -45,29 +45,27 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 1. 抓取 Project 下「所有」Sections，打破 Suite 的限制
-        all_sects_resp = api.sections.get_sections(project_id=pid)
+        # 🚀 關鍵修正：必須傳入 suite_id，API 才會回傳該 Suite 下的所有子目錄
+        all_sects_resp = api.sections.get_sections(project_id=pid, suite_id=sid)
         all_sects = all_sects_resp['sections']
         sect_dict = {s['id']: s for s in all_sects}
         
-        # 🚀 2. 向上溯源邏輯：建立全路徑地圖
+        # 🚀 向上溯源邏輯
         def get_full_chain(s_id):
             parts = []
             curr_id = s_id
-            # 循環往上找爸爸，直到找不到為止
             while curr_id in sect_dict:
                 curr_sect = sect_dict[curr_id]
                 parts.insert(0, curr_sect['name'])
                 curr_id = curr_sect.get('parent_id')
-            # 使用妳指定的 › 符號連接
             return " › ".join(parts) if parts else "GoGaming"
 
-        # 🚀 3. 遍歷所有 Section ID，生成路徑映射表
+        # 生成路徑映射表
         final_path_map = {}
         for section_id in sect_dict:
             final_path_map[section_id] = get_full_chain(section_id)
         
-        # 🚀 4. 抓取案例
+        # 抓取案例
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
@@ -77,7 +75,6 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             if len(cases) < 250: break
             offset += 250
             
-        # ⚡ 最後確認：回傳 final_path_map
         return all_cases, final_path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e:
         return None, None, str(e), None
