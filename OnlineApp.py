@@ -10,7 +10,6 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 🚀 紅圈 1-3
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -19,10 +18,10 @@ with st.sidebar:
     pid_v = get_val("pid"); sid_v = get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
-    if st.button("💾 儲存資訊至網址", use_container_width=True): # 紅圈 2
+    if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅")
-    if st.button("🔄 強制刷新數據", use_container_width=True): # 紅圈 3
+    if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
@@ -30,22 +29,19 @@ st.title("🧪 TestRail 智能檢索中心")
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     if all_cases:
-        # 🚀 紅圈 4
         st.markdown(f'<div style="color:#8b949e; font-size:14px;">📍 Project：{p_name} | Suite：#{sid}</div>', unsafe_allow_html=True)
         
         col_search, col_clear, col_run = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_search:
-            # 🚀 紅圈 5
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容 (輸入關鍵字查詢；支援繁簡體與英文):</div>', unsafe_allow_html=True)
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="充值 CNY", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_clear:
-            if st.button("🗑️ 清除條件", use_container_width=True): # 紅圈 11
+            if st.button("🗑️ 清除條件", use_container_width=True):
                 st.session_state.q_text = ""; st.rerun()
         with col_run:
-            if st.button("🔎 重新查詢", use_container_width=True): # 紅圈 12
-                st.rerun()
+            if st.button("🔎 重新查詢", use_container_width=True): st.rerun()
 
         if st.session_state.q_text:
             st.caption(f"⚡ 最後同步：{sync_time} (共 {len(all_cases)} 筆案例)")
@@ -70,10 +66,9 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
-                # 🚀 紅圈 6
+                # 🚀 顯示正確路徑
                 st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{path_map.get(item.get("section_id"), "Root")}</div>', unsafe_allow_html=True)
                 
-                # 🚀 紅圈 7, 8, 10
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
                     tag = f'<span class="author-tag" style="border-color:{color}!important; box-shadow: 0 0 5px {color}!important;">{"🟢" if u.get("is_active") else "⚪"} {u["name"]}</span>'
@@ -81,7 +76,6 @@ if tr_url and tr_user and tr_pw:
                 with c2:
                     st.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # 🚀 紅圈 9
                 with st.expander("🔽 查看測試步驟"):
                     steps = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     if isinstance(steps, list):
