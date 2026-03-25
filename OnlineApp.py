@@ -72,20 +72,18 @@ if tr_url and tr_user and tr_pw:
 
             for _, item, u in results:
                 cid = str(item.get('id'))
-                color = '#4CAF50' if u.get('is_active') else '#8b949e'
                 
-                # 🚀 這裡調整：字體從 11px 加大到 14px，並移除任何背景
-                display_path = path_map.get(item.get("section_id"), "GoGaming")
-                st.markdown(f'''
-                    <div style="font-size:14px; color:#adb5bd; margin-top:25px; margin-bottom:8px; background:transparent!important; padding:0!important;">
-                        {display_path}
-                    </div>
-                ''', unsafe_allow_html=True)
+                # 🚀 修復點：顏色換成鮮豔亮綠 (#32CD32)，不活躍改成灰 (#444)
+                tag_color = '#32CD32' if u.get('is_active') else '#444444'
+                f_path = path_map.get(item.get("section_id"), "GoGaming")
+                
+                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{f_path}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 with c1:
+                    # 🚀 修復點：還原發光 Box-shadow、撐開 Padding（胖胖）、圓角胶囊感（25px）
                     tag = f'''
-                    <span class="author-tag" style="border-color:{color}!important; box-shadow: 0 0 10px {color}88!important;">
+                    <span class="author-tag" style="border-color:{tag_color}!important; box-shadow: 0 0 10px {tag_color}88!important;">
                         {"🟢" if u.get("is_active") else "⚪"} {u["name"]}
                     </span>
                     '''
