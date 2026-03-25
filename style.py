@@ -17,7 +17,7 @@ def apply_custom_style():
             border: 2px solid !important; 
             background: rgba(0,0,0,0.5) !important;
             vertical-align: middle;
-            color: white !important;
+            color: green !important;
             /* 🚀 呼吸發光特效 */
             transition: all 0.3s ease;
         }
