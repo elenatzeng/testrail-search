@@ -36,16 +36,16 @@ def multi_lang_search(text, dictionary):
     """
     優化邏輯：
     1. 只有當搜尋詞『完全等於』字典組中的某個詞時，才展開該組的所有同義詞。
-    2. 避免因為 '#' 或單個字造成的過度聯想。
+    2. 解決搜尋 A 卻跳出不相關 B 的問題。
     """
     text_lower = text.lower().strip()
     related_words = {text_lower}
     
     for group in dictionary:
-        # 將整組字典詞轉為小寫清單
+        # 將整組字典詞轉為小寫清單進行比對
         group_lower = [str(word).lower() for word in group]
         
-        # 🚀 只有『完全匹配』才擴展 (例如輸入 'deposit' 才會變出 '充值')
+        # 🚀 只有『完全匹配』才擴展 (避免如 '路' 命中 '路由' 的狀況)
         if text_lower in group_lower:
             related_words.update(group_lower)
             
@@ -55,14 +55,11 @@ def multi_lang_search(text, dictionary):
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(_url, _user, _pw, pid, sid):
     try:
-        # 格式化 URL 並初始化 API
         base_url = _url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, _user, _pw)
         
-        # 獲取專案名稱
         p_info = api.projects.get_project(project_id=pid)
         
-        # 獲取所有目錄 (Sections) 並建立路徑地圖
         sections_data = api.sections.get_sections(project_id=pid, suite_id=sid)
         sect_dict = {s['id']: s for s in sections_data['sections']}
         
@@ -76,7 +73,6 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
             
         path_map = {s_id: get_path(s_id) for s_id in sect_dict}
         
-        # 分頁抓取所有案例 (Cases)
         all_cases_list = []
         offset = 0
         while True:
@@ -91,5 +87,4 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         return all_cases_list, path_map, sync_time, p_info.get('name')
         
     except Exception as e:
-        # 發生錯誤時回傳錯誤訊息
         return None, None, str(e), None
