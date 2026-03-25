@@ -5,7 +5,7 @@ def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 🚀 處理分離步驟 (如果是清單格式就直接回傳，讓 App 去畫綠邊)
+    # 🚀 1. 處理 TestRail 分離步驟 (如果是清單格式就直接回傳)
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
@@ -14,7 +14,7 @@ def clean_html(raw_html):
         except:
             pass
 
-    # 🚀 處理普通純文字 (Markdown 格式)
+    # 🚀 2. 處理普通純文字 (清理 HTML 標籤)
     text = text.replace('&nbsp;', ' ').replace('<br />', '\n').replace('<br>', '\n')
     text = re.sub(r'<.*?>', '', text)
     return text.strip()
