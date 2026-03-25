@@ -3,16 +3,17 @@ from testrail_api import TestRailAPI
 
 def smart_format(text):
     if not text: return ""
-    # 1. 清理 HTML
+    # 1. 清理 HTML 並轉為換行
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
-    t = re.sub(r'<.*?>', '', t).replace('&nbsp;', ' ')
+    t = t.replace('&nbsp;', ' ')
+    t = re.sub(r'<.*?>', '', t)
     
-    # 2. 🚀 暴力拆解：看到這些詞，前面強制加換行，確保 1. 2. 3. 能對齊
+    # 2. 🚀 暴力拆解：在這些動作詞前面強制補換行
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "登錄", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
     
-    # 3. 補上編號
+    # 3. 補上編號並過濾空行
     lines = [l.strip() for l in t.split('\n') if l.strip()]
     final_lines = []
     count = 1
@@ -44,10 +45,11 @@ def fetch_data_from_tr(_url, _user, _pw, pid, sid):
         api = TestRailAPI(_url.split('/index.php')[0].strip('/'), _user, _pw)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 關鍵：抓取 Project 內「所有」Sections，不限 Suite，才能拼出完整路徑
-        all_sects = api.sections.get_sections(project_id=pid)['sections']
+        # 🚀 雙重保險：抓取當前 Suite 的所有 Sections
+        all_sects = api.sections.get_sections(project_id=pid, suite_id=sid)['sections']
         sect_dict = {s['id']: s for s in all_sects}
         
+        # 遞迴路徑拼湊
         def get_path(s_id):
             if s_id not in sect_dict: return ""
             curr = sect_dict[s_id]
