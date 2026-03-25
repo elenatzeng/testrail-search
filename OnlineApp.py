@@ -42,7 +42,7 @@ if tr_url and tr_user and tr_pw:
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_search:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="充值 CNY", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入關鍵字，兩個以上請用空格格開", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_clear:
             if st.button("🗑️ 清除條件", use_container_width=True):
