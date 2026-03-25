@@ -72,10 +72,12 @@ if tr_url and tr_user and tr_pw:
                 if is_match:
                     # 🚀 排序鎖死：檢查是否只有圖片附件
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
-                    has_real_text = len(re.sub(img_pattern, '', str(steps_raw)).strip()) > 5
+                    # 排除掉圖片代碼後，計算剩餘文字長度
+                    clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
+                    has_real_text = len(clean_content) > 5
                     
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    # 如果只有圖片或內容太少，扣除 50 萬分，讓它排到最後
+                    # 只有圖片或完全沒內容的，扣除 50 萬分，確保排到最後
                     final_score = (score + u.get("weight", 0)) if has_real_text else (score - 500000)
                     results.append((final_score, c, u))
 
@@ -93,7 +95,7 @@ if tr_url and tr_user and tr_pw:
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 tag_html = f'<span class="author-tag {status_class}">{status_emoji} {u["name"]}</span>'
                 # (7)(8) 標題
-                c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get('title')} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
+                c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:18px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag_html}</div>', unsafe_allow_html=True)
                 # (10) Open Case 按鈕
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
@@ -116,15 +118,15 @@ if tr_url and tr_user and tr_pw:
                                     st.markdown(f'<div class="step-label">Expected:</div><div class="step-box">{expected}</div>', unsafe_allow_html=True)
                                 st.markdown('</div>', unsafe_allow_html=True)
                         if not has_any_text:
-                            st.markdown('<div class="no-content-hint">(無測試案例步驟)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                     elif steps:
                         clean_steps = re.sub(img_pattern, '', steps).strip()
                         if clean_steps:
                             st.markdown(f'<div class="step-wrapper"><div class="step-box">{clean_steps}</div></div>', unsafe_allow_html=True)
                         else:
-                            st.markdown('<div class="no-content-hint">(無測試案例步驟)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                     else:
-                        st.markdown('<div class="no-content-hint">(無測試案例步驟)</div>', unsafe_allow_html=True)
+                        st.markdown('<div class="no-content-hint">(無文字內容或僅包含圖片附件)</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
