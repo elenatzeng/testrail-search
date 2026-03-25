@@ -5,25 +5,30 @@ def apply_custom_style():
         <style>
         .stApp { background-color: #0b0e14 !important; }
         
-        /* 🚀 膠囊發光標籤 */
+        /* 🚀 名字膠囊發光標籤 (對齊箭頭 1) */
         .author-tag { 
-            font-size: 13px !important; border-radius: 25px !important; 
-            padding: 3px 15px !important; display: inline-flex !important;
-            align-items: center; margin-left: 10px; font-weight: 800 !important; 
-            border: 2px solid !important; background: rgba(0,0,0,0.3) !important;
+            font-size: 13px !important; 
+            border-radius: 25px !important; 
+            padding: 2px 15px !important; 
+            display: inline-flex !important;
+            align-items: center; 
+            margin-left: 15px !important; /* 👈 拉開與標題距離 */
+            font-weight: 800 !important; 
+            border: 2px solid !important; 
+            background: rgba(0,0,0,0.3) !important;
             vertical-align: middle;
         }
         
-        /* 🚀 步驟方塊與換行 */
+        /* 🚀 步驟方塊與換行設定 */
         .step-content-box { 
             color: #c9d1d9 !important; background: #1c2128; 
             padding: 20px; border-radius: 10px; border: 1px solid #30363d; 
             margin-top: 8px; font-size: 15px; line-height: 1.8;
-            white-space: pre-wrap !important;
+            white-space: pre-wrap !important; /* 👈 保留換行 */
             word-wrap: break-word;
         }
 
-        .step-container { border-left: 4px solid #2ea44f; padding-left: 20px; margin-bottom: 25px; }
+        .step-container { border-left: 4.0px solid #2ea44f; padding-left: 20px; margin-bottom: 25px; }
         .step-label { font-weight: bold; font-size: 14px; margin-top: 15px; display: block; }
 
         .view-btn { 
