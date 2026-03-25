@@ -10,7 +10,7 @@ st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="�
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
-def get_val(key): 
+def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
 # 🚀 側邊欄與搜尋區
@@ -19,7 +19,8 @@ with st.sidebar:
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
     tr_user = st.text_input("帳號 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
-    pid_v = get_val("pid"); sid_v = get_val("sid")
+    pid_v = get_val("pid")
+    sid_v = get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
@@ -27,7 +28,8 @@ with st.sidebar:
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
     if st.button("🔄 強制刷新數據", use_container_width=True):
-        st.cache_data.clear(); st.rerun()
+        st.cache_data.clear()
+        st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
@@ -38,14 +40,16 @@ if tr_url and tr_user and tr_pw:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
-        if "q_text" not in st.session_state: st.session_state.q_text = ""
+        if "q_text" not in st.session_state: 
+            st.session_state.q_text = ""
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="請輸入關鍵字...", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
             if st.button("🗑️ 清除條件", use_container_width=True): 
-                st.session_state.q_text = ""; st.rerun()
+                st.session_state.q_text = ""
+                st.rerun()
         with col_r:
             if st.button("🔎 重新查詢", use_container_width=True): 
                 st.rerun()
@@ -63,7 +67,8 @@ if tr_url and tr_user and tr_pw:
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
                     if not (any(w in (title.lower() + f_path.lower()) for w in exp) or any(w == cid for w in exp)):
-                        is_match = False; break
+                        is_match = False
+                        break
                 if is_match:
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
                     clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
@@ -89,7 +94,6 @@ if tr_url and tr_user and tr_pw:
                         if not text: return ""
                         text = re.sub(img_pattern, '', text).strip()
                         if not text: return ""
-                        # 處理換行並修正關鍵字
                         text = text.replace('\n', '<br>')
                         text = re.sub(r'(?<!<br>)(用户名)', r'<br>• \1', text)
                         return text
@@ -100,12 +104,9 @@ if tr_url and tr_user and tr_pw:
                         for s in steps:
                             c_html = final_line_fix(s.get('content', ''))
                             e_html = final_line_fix(s.get('expected', ''))
-                            
-                            # 🚀 如果內容和預期結果濾掉圖片後都是空的，則完全跳過此步驟編號 (修正 image_7)
                             if not c_html and not e_html: continue
                             
                             has_any_visible = True
-                            # 🟢 真棒格式鎖死注入
                             st.markdown(f'''
                                 <div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px;">Step {v_idx}:</div>
@@ -117,19 +118,17 @@ if tr_url and tr_user and tr_pw:
                             v_idx += 1
                         
                         if not has_any_visible:
-                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容，可能僅包含圖片附件)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容)</div>', unsafe_allow_html=True)
                     
                     elif isinstance(steps, str) and steps.strip():
                         final_res = final_line_fix(steps)
                         if final_res:
                             st.markdown(f'<div style="border-left: 4px solid #4CAF50 !important; padding-left: 20px; margin-left: 5px;"><div style="background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9;">{final_res}</div></div>', unsafe_allow_html=True)
                         else:
-                            st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容，可能僅包含圖片附件)</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="no-content-hint">💡 (此案例無文字內容)</div>', unsafe_allow_html=True)
                     else:
-                        # 🚀 找回紅框處原本應該出現的提示
                         st.markdown('<div class="no-content-hint">💡 (此案例目前沒有填寫測試步驟內容)</div>', unsafe_allow_html=True)
                 
                 st.markdown("---")
 
-    # 🚀 火箭按鈕
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
