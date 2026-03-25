@@ -25,6 +25,8 @@ def apply_custom_style():
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .status-inactive { color: #FF4B4B !important; border-color: #FF4B4B !important; }
 
+        .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
+
         /* 🚀 無文字內容提示 */
         .no-content-hint { 
             color: #8b949e !important; 
@@ -34,7 +36,7 @@ def apply_custom_style():
             display: block !important;
         }
 
-        /* 🚀 火箭回到頂部按鈕 - 固定在右邊中間 */
+        /* 🚀 火箭回到頂部按鈕 */
         .scroll-to-top {
             position: fixed;
             top: 50% !important;
@@ -55,7 +57,7 @@ def apply_custom_style():
             border: none !important;
         }
 
-        /* ✨ 滑鼠移上去時顯示「回到最頂」的氣泡 */
+        /* ✨ 提示氣泡 */
         .scroll-to-top::after {
             content: "回到最頂";
             position: absolute;
@@ -69,3 +71,16 @@ def apply_custom_style():
             font-size: 12px;
             white-space: nowrap;
             opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            border: 1px solid #f77f00;
+        }
+        .scroll-to-top:hover::after { opacity: 1; }
+        .scroll-to-top:hover {
+            transform: translateY(-50%) scale(1.1) !important;
+            box-shadow: 0 0 20px rgba(247, 127, 0, 0.8) !important;
+        }
+
+        .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
+        </style>
+    """, unsafe_allow_html=True)
