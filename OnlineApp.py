@@ -67,7 +67,7 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 color = '#4CAF50' if u.get('is_active') else '#8b949e'
-                # 🚀 顯示路徑 (圓圈 6)
+                # 🚀 顯示路徑 (紅圈 6)
                 st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:20px; margin-bottom:5px;">{path_map.get(item.get("section_id"), "GoGaming")}</div>', unsafe_allow_html=True)
                 
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
