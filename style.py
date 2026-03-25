@@ -5,11 +5,11 @@ def apply_custom_style():
         <style>
         .stApp { background-color: #0b0e14 !important; }
         
-        /* 🚀 名字標籤：還原成前幾天那個胖胖發光的樣子 */
+        /* 🚀 名字標籤：只保留形狀、內邊距和圓角，顏色交給動態決定 */
         .author-tag { 
             font-size: 13px !important; 
-            border-radius: 20px !important; /* 膠囊圓角 */
-            padding: 4px 14px !important; /* 撐開上下左右讓它變胖 */
+            border-radius: 20px !important; 
+            padding: 4px 14px !important; 
             display: inline-flex !important;
             align-items: center; 
             margin-left: 15px !important; 
@@ -17,12 +17,9 @@ def apply_custom_style():
             border: 2px solid !important; 
             background: rgba(0,0,0,0.5) !important;
             vertical-align: middle;
-            color: green !important;
-            /* 🚀 呼吸發光特效 */
-            transition: all 0.3s ease;
+            /* ❌ 不要在這裡寫 color 或 border-color 的 !important */
         }
         
-        /* 🚀 測試步驟盒子：維持穩定換行 */
         .step-content-box { 
             color: #c9d1d9 !important; background: #1c2128; 
             padding: 16px 20px; border-radius: 10px; border: 1px solid #30363d; 
@@ -32,14 +29,12 @@ def apply_custom_style():
 
         .step-container { border-left: 4px solid #2ea44f; padding-left: 18px; margin-bottom: 25px; }
 
-        /* 🚀 Open Case 按鈕 */
         .view-btn { 
             display: inline-block; padding: 7px 16px; background-color: #2ea44f; 
             color: white !important; border-radius: 6px; text-decoration: none; 
             font-size: 14px; font-weight: bold; 
         }
 
-        /* 🚀 活力橘小火箭按鈕：位置上移避免擋住控制列 */
         .scroll-to-top {
             position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
             background-color: #f77f00; color: white !important; border-radius: 50%;
