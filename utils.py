@@ -40,9 +40,16 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 🚀 修正點：確保正確抓取 sections 列表
-        sect_resp = api.sections.get_sections(project_id=pid)
-        all_sects = sect_resp['sections'] if isinstance(sect_resp, dict) else sect_resp
+        # 🚀 終極修正：分頁抓取所有目錄，不再只抓第一頁
+        all_sects = []
+        offset = 0
+        while True:
+            sect_resp = api.sections.get_sections(project_id=pid, offset=offset)
+            sects = sect_resp['sections'] if isinstance(sect_resp, dict) else sect_resp
+            if not sects: break
+            all_sects.extend(sects)
+            if len(sects) < 250: break
+            offset += 250
         
         id_to_name = {s['id']: s['name'] for s in all_sects}
         id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
