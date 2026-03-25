@@ -5,7 +5,7 @@ def apply_custom_style():
         <style>
         .stApp { background-color: #0b0e14 !important; }
         
-        /* 🚀 (8) 名字標籤：膠囊形狀、純色邊框 */
+        /* 🚀 (8) 名字標籤：純色邊框 */
         .author-tag { 
             font-size: 13px !important; border-radius: 20px !important; 
             padding: 4px 14px !important; display: inline-flex !important;
@@ -16,28 +16,43 @@ def apply_custom_style():
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .status-inactive { color: #FF4B4B !important; border-color: #FF4B4B !important; }
 
-        /* 🚀 (9) Expander 透明化 */
+        /* 🚀 (9) Expander 標題 */
         .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
         .stExpander summary { color: #8b949e !important; padding: 10px 0 !important; }
         
-        /* 🚀 靈魂綠線：左側垂直長線 */
+        /* 🚀 靈魂綠線：確保它在左邊連貫且明顯 */
         .step-wrapper {
-            border-left: 4px solid #4CAF50; 
-            padding-left: 20px;
-            margin-left: 2px;
-            margin-bottom: 25px;
-            box-shadow: -5px 0 10px rgba(76, 175, 80, 0.2); /* 微發光 */
+            border-left: 4px solid #4CAF50 !important; /* 亮綠色長線 */
+            padding-left: 20px !important;
+            margin-left: 5px !important;
+            margin-bottom: 30px !important;
+            display: block !important;
         }
-        .step-label { color: #ffffff; font-weight: bold; font-size: 15px; margin-bottom: 6px; }
         
-        /* 🚀 斷行修復：強制保留原始換行文字 */
-        .step-box { 
-            background-color: #1c2128 !important; border: 1px solid #30363d; 
-            border-radius: 12px; padding: 18px 22px; color: #c9d1d9; 
-            font-size: 14px; line-height: 1.6; margin-bottom: 15px;
-            white-space: pre-wrap !important; /* 🔥 這是保留換行的關鍵 */
-            word-wrap: break-word !important;
+        .step-label { 
+            color: #ffffff !important; 
+            font-weight: bold !important; 
+            font-size: 15px !important; 
+            margin-bottom: 8px !important; 
+            margin-top: 5px !important;
         }
+
+        /* 🚀 核心黑盒子：斷行鎖死 */
+        .step-box { 
+            background-color: #1c2128 !important; 
+            border: 1px solid #30363d !important; 
+            border-radius: 12px !important; 
+            padding: 18px 22px !important; 
+            color: #c9d1d9 !important; 
+            font-size: 14px !important; 
+            line-height: 1.8 !important;
+            margin-bottom: 15px !important;
+            /* 🔥 保證斷行的關鍵 */
+            white-space: pre-wrap !important; 
+            word-break: break-all !important;
+            display: block !important;
+        }
+        
         .no-content-hint { color: #666; font-size: 14px; margin-top: 10px; font-style: italic; }
 
         .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
