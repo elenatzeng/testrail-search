@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與功能守護
+# 2. 側邊欄與按鈕 (守護妳所有的功能)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -38,7 +38,6 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋功能區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -79,16 +78,15 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 點點雷達渲染器：看到點點符號就強行炸開換行
-                    def bullet_radar_render(text):
+                    # 🔥 終極切割渲染器：強制將文字切碎，絕不讓點點黏在一起
+                    def final_split_render(text):
                         if not text: return ""
-                        # 處理圖片與統一換行
+                        # 處理圖片佔位與統一換行
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', str(text)).strip()
-                        text = text.replace('\r\n', '\n').replace('\r', '\n')
                         
-                        # 雷達掃描：在點點或編號前，如果沒有換行符號，強行補上換行
-                        # 匹配 •, -, *, 數字.
-                        text = re.sub(r'(?<!\n)([•\-\*]|\d+\.)', r'\n\1', text)
+                        # 核心邏輯：在所有點點、減號、星號、數字編號前強制插入換行符號
+                        # 使用正則表達式捕捉：•, -, *, 數字.
+                        text = re.sub(r'([•\-\*]|\d+\.)', r'\n\1', text)
                         
                         lines = text.split('\n')
                         html_res = ""
@@ -97,26 +95,26 @@ if tr_url and tr_user and tr_pw:
                             if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
                             
                             is_bullet = re.match(r'^([•\-\*]|\d+\.)', s)
-                            # 每一行都是獨立 div，寬度 100% 鎖死斷行
-                            row_style = "display:block; width:100%; margin-bottom:6px; line-height:1.6;"
+                            # 採用 white-space: pre-wrap 並鎖死寬度
+                            row_style = "display:block; width:100%; margin-bottom:8px; line-height:1.6; white-space:pre-wrap; word-break:break-word;"
                             if is_bullet:
-                                row_style += "padding-left:12px; color:#e6edf3;"
+                                row_style += "padding-left:14px; color:#e6edf3;"
                             
                             html_res += f'<div style="{row_style}">{s}</div>'
                         return html_res
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = bullet_radar_render(s.get('content', ''))
-                            e_html = bullet_radar_render(s.get('expected', ''))
+                            c_html = final_split_render(s.get('content', ''))
+                            e_html = final_split_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 靈魂綠線絕對守護：CSS 容器包圍
-                            green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
+                            # 🟢 靈魂綠線絕對鎖死：保證綠線高度覆蓋整個步驟區塊
+                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
                             box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px;"
                             
                             st.markdown(f'''
-                                <div style="{green_line_box}">
+                                <div style="{green_line_style}">
                                     <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
                                     <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
