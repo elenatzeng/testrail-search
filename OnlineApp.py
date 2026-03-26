@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化 (強制鎖定側邊欄展開)
+# 1. 頁面初始化 (強制預設展開側欄)
 st.set_page_config(
     page_title="TestRail AI Search", 
     layout="wide", 
@@ -18,7 +18,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄 (連線設定永遠固定)
+# 2. 側邊欄 (連線設定：永久固定)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -34,7 +34,6 @@ with st.sidebar:
     if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
-# 標題強制顯示在主畫面
 st.title("🧪 TestRail 智能檢索中心")
 
 # 3. 核心數據邏輯
@@ -79,10 +78,12 @@ if tr_url and tr_user and tr_pw:
 
             for _, item, u in results:
                 cid = str(item.get('id'))
+                # ✨ 第一行：目錄 (13px)
                 st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
+                
                 tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                # 標題 15px
+                # ✨ 第二行：標題 (15px)
                 c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
@@ -96,7 +97,7 @@ if tr_url and tr_user and tr_pw:
                         for line in lines:
                             s = line.strip()
                             if not s: continue
-                            # 內文 13px
+                            # ✨ 第三行以後：內文 (13px)
                             style = "margin-bottom:4px; display:block; font-size:13px;"
                             html_out += f'<div style="{style}">{s}</div>'
                         html_out += '</div>'
@@ -116,6 +117,6 @@ if tr_url and tr_user and tr_pw:
                             ''', unsafe_allow_html=True)
                 st.markdown("---")
 else:
-    st.info("👈 請先在左側輸入 TestRail 連線資訊喔！")
+    st.info("👈 請在左側輸入連線資訊，側邊欄已固定，不會消失。")
 
 st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
