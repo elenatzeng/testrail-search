@@ -14,7 +14,7 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【修正：收起時靠左】 */
+        /* 🚀 【修正：收起時靠左】消滅隱形牆 */
         [data-testid="stAppViewContainer"][data-collapsed="true"] .main {
             padding-left: 0 !important;
             margin-left: 0 !important;
@@ -26,38 +26,41 @@ def apply_custom_style():
         }
 
         /* 🚀 【核心修正：讓 >> 復活並出現在左側置中】 */
-        /* 不要 display:none 掉 header，否則按鈕會死掉 */
+        /* 必須讓 header 活著，按鈕才會被渲染 */
         header, [data-testid="stHeader"] {
-            background-color: transparent !important;
-            height: 0 !important; /* 讓它不佔位，但裡面的按鈕還活著 */
+            background: transparent !important;
+            visibility: visible !important;
+            height: 0 !important;
         }
 
-        /* 強制捕獲收合後的控制區塊 */
+        /* 鎖定收合後的控制按鈕 (>>) */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important;
             top: 50% !important;   /* 垂直置中 */
-            left: 15px !important;  /* 貼近左邊 */
+            left: 0px !important;   /* 貼死左邊緣，像標籤一樣 */
             transform: translateY(-50%) !important;
             display: flex !important;
             visibility: visible !important;
-            width: 55px !important;
-            height: 55px !important;
-            background-color: rgba(255, 255, 255, 0.3) !important; /* 更亮的白圓圈 */
-            border: 2px solid rgba(255, 255, 255, 0.6) !important;
-            border-radius: 50% !important;
+            width: 50px !important;
+            height: 60px !important;
+            background-color: rgba(255, 255, 255, 0.2) !important;
+            border: 2px solid rgba(255, 255, 255, 0.4) !important;
+            border-left: none !important; /* 左邊不要邊框，貼平螢幕 */
+            border-radius: 0 30px 30px 0 !important; /* 半圓形標籤感 */
             justify-content: center !important;
             align-items: center !important;
-            z-index: 9999999 !important; /* 開到最高層級 */
-            box-shadow: 0 0 20px rgba(0,0,0,0.7) !important;
+            z-index: 10000000 !important; 
+            box-shadow: 4px 0 15px rgba(0,0,0,0.5) !important;
             cursor: pointer !important;
         }
         
-        /* 讓按鈕內的 >> 圖示變得超級明顯 */
+        /* 讓圖示變亮白 */
         [data-testid="stSidebarCollapsedControl"] svg {
             fill: white !important;
             color: white !important;
-            width: 35px !important;
-            height: 35px !important;
+            width: 30px !important;
+            height: 30px !important;
+            margin-left: -5px !important;
         }
 
         /* 🚀 展開時的收合鈕 (<<) 樣式同步 */
@@ -69,7 +72,7 @@ def apply_custom_style():
             border: 1px solid rgba(255, 255, 255, 0.3) !important;
         }
 
-        /* 🚀 【綠色按鈕】鎖死樣式 */
+        /* 🚀 【綠色按鈕】鎖死無底線 */
         .view-btn, .view-btn:link, .view-btn:visited {
             display: inline-block !important;
             padding: 10px 22px !important;
@@ -80,8 +83,9 @@ def apply_custom_style():
             font-size: 14px !important;
             font-weight: bold !important;
         }
+        .view-btn:hover { background-color: #3fb950 !important; text-decoration: none !important; }
 
-        /* 🛡️ 隱藏 Deploy, Share 等干擾項 (改用 visibility 避免影響 >>) */
+        /* 🛡️ 隱藏其餘雜物 */
         [data-testid="stToolbar"] { visibility: hidden !important; }
         #MainMenu, footer { display: none !important; }
 
