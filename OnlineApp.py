@@ -65,15 +65,12 @@ if tr_url and tr_user and tr_pw:
                         is_match = False; break
                 
                 if is_match:
-                    # 🚀 排序靈魂：取得使用者權重
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    # 權重算法：10000 + 使用者自訂權重 (如果內容太短則扣分)
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
                     content_len = len(str(steps_raw))
                     weight_score = (10000 + user_info.get("weight", 0)) if content_len > 10 else -50000
                     results.append((weight_score, c, user_info))
 
-            # 🔥 關鍵動作：根據權重由高到低排序！
             results.sort(key=lambda x: x[0], reverse=True)
 
             for _, item, u in results:
@@ -87,38 +84,34 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
                     
-                    def layer_render(text):
-                        if not text: return ""
-                        # 1. 蒸發圖片
+                    def final_render(text):
+                        if not text: return "(無內容)"
                         text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
-                        # 2. 階層斷行處理
                         lines = text.splitlines()
-                        html_out = ""
+                        # ✨ 加上 inner-text 標籤
+                        html_out = '<div class="inner-text">'
                         for line in lines:
                             s = line.strip()
                             if not s: continue
-                            is_bullet = re.match(r'^([•\-\*]|\d+\.)', s)
-                            style = "margin-bottom:6px; display:block; width:100%; line-height:1.6;"
-                            if is_bullet:
-                                style += "padding-left:18px; color:#e6edf3;"
+                            is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                            style = "margin-bottom:4px; display:block;"
+                            if is_list: style += "padding-left:18px;"
                             html_out += f'<div style="{style}">{s}</div>'
+                        html_out += '</div>'
                         return html_out
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = layer_render(s.get('content', ''))
-                            e_html = layer_render(s.get('expected', ''))
-                            if not c_html and not e_html: continue
+                            c_html = final_render(s.get('content', ''))
+                            e_html = final_render(s.get('expected', ''))
                             
-                            green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px;"
-                            
+                            # ✨ 關鍵：使用 class="step-container" 和 class="content-box" 替換 inline style
                             st.markdown(f'''
-                                <div style="{green_line_box}">
+                                <div class="step-container">
                                     <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
+                                    <div class="content-box">{c_html}</div>
                                     <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
+                                    <div class="content-box">{e_html}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
