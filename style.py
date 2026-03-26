@@ -14,9 +14,9 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【新加入】縮小左側邊欄與主內容的間距 ( image_d3134c 需求) */
+        /* 🚀 【新加入】縮小左側邊欄與主內容的間距 */
         [data-testid="stAppViewContainer"] > .main {
-            padding-left: 2rem !important;   /* 原本預設很大，調小後內容會往左靠 */
+            padding-left: 1rem !important;   /* 原本預設很大，調小後內容會往左靠 */
             padding-right: 2rem !important;
         }
         /* 同步調整內部容器寬度，讓整體看起來更緊湊 */
