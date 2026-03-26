@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄
+# 2. 側邊欄守護
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -76,10 +76,9 @@ if tr_url and tr_user and tr_pw:
                 tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 
-                # ✨ 標題 20px 鎖死
+                # ✨ 標題 20px
                 c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
-                
-                # ✨ 綠色 Open Case 鎖死
+                # ✨ 綠色按鈕
                 c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
                 
                 with st.expander("查閱測試步驟", expanded=False):
