@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 初始化
+# 1. 頁面初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與按鈕 (守護妳所有的功能)
+# 2. 側邊欄設定 (功能完全守護)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -27,18 +27,19 @@ with st.sidebar:
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
     if st.button("🔄 強制刷新數據", use_container_width=True):
-        st.cache_data.clear(); st.rerun()
+        st.cache_data.clear()
+        st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心抓取與搜尋邏輯
+# 3. 核心數據邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋功能區按鈕回歸
+        # 搜尋功能區按鈕
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -84,44 +85,34 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 究極脫水換行處理器：弄掉空白行，並強制加上 HTML 換行標籤 <br>
-                    def purify_and_render_with_br(text):
+                    # 🔥 強制斷行渲染器：手動塞入 <br>，不讓瀏覽器有機會擠成一坨
+                    def force_break_render(text):
                         if not text: return ""
+                        # 圖片佔位
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
+                        # 按行切開後，每一行後面強制加 <br>
                         lines = text.split('\n')
-                        
-                        # 只要當行沒內容或是只有點點/減號，就弄掉
-                        clean_lines = []
-                        for l in lines:
-                            s = l.strip()
-                            if not s or re.fullmatch(r'[\.\-\*•]+', s): continue
-                            clean_lines.append(s)
-                            
-                        # 核心修正：將所有行用 HTML 的強制換行標籤 <br> 連接起來
+                        clean_lines = [l.strip() for l in lines if l.strip() and not re.fullmatch(r'[\.\-\*•1]+', l.strip())]
                         return "<br>".join(clean_lines)
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
-                        v_idx = 1
-                        for s in steps_data:
-                            # 🚀 使用新的處理函數
-                            c_html = purify_and_render_with_br(s.get('content', ''))
-                            e_html = purify_and_render_with_br(s.get('expected', ''))
+                        for s_idx, s in enumerate(steps_data, 1):
+                            c_html = force_break_render(s.get('content', ''))
+                            e_html = force_break_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 綠線容器與黑盒子鎖死結構 (直接在 style 裡設定斷行)
+                            # 🟢 綠線容器與黑盒子
                             green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px;"
-                            # ✨ 黑盒子裡也要設定 white-space: pre-wrap; 雙重保險
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6; white-space:pre-wrap;"
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6;"
                             
                             st.markdown(f'''
                                 <div style="{green_line_style}">
-                                    <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {v_idx}:</div>
+                                    <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {s_idx}:</div>
                                     <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:15px; margin-bottom:8px; font-size:16px;">Expected:</div>
                                     <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
-                            v_idx += 1
                     else:
                         st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容)</div>', unsafe_allow_html=True)
                 st.markdown("---")
