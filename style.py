@@ -1,67 +1,53 @@
 import streamlit as st
 
 def apply_custom_style():
-    # 🔥 黑科技：鎖死 Dark 模式，不讓它變白
+    # 🔥 終極黑科技：強制注入全域變數，徹底封鎖 Light Mode
     st.markdown("""
         <style>
-        /* 核心介面鎖死黑星空 */
-        .stApp, [data-testid="stSidebar"], .stTextInput input, .stNumberInput input, div[role="listbox"] {
+        /* 1. 隱藏右上角選單與工具列，防止被手動切換模式 */
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        
+        /* 2. 強制鎖死全域背景與文字顏色 (加上 !important 確保最高優先級) */
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
             background-color: #0d1117 !important;
             color: #c9d1d9 !important;
         }
-        
-        /* 文字顏色鎖死灰白 */
-        h1, h2, h3, h4, h5, p, span, li, label, .stMarkdown, .no-content-hint {
-            color: #adb5bd !important;
-        }
-        
-        /* 側邊欄標題與文字鎖死 */
-        [data-testid="stSidebar"] h2, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {
-            color: #adb5bd !important;
-        }
 
-        /* Expander (步驟區塊) 強制 Dark */
+        /* 3. 針對 Expander 與黑盒子鎖死深色 */
         .streamlit-expanderHeader {
             background-color: #161b22 !important;
-            border-color: #30363d !important;
-        }
-        .streamlit-expanderHeader:hover {
-            background-color: #1f242c !important;
+            border: 1px solid #30363d !important;
+            color: #c9d1d9 !important;
         }
         .streamlit-expanderContent {
             background-color: #0d1117 !important;
-            border-color: #30363d !important;
-        }
-        
-        /* 搜尋框框顏色鎖死 */
-        .stTextInput>div>div>input {
             border: 1px solid #30363d !important;
-            background-color: #161b22 !important;
         }
         
-        /* 功能按鈕樣式回歸 */
-        div.stButton > button {
+        /* 4. 輸入框與按鈕鎖死 */
+        input, .stTextInput>div>div>input {
+            background-color: #161b22 !important;
+            color: #c9d1d9 !important;
+            border: 1px solid #30363d !important;
+        }
+        
+        button {
             background-color: #21262d !important;
             color: #c9d1d9 !important;
             border: 1px solid #30363d !important;
         }
-        div.stButton > button:hover {
-            background-color: #30363d !important;
-            border-color: #adb5bd !important;
+
+        /* 5. 修正文字標籤顏色 */
+        label, .stMarkdown p, span {
+            color: #adb5bd !important;
         }
         
-        /* 綠線與黑盒子 (這裡直接在 HTML 裡寫死，但 CSS 也保險一下) */
+        /* 6. 靈魂綠線樣式加強 */
         [style*="border-left:4px solid #4CAF50"] {
-            margin-top: 10px !important;
+            margin-top: 5px !important;
+            border-left-color: #4CAF50 !important;
         }
-
-        /* 分隔線鎖死 */
-        hr {
-            border-color: #30363d !important;
-        }
-
-        /* 下載與 Deploy 按鈕隱藏 ( image_18.png 指示) */
-        div[data-testid="stToolbarDownloads"] { display: none !important; }
-        div[data-testid="stToolbarDeploy"] { display: none !important; }
         </style>
     """, unsafe_allow_html=True)
