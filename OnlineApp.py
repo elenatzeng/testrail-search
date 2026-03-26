@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與功能守護
+# 2. 側邊欄與按鈕 (守護妳所有的功能)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -31,14 +31,14 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心數據邏輯
+# 3. 核心抓取與搜尋邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋功能區 (清除、查詢回歸)
+        # 搜尋功能區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -79,27 +79,34 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 眾生平等渲染器：強制捕捉所有 \n，不分 Step 還是 Expected 都要換行！
-                    def universal_render(text):
+                    # 🔥 眾生平等究極渲染器：對所有換行標記進行爆破替換
+                    def ultimate_render(text):
                         if not text: return ""
-                        text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', str(text)).strip()
-                        # 將所有形式的換行 (\n, \r, \r\n) 全部統一換成 HTML 的 <br>
-                        lines = text.splitlines()
+                        # 強行轉字串並處理圖片
+                        text = str(text)
+                        text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
+                        
+                        # 把 Markdown/HTML 的各種換行符號全部換成 HTML 的 <br>
+                        text = text.replace('\r\n', '\n').replace('\r', '\n')
+                        lines = text.split('\n')
+                        
                         processed = []
                         for l in lines:
                             s = l.strip()
+                            # 脫水：過濾廢行
                             if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
                             processed.append(s)
+                            
                         return "<br>".join(processed)
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            # 對 content 和 expected 進行同樣嚴格的換行處理
-                            c_html = universal_render(s.get('content', ''))
-                            e_html = universal_render(s.get('expected', ''))
+                            # 對 Step 和 Expected 用同樣的爆破邏輯處理
+                            c_html = ultimate_render(s.get('content', ''))
+                            e_html = ultimate_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 綠線絕對鎖死：保證綠線高度覆蓋整個步驟區塊
+                            # 🟢 靈魂綠線絕對鎖死：結構性包圍標題與內容
                             green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
                             box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;"
                             
