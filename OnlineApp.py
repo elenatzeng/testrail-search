@@ -99,7 +99,7 @@ if tr_url and tr_user and tr_pw:
                             if not s: continue
                             is_list = re.match(r'^([•\-\*]|\d+\.)', s)
                             style = "margin-bottom:4px; display:block;"
-                            if is_list: style += "padding-left:18px;"
+                            if is_list: style += "padding-left:14px;"
                             html_out += f'<div style="{style}">{s}</div>'
                         html_out += '</div>'
                         return html_out
