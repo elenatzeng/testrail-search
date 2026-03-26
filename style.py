@@ -107,4 +107,14 @@ def apply_custom_style():
             border-radius: 50% !important; 
             display: flex !important; 
             align-items: center; 
-            justify-content: center;
+            justify-content: center; 
+            z-index: 99999 !important;
+            text-decoration: none !important;
+        }
+
+        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; }
+        .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
+        .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
+        img { display: none !important; }
+        </style>
+    """, unsafe_allow_html=True)
