@@ -82,7 +82,7 @@ if tr_url and tr_user and tr_pw:
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 
                 # ✨ 3. 第二行：標題 (font-size 15px，margin-bottom 15px 確保跟下面不黏在一起)
-                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:20px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 # ✨ 4. 第三行：展開按鈕
