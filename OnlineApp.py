@@ -74,18 +74,18 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 
-                # ✨ 1. 第一行：路徑 (設定正值 margin-bottom 確保不重疊)
+                # ✨ 1. 第一行：路徑 (margin-bottom 5px，保持獨立不重疊)
                 st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
                 
                 # ✨ 2. 定義變數
                 tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 
-                # ✨ 3. 第二行：標題 (設定正值 margin-bottom 15px 撐開空間)
-                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                # ✨ 3. 第二行：標題 (font-size 15px，margin-bottom 15px 確保跟下面不黏在一起)
+                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
-                # ✨ 4. 第三行：展開按鈕 (Expander)
+                # ✨ 4. 第三行：展開按鈕
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
                     
@@ -98,8 +98,11 @@ if tr_url and tr_user and tr_pw:
                             s = line.strip()
                             if not s: continue
                             is_list = re.match(r'^([•\-\*]|\d+\.)', s)
-                            style = "margin-bottom:4px; display:block;"
-                            if is_list: style += "padding-left:14px;"
+                            
+                            # ✨ ：內文字體設定為 13px
+                            style = "margin-bottom:4px; display:block; font-size:13px;"
+                            
+                            if is_list: style += "padding-left:18px;"
                             html_out += f'<div style="{style}">{s}</div>'
                         html_out += '</div>'
                         return html_out
