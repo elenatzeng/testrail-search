@@ -5,9 +5,18 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化
-st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪", initial_sidebar_state="expanded")
+# 1. 頁面初始化 (預設展開)
+st.set_page_config(
+    page_title="TestRail AI Search", 
+    layout="wide", 
+    page_icon="🧪",
+    initial_sidebar_state="expanded" 
+)
 apply_custom_style()
+st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+
+def get_val(key):
+    return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
 # 2. 側邊欄守護 (永久固定版)
 with st.sidebar:
