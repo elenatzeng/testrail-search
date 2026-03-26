@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化 (強制預設展開)
+# 1. 頁面初始化 (強制展開側欄)
 st.set_page_config(
     page_title="TestRail AI Search", 
     layout="wide", 
@@ -13,6 +13,10 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 apply_custom_style()
+st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+
+def get_val(key):
+    return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
 # 2. 側邊欄守護 (永久固定版)
 with st.sidebar:
@@ -37,6 +41,7 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
+        # ✨ 搜尋框與 Project 資訊長駐
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
@@ -54,7 +59,6 @@ if tr_url and tr_user and tr_pw:
         with col_r:
             if st.button("🔎 重新查詢", use_container_width=True): st.rerun()
 
-        # 顯示搜尋結果
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
@@ -78,16 +82,22 @@ if tr_url and tr_user and tr_pw:
             results.sort(key=lambda x: x[0], reverse=True)
 
             if not results:
-                st.markdown('<div style="color:#8b949e; margin-top:20px;">🚫 找不到符合的測試案例。</div>', unsafe_allow_html=True)
+                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的測試案例。</div>', unsafe_allow_html=True)
             else:
                 for _, item, u in results:
                     cid = str(item.get('id'))
+                    
+                    # 第一行：路徑 (13px)
                     st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
+                    
                     tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                     c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
+                    
+                    # 第二行：標題 (15px)
                     c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                     c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                     
+                    # 第三行：展開按鈕
                     with st.expander("查閱測試步驟", expanded=False):
                         steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
                         def final_render(text):
@@ -98,7 +108,10 @@ if tr_url and tr_user and tr_pw:
                             for line in lines:
                                 s = line.strip()
                                 if not s: continue
+                                is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                                # 內文 13px
                                 style = "margin-bottom:4px; display:block; font-size:13px;"
+                                if is_list: style += "padding-left:18px;"
                                 html_out += f'<div style="{style}">{s}</div>'
                             html_out += '</div>'
                             return html_out
@@ -107,6 +120,7 @@ if tr_url and tr_user and tr_pw:
                             for s_idx, s in enumerate(steps_data, 1):
                                 c_html = final_render(s.get('content', ''))
                                 e_html = final_render(s.get('expected', ''))
+                                # ✨ 鎖死黑盒子
                                 st.markdown(f'''
                                     <div style="border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
                                         <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
@@ -119,6 +133,7 @@ if tr_url and tr_user and tr_pw:
                             st.markdown('<div class="no-content-hint">💡 (無文字內容)</div>', unsafe_allow_html=True)
                     st.markdown("---")
         else:
+            # 沒搜尋時顯示引導
             st.markdown('<div style="color:#484f58; margin-top:50px; text-align:center; font-style: italic;">請輸入關鍵字開始檢索...</div>', unsafe_allow_html=True)
 else:
     st.info("👈 請先在左側完成連線設定。")
