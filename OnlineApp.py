@@ -14,25 +14,58 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【停机坪】在最顶端放置锚点，火箭点击后才能精准飞回顶部
+# ✨ 【停机坪】锚点
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
-def get_val(key):
-    return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
+# --- 🚀 自動記憶邏輯開始 ---
+# 初始化 Session State，用來存儲本次輸入過的值
+keys_to_store = ["url", "user", "pw", "pid", "sid"]
+for k in keys_to_store:
+    store_key = f"store_{k}"
+    if store_key not in st.session_state:
+        st.session_state[store_key] = ""
 
-# 2. 侧边栏守护 (连线设定)
+def get_val(key):
+    """
+    獲取值的優先順序：
+    1. 網址參數 (query_params) -> 方便書籤與分享
+    2. Session State (store_x) -> 本次輸入過的記憶
+    3. 默認空值
+    """
+    # 嘗試從網址拿
+    url_val = st.query_params.get(key)
+    if url_val is not None:
+        return url_val
+    # 嘗試從記憶拿
+    return st.session_state.get(f"store_{key}", "")
+# --- 🚀 自動記憶邏輯結束 ---
+
+# 2. 侧边栏
 with st.sidebar:
     st.header("🔐 连线设定")
+    
+    # 使用 get_val 賦予初始值
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
     tr_user = st.text_input("账号 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
+    
     pid_v, sid_v = get_val("pid"), get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
-    if st.button("💾 储存资讯至网址", use_container_width=True):
+    if st.button("💾 储存资讯并记住我", use_container_width=True):
+        # 1. 寫入網址參數 (安全性：這會讓用戶可以存成書籤，下次點開直接進去)
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-        st.success("✅ 已储存")
+        
+        # 2. 寫入 Session State (自動記憶：在頁面刷新或切換時不必重新輸入)
+        st.session_state.store_url = tr_url
+        st.session_state.store_user = tr_user
+        st.session_state.store_pw = tr_pw
+        st.session_state.store_pid = str(pid)
+        st.session_state.store_sid = str(sid)
+        
+        st.success("✅ 已储存并自动记忆")
+        
     if st.button("🔄 强制刷新数据", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
@@ -44,13 +77,10 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # ✨ 显示 Project 资讯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜寻列布局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
-        # ✨ 初始化控制变数 (确保清除功能运作)
         if "q_text" not in st.session_state:
             st.session_state.q_text = ""
         if "search_key" not in st.session_state:
@@ -58,7 +88,6 @@ if tr_url and tr_user and tr_pw:
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
-            # 💡 透过 search_key 确保清除时重置
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
@@ -74,7 +103,6 @@ if tr_url and tr_user and tr_pw:
                 st.session_state.search_key += 1 
                 st.rerun() 
         with col_r:
-            # ✨ 改成「查询」
             if st.button("🔎 查询", use_container_width=True): 
                 st.rerun()
 
@@ -87,7 +115,6 @@ if tr_url and tr_user and tr_pw:
                 title, cid = str(c.get('title', '')), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
                 
-                # 权重计算
                 match_score = 0
                 is_match = True
                 for t in terms:
@@ -103,11 +130,9 @@ if tr_url and tr_user and tr_pw:
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
-                    # 🤫 内容品质权重
                     quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
                     results.append((match_score + quality_weight, f_path, c, user_info))
 
-            # ✨ 排序逻辑：匹配度优先，其次路径 A-Z
             results.sort(key=lambda x: (-x[0], x[1]))
 
             if not results:
@@ -157,5 +182,4 @@ if tr_url and tr_user and tr_pw:
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
-# ✨ 【小火箭】：24px 比例刚好，提示文字也改为简体
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
