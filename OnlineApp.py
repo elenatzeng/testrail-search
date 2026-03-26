@@ -7,13 +7,13 @@ from keywords import SEARCH_DICTIONARY
 
 # 1. 頁面初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
-apply_custom_style() # 🟢 執行永夜 CSS
+apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與按鈕 (守護妳所有的功能)
+# 2. 側邊欄守護 (連線資訊與按鈕)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -38,7 +38,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 🟢 搜尋區 (功能按鈕鎖死回歸)
+        # 搜尋功能區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -65,14 +65,15 @@ if tr_url and tr_user and tr_pw:
                         is_match = False; break
                 
                 if is_match:
-                    # 🚀 權重回歸：根據作者權重與內容長度計算
-                    u_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    raw_content = str(c.get('custom_steps') or c.get('custom_steps_separated') or "")
-                    # 如果內容太短可能是無效 Case，給負分
-                    score = (10000 + u_info.get("weight", 0)) if len(raw_content) > 10 else -50000
-                    results.append((score, c, u_info))
+                    # 🚀 排序靈魂：取得使用者權重
+                    user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    # 權重算法：10000 + 使用者自訂權重 (如果內容太短則扣分)
+                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
+                    content_len = len(str(steps_raw))
+                    weight_score = (10000 + user_info.get("weight", 0)) if content_len > 10 else -50000
+                    results.append((weight_score, c, user_info))
 
-            # 🔥 排序鎖死：高權重排在最前面！
+            # 🔥 關鍵動作：根據權重由高到低排序！
             results.sort(key=lambda x: x[0], reverse=True)
 
             for _, item, u in results:
@@ -84,13 +85,13 @@ if tr_url and tr_user and tr_pw:
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("查閱測試步驟", expanded=False):
-                    steps_raw = item.get('custom_steps') or item.get('custom_steps_separated')
+                    steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
                     
-                    def pixel_render(text):
+                    def layer_render(text):
                         if not text: return ""
-                        # 1. 圖片蒸發
+                        # 1. 蒸發圖片
                         text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
-                        # 2. 階層斷行
+                        # 2. 階層斷行處理
                         lines = text.splitlines()
                         html_out = ""
                         for line in lines:
@@ -103,10 +104,10 @@ if tr_url and tr_user and tr_pw:
                             html_out += f'<div style="{style}">{s}</div>'
                         return html_out
 
-                    if isinstance(steps_raw, list) and len(steps_raw) > 0:
-                        for s_idx, s in enumerate(steps_raw, 1):
-                            c_html = pixel_render(s.get('content', ''))
-                            e_html = pixel_render(s.get('expected', ''))
+                    if isinstance(steps_data, list) and len(steps_data) > 0:
+                        for s_idx, s in enumerate(steps_data, 1):
+                            c_html = layer_render(s.get('content', ''))
+                            e_html = layer_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
                             green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;"
