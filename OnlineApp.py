@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化 (✨ 這裡幫妳加上 initial_sidebar_state="expanded" 確保同事點開也會自動彈出)
+# 1. 頁面初始化 (強制預設展開側欄，解決同事漆黑一片的問題)
 st.set_page_config(
     page_title="TestRail AI Search", 
     layout="wide", 
@@ -41,7 +41,7 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # ✨ 【長駐搜尋框優化】搜尋框與 Project 資訊獨立於搜尋文字判斷之外，確保永遠顯示
+        # ✨ 搜尋框與 Project 資訊獨立於判斷式之外，確保按「清除」後依然長駐
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
@@ -49,14 +49,13 @@ if tr_url and tr_user and tr_pw:
         
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            # 使用 search_box 作為 key 確保狀態穩定
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="輸入關鍵字查詢...", label_visibility="collapsed", key="search_box")
             st.session_state.q_text = q_input
             
         with col_c:
             if st.button("🗑️ 清除條件", use_container_width=True): 
                 st.session_state.q_text = ""
-                st.rerun() # 強制刷新以清空搜尋結果，但保留搜尋框
+                st.rerun() 
         with col_r:
             if st.button("🔎 重新查詢", use_container_width=True): st.rerun()
 
@@ -99,10 +98,9 @@ if tr_url and tr_user and tr_pw:
                     c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                     c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                     
-                    # ✨ 3. 第三行：展開按鈕
+                    # ✨ 3. 第三行：展開按鈕 (內文鎖定 13px)
                     with st.expander("查閱測試步驟", expanded=False):
                         steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
-                        
                         def final_render(text):
                             if not text: return "(無內容)"
                             text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
@@ -112,7 +110,6 @@ if tr_url and tr_user and tr_pw:
                                 s = line.strip()
                                 if not s: continue
                                 is_list = re.match(r'^([•\-\*]|\d+\.)', s)
-                                # ✨ 內文鎖定 13px
                                 style = "margin-bottom:4px; display:block; font-size:13px;"
                                 if is_list: style += "padding-left:18px;"
                                 html_out += f'<div style="{style}">{s}</div>'
@@ -135,11 +132,10 @@ if tr_url and tr_user and tr_pw:
                             st.markdown('<div class="no-content-hint">💡 (無文字內容)</div>', unsafe_allow_html=True)
                     st.markdown("---")
         else:
-            # ✨ 沒有搜尋文字時顯示引導文案，讓畫面不漆黑
+            # ✨ 沒搜尋時顯示引導文案
             st.markdown('<div style="color:#484f58; margin-top:50px; text-align:center; font-style: italic;">請輸入關鍵字開始檢索...</div>', unsafe_allow_html=True)
 
 else:
-    # 提醒輸入資料
     st.info("👈 請先在左側完成連線設定。")
 
 st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
