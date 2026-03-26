@@ -14,7 +14,7 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【消滅紅框空隙】核心修正：收起時內容全螢幕吸附 */
+        /* 🚀 【消滅紅框空隙】當側邊欄收合時，強制讓側欄邊框消失並讓內容吸附 */
         [data-testid="stAppViewContainer"][data-collapsed="true"] [data-testid="stSidebar"] {
             margin-left: -300px !important;
             border: none !important;
@@ -26,7 +26,7 @@ def apply_custom_style():
             width: 100vw !important;
         }
 
-        /* 🚀 主內容區置中與動畫 */
+        /* 🚀 主內容區置中 */
         [data-testid="stAppViewContainer"] .block-container {
             max-width: 92% !important;
             margin: 0 auto !important;
@@ -34,26 +34,7 @@ def apply_custom_style():
             transition: all 0.3s ease-in-out !important;
         }
 
-        /* 🚀 【綠色 Open Case 按鈕】鎖死樣式（無底線） */
-        .view-btn {
-            display: inline-block !important;
-            padding: 8px 18px !important;
-            background-color: #2ea44f !important;
-            color: white !important;
-            border-radius: 8px !important;
-            text-decoration: none !important;
-            font-size: 14px !important;
-            font-weight: bold !important;
-            border: none !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-        }
-        .view-btn:hover {
-            background-color: #3fb950 !important;
-            text-decoration: none !important;
-            transform: scale(1.05);
-        }
-
-        /* 🚀 【救援按鈕】樣式統一：固定在左上角 */
+        /* 🚀 【修正左上角重疊白圈】美化展開按鈕 */
         button[kind="header"] {
             position: fixed !important;
             left: 12px !important;
@@ -68,14 +49,13 @@ def apply_custom_style():
             align-items: center;
             justify-content: center;
         }
+        /* 收合按鈕樣式同步 */
         [data-testid="stSidebarCollapseButton"] button {
             width: 42px !important;
             height: 42px !important;
             background-color: rgba(255, 255, 255, 0.1) !important;
             border-radius: 50% !important;
         }
-
-        /* 修正圖示顏色 */
         button[kind="header"] svg, [data-testid="stSidebarCollapseButton"] svg {
             fill: white !important;
             color: white !important;
@@ -83,25 +63,44 @@ def apply_custom_style():
             height: 22px !important;
         }
 
-        /* 🛡️ 隱藏系統白線與雜物 */
+        /* 🚀 【綠色 Open Case 按鈕】鎖死樣式（無底線） */
+        .view-btn {
+            display: inline-block !important;
+            padding: 8px 18px !important;
+            background-color: #2ea44f !important; /* 紮實綠色 */
+            color: white !important;
+            border-radius: 8px !important;
+            text-decoration: none !important; /* 🔥 消滅底線 */
+            font-size: 14px !important;
+            font-weight: bold !important;
+            border: none !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+        }
+        .view-btn:hover {
+            background-color: #3fb950 !important;
+            text-decoration: none !important; /* 懸停也不准有底線 */
+            transform: scale(1.05);
+        }
+
+        /* 🛡️ 隱藏系統雜物與白線 */
         hr, .stMarkdown hr { display: none !important; }
         header, [data-testid="stHeader"] { background: transparent !important; }
         #MainMenu, footer { display: none !important; }
 
-        /* 🚀 側邊欄寬度 */
-        [data-testid="stSidebar"]:not([data-collapsed="true"]) {
-            min-width: 300px !important;
-            max-width: 300px !important;
+        /* 🔥 黑盒子鎖死 */
+        .content-box {
+            background: #1c2128 !important;
+            border: 1px solid #30363d !important;
+            border-radius: 12px;
+            padding: 18px 20px;
         }
-
-        /* 🚀 名字標籤與黑盒子 */
-        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; }
-        .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
-        .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 18px 20px; }
         .content-box *, .inner-text, .inner-text * { background: transparent !important; color: #c9d1d9 !important; }
         
+        /* 火箭與標籤 */
+        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; }
+        .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .scroll-to-top { position: fixed; top: 50% !important; right: 15px !important; transform: translateY(-50%) !important; width: 42px !important; height: 42px !important; background-color: #f77f00 !important; color: white !important; border-radius: 50% !important; z-index: 99999 !important; }
-        img, [data-testid="stImage"] { display: none !important; }
         .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
+        img, [data-testid="stImage"] { display: none !important; }
         </style>
     """, unsafe_allow_html=True)
