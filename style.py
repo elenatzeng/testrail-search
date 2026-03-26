@@ -14,27 +14,13 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
         
-        /* 2. 🛡️ 隱藏選單與工具列，防止手動切換 */
+        /* 2. 🛡️ 隱藏選單與工具列 */
         header, #MainMenu, footer, [data-testid="stToolbar"] {
             visibility: hidden;
             height: 0;
         }
-
-        /* 3. 🔥 核心修正：究極縮小左側與右側的間距 ( image_14.png 指示) */
-        /* 把側邊欄寬度縮小，並把右側區域的 padding 移除 */
-        [data-testid="stSidebar"] {
-            width: 280px !important; # 縮小側邊欄寬度
-        }
-        [data-testid="stAppViewContainer"] > .main {
-            padding-left: 20px !important; # 縮小左側 padding
-            padding-right: 20px !important;
-        }
-        /* 縮小 columns 之間的 gap */
-        div[data-testid="stVerticalBlock"] > div > div[data-testid="stHorizontalBlock"] {
-            gap: 10px !important;
-        }
-
-        /* 4. 🟢 恢復漂亮的黑盒子與靈魂綠線 */
+        
+        /* 3. 🔥 核心修正：抹除黑盒子裡所有文字容器的白底 ( image_16.png 指示) */
         .step-container {
             border-left: 4px solid #4CAF50 !important;
             padding-left: 20px;
@@ -43,25 +29,27 @@ def apply_custom_style():
             display: block;
         }
         
-        /* 🔥 文字絕對去白鎖死樣式 */
         .content-box {
-            background: #1c2128 !important; # 鎖死黑盒子深灰
+            background: #1c2128 !important; # 黑盒子基礎深灰
             border: 1px solid #30363d !important;
             border-radius: 12px;
-            padding: 15px 20px;
+            padding: 18px 20px;
             color: #c9d1d9 !important;
             font-size: 14px;
             line-height: 1.7;
             white-space: pre-wrap;
+            display: block;
+            width: 100%;
         }
-        /* 精準地毯式去白：content-box 下的所有文字容器 */
-        .content-box div, .content-box p, .content-box span {
-            background-color: #1c2128 !important; # 強制鎖死背景色，不讓 st.markdown 亂加白底
-            background: #1c2128 !important;
+
+        /* 🚀 終極文字去白核彈：強制 content-box 下所有文字容器背景變透明 */
+        .content-box div, .content-box p, .content-box span, .content-box pre, .content-box code {
+            background-color: transparent !important; # 徹底抹除白底
+            background: transparent !important;
             color: #c9d1d9 !important; # 鎖死文字顏色
         }
 
-        /* 5. Expander 標題區美化與鎖死深色 */
+        /* 4. Expander 標題區美化 */
         .streamlit-expanderHeader {
             background-color: #161b22 !important;
             border-radius: 8px !important;
@@ -69,7 +57,7 @@ def apply_custom_style():
             color: #adb5bd !important;
         }
         
-        /* 6. 文字顏色修正 */
+        /* 5. 文字顏色修正 */
         h1, h2, h3, p, span, label {
             color: #adb5bd !important;
         }
@@ -77,7 +65,7 @@ def apply_custom_style():
             color: #adb5bd !important;
         }
         
-        /* 7. 按鈕與輸入框深色美化 (💾, 🔄 按鈕回歸) */
+        /* 6. 按鈕與輸入框深色美化 (💾, 🔄 按鈕回歸) */
         .stTextInput>div>div>input, .stButton>button, .stNumberInput input {
             background-color: #21262d !important;
             color: #c9d1d9 !important;
@@ -85,7 +73,7 @@ def apply_custom_style():
             border-radius: 6px !important;
         }
         
-        /* 8. 📸 圖片与破圖徹底消失術 ( image_4.png 指示) */
+        /* 7. 📸 圖片彻底蒸發 ( image_4.png 指示) */
         img, [data-testid="stImage"] { display: none !important; }
         
         /* 其他 UI 元件 */
