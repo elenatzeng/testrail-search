@@ -14,48 +14,57 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【消滅紅框空隙】當側邊欄收合時，強制讓側欄邊框消失並讓內容吸附 */
-        [data-testid="stAppViewContainer"][data-collapsed="true"] [data-testid="stSidebar"] {
-            margin-left: -300px !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
+        /* 🚀 【核心修正】消滅重疊的白色按鈕，讓內容吸附左側 */
+        /* 當側邊欄收合時 (data-collapsed="true") */
         [data-testid="stAppViewContainer"][data-collapsed="true"] .main {
             padding-left: 0 !important;
             margin-left: 0 !important;
-            width: 100vw !important;
+            max-width: 100vw !important; /* 強制寬度填滿 */
+        }
+        
+        [data-testid="stAppViewContainer"] .main {
+            transition: all 0.3s ease-in-out !important; /* 讓內容滑動順滑 */
         }
 
-        /* 🚀 主內容區置中 */
+        /* 讓內容區塊在任何狀態下都保持漂亮置中，但不鎖死左邊 */
         [data-testid="stAppViewContainer"] .block-container {
-            max-width: 92% !important;
-            margin: 0 auto !important;
-            padding-top: 3.5rem !important; 
-            transition: all 0.3s ease-in-out !important;
+            max-width: 90% !important;
+            padding-top: 3.5rem !important; /* 為左上角按鈕騰出空間 */
+            margin: 0 auto !important; /* 負責水平置中 */
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
         }
 
-        /* 🚀 【修正左上角重疊白圈】美化展開按鈕 */
+        /* 🚀 【自定義 >> 按鈕】定位在左上角，消滅白色頭像按鈕 */
         button[kind="header"] {
             position: fixed !important;
-            left: 12px !important;
-            top: 12px !important;
-            z-index: 1000000 !important;
-            width: 42px !important;
-            height: 42px !important;
-            background-color: rgba(255, 255, 255, 0.2) !important;
-            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            left: 15px !important;
+            top: 15px !important;
+            z-index: 999999 !important; /* 確保在最上層 */
+            width: 40px !important;
+            height: 40px !important;
+            background-color: rgba(255, 255, 255, 0.1) !important;
             border-radius: 50% !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
             display: flex !important;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
         }
-        /* 收合按鈕樣式同步 */
+
+        /* 將原本的白色頭像按鈕藏掉 */
+        .sc-fqkvSm.CAsgW { display: none !important; }
+
+        /* 當側邊欄展開時 (<<按鈕) 樣式統一 */
         [data-testid="stSidebarCollapseButton"] button {
-            width: 42px !important;
-            height: 42px !important;
+            width: 40px !important;
+            height: 40px !important;
             background-color: rgba(255, 255, 255, 0.1) !important;
             border-radius: 50% !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
         }
+
+        /* 按鈕內部的圖示顏色 (<< 和 >> 都變成白色) */
         button[kind="header"] svg, [data-testid="stSidebarCollapseButton"] svg {
             fill: white !important;
             color: white !important;
@@ -63,44 +72,45 @@ def apply_custom_style():
             height: 22px !important;
         }
 
-        /* 🚀 【綠色 Open Case 按鈕】鎖死樣式（無底線） */
-        .view-btn {
-            display: inline-block !important;
-            padding: 8px 18px !important;
-            background-color: #2ea44f !important; /* 紮實綠色 */
-            color: white !important;
-            border-radius: 8px !important;
-            text-decoration: none !important; /* 🔥 消滅底線 */
-            font-size: 14px !important;
-            font-weight: bold !important;
-            border: none !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-        }
-        .view-btn:hover {
-            background-color: #3fb950 !important;
-            text-decoration: none !important; /* 懸停也不准有底線 */
-            transform: scale(1.05);
-        }
-
-        /* 🛡️ 隱藏系統雜物與白線 */
-        hr, .stMarkdown hr { display: none !important; }
+        /* 🛡️ 隱藏雜物 */
         header, [data-testid="stHeader"] { background: transparent !important; }
         #MainMenu, footer { display: none !important; }
 
-        /* 🔥 黑盒子鎖死 */
-        .content-box {
-            background: #1c2128 !important;
-            border: 1px solid #30363d !important;
-            border-radius: 12px;
-            padding: 18px 20px;
+        /* 🚀 側邊欄寬度設定 */
+        [data-testid="stSidebar"] {
+            min-width: 300px !important;
+            max-width: 300px !important;
         }
+
+        /* 🚀 標題與標籤 (15px / 13px) */
+        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; vertical-align: middle; }
+        .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
+        .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 18px 20px; }
         .content-box *, .inner-text, .inner-text * { background: transparent !important; color: #c9d1d9 !important; }
         
-        /* 火箭與標籤 */
-        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; }
-        .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
-        .scroll-to-top { position: fixed; top: 50% !important; right: 15px !important; transform: translateY(-50%) !important; width: 42px !important; height: 42px !important; background-color: #f77f00 !important; color: white !important; border-radius: 50% !important; z-index: 99999 !important; }
-        .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
+        /* 🔥 鎖死黑盒子，清除不漆黑 */
+        #search_box_no_content, .no-content-hint {
+            color: transparent !important; background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; height: 0 !important; overflow: hidden !important;
+        }
+
+        /* 火箭回到頂部 (修正位置) */
+        .scroll-to-top {
+            position: fixed;
+            top: 50% !important;
+            right: 15px !important;
+            transform: translateY(-50%) !important;
+            width: 42px !important;
+            height: 42px !important;
+            background-color: #f77f00 !important;
+            color: white !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999 !important;
+        }
+
         img, [data-testid="stImage"] { display: none !important; }
+        .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
         </style>
     """, unsafe_allow_html=True)
