@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 初始化
+# 1. 頁面初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
@@ -79,43 +79,38 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 眾生平等究極渲染器：對所有換行標記進行爆破替換
-                    def ultimate_render(text):
+                    # 🔥 眾生平等渲染器：強制捕捉所有形式的換行並「切碎」它們
+                    def pixel_render(text):
                         if not text: return ""
-                        # 強行轉字串並處理圖片
-                        text = str(text)
-                        text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
-                        
-                        # 把 Markdown/HTML 的各種換行符號全部換成 HTML 的 <br>
-                        text = text.replace('\r\n', '\n').replace('\r', '\n')
-                        lines = text.split('\n')
-                        
-                        processed = []
+                        # 圖片佔位
+                        text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', str(text)).strip()
+                        # 將文字按行切開
+                        lines = text.splitlines()
+                        processed_html = ""
                         for l in lines:
                             s = l.strip()
-                            # 脫水：過濾廢行
+                            # 脫水廢行
                             if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
-                            processed.append(s)
-                            
-                        return "<br>".join(processed)
+                            # 關鍵：每一行都包在 p 標籤裡，並加上 margin 確保視覺上有斷開
+                            processed_html += f'<p style="margin-bottom:8px; line-height:1.6;">{s}</p>'
+                        return processed_html
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            # 對 Step 和 Expected 用同樣的爆破邏輯處理
-                            c_html = ultimate_render(s.get('content', ''))
-                            e_html = ultimate_render(s.get('expected', ''))
+                            c_html = pixel_render(s.get('content', ''))
+                            e_html = pixel_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
                             # 🟢 靈魂綠線絕對鎖死：結構性包圍標題與內容
                             green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;"
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; word-break:break-all;"
                             
                             st.markdown(f'''
                                 <div style="{green_line_style}">
-                                    <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_html if c_html else "(無操作內容)"}</div>
-                                    <div style="color:white; font-weight:bold; margin-top:15px; margin-bottom:8px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_html if e_html else "(無預期結果)"}</div>
+                                    <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
+                                    <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
+                                    <div style="color:white; font-weight:bold; margin-top:18px; margin-bottom:10px; font-size:16px;">Expected:</div>
+                                    <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
