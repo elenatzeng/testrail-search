@@ -14,7 +14,7 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【停機坪】在最頂端放置錨點，火箭點擊後才能飛回來
+# ✨ 停機坪錨點 (置於最頂端)
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
@@ -34,7 +34,8 @@ with st.sidebar:
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
     if st.button("🔄 強制刷新數據", use_container_width=True):
-        st.cache_data.clear(); st.rerun()
+        st.cache_data.clear()
+        st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
@@ -43,22 +44,25 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # ✨ 顯示 Project 資訊
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
         # 搜尋列佈局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
-        if "q_text" not in st.session_state: 
+        
+        if "q_text" not in st.session_state:
             st.session_state.q_text = ""
-            
+
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
+            # 這裡透過 key="search_box" 綁定，但 value 使用 session_state.q_text
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="輸入關鍵字查詢...", label_visibility="collapsed", key="search_box")
             st.session_state.q_text = q_input
             
         with col_c:
+            # ✨ 【修正清除功能】：強制清空 session_state 並觸發 rerun
             if st.button("🗑️ 清除條件", use_container_width=True): 
                 st.session_state.q_text = ""
+                st.session_state.search_box = "" # 同步清空 widget 內部狀態
                 st.rerun() 
         with col_r:
             if st.button("🔎 重新查詢", use_container_width=True): 
@@ -72,51 +76,55 @@ if tr_url and tr_user and tr_pw:
             for c in all_cases:
                 title, cid = str(c.get('title', '')), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
+                
+                match_score = 0
                 is_match = True
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    if not (any(w in (title.lower() + f_path.lower()) for w in exp) or any(w == cid for w in exp)):
+                    # 第一層：標題或 ID 匹配 (權重高)
+                    title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
+                    # 第二層：路徑匹配 (權重低)
+                    path_match = any(w in f_path.lower() for w in exp)
+                    
+                    if title_match: match_score += 10
+                    elif path_match: match_score += 1
+                    else:
                         is_match = False; break
                 
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
-                    weight_score = (10000 + user_info.get("weight", 0)) if len(str(steps_raw)) > 10 else -50000
-                    results.append((weight_score, c, user_info))
+                    # 🤫 妳的小秘密排序邏輯 (內容長度權重)
+                    quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
+                    total_score = match_score + quality_weight
+                    
+                    results.append((total_score, f_path, c, user_info))
 
-            results.sort(key=lambda x: x[0], reverse=True)
+            # ✨ 【排序邏輯】：匹配度 & 品質優先，其次按路徑 A-Z
+            results.sort(key=lambda x: (-x[0], x[1]))
 
             if not results:
                 st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的測試案例。</div>', unsafe_allow_html=True)
             else:
-                for _, item, u in results:
+                for _, path, item, u in results:
                     cid = str(item.get('id'))
-                    # 目錄路徑
-                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
-                    
-                    # 作者標籤
+                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
                     tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                     
                     c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                    
-                    # ✨ 【核心】標題 20px 鎖死
                     c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
-                    
-                    # ✨ 綠色按鈕 (無底線)
                     c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
                     
-                    # 展開步驟
                     with st.expander("查閱測試步驟", expanded=False):
                         steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
                         def final_render(text):
                             if not text: return "(無內容)"
                             text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
                             lines = text.splitlines()
-                            html_out = '<div class="inner-text" style="font-weight: 400;">' # 👈 內文不粗體
+                            html_out = '<div class="inner-text" style="font-weight: 400;">'
                             for line in lines:
                                 s = line.strip()
                                 if not s: continue
-                                # ✨ 列表判斷
                                 is_list = re.match(r'^([•\-\*]|\d+\.)', s)
                                 style = "margin-bottom:4px; display:block; font-size:14px;"
                                 if is_list: style += "padding-left:18px;"
@@ -128,7 +136,6 @@ if tr_url and tr_user and tr_pw:
                             for s_idx, s in enumerate(steps_data, 1):
                                 c_html = final_render(s.get('content', ''))
                                 e_html = final_render(s.get('expected', ''))
-                                # ✨ 這裡套用 style.py 定義的 content-box (黑盒子)
                                 st.markdown(f'''
                                     <div style="border-left:4px solid #2ea44f; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
                                         <div style="color:#8b949e; font-weight:500; margin-bottom:10px; font-size:13px;">Step {s_idx}:</div>
@@ -145,4 +152,5 @@ if tr_url and tr_user and tr_pw:
 else:
     st.info("👈 請先在左側完成連線設定。")
 
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 12px;">🚀</span></a>', unsafe_allow_html=True)
+# ✨ 【修正後的小火箭】：字體 22px 在圓圈裡比例最完美
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 22px;">🚀</span></a>', unsafe_allow_html=True)
