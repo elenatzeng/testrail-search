@@ -13,8 +13,20 @@ def apply_custom_style():
             background-size: 550px 550px, 350px 350px, 250px 250px !important;
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
+
+        /* 🚀 【新加入】縮小左側邊欄與主內容的間距 ( image_d3134c 需求) */
+        [data-testid="stAppViewContainer"] > .main {
+            padding-left: 2rem !important;   /* 原本預設很大，調小後內容會往左靠 */
+            padding-right: 2rem !important;
+        }
+        /* 同步調整內部容器寬度，讓整體看起來更緊湊 */
+        [data-testid="stAppViewContainer"] .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            max-width: 95% !important;
+        }
         
-        /* 🛡️ 封鎖系統白邊：隱藏選單與工具列，強制背景漆黑 */
+        /* 🛡️ 封鎖系統白邊：隱藏選單與工具列 */
         header, [data-testid="stHeader"], #MainMenu, footer, [data-testid="stToolbar"] {
             visibility: hidden !important;
             height: 0 !important;
@@ -43,43 +55,28 @@ def apply_custom_style():
             display: block !important;
         }
 
-        /* 🚀 火箭回到頂部按鈕 - 固定在右邊中間 */
+        /* 🚀 火箭回到頂部按鈕 */
         .scroll-to-top {
-            position: fixed;
-            top: 50% !important;
-            right: 15px !important;
+            position: fixed; top: 50% !important; right: 15px !important;
             transform: translateY(-50%) !important;
-            width: 42px !important;
-            height: 42px !important;
-            background-color: #f77f00 !important;
-            color: white !important;
-            border-radius: 50% !important;
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px !important;
-            text-decoration: none !important;
-            z-index: 99999 !important;
-            box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
+            width: 42px !important; height: 42px !important;
+            background-color: #f77f00 !important; color: white !important;
+            border-radius: 50% !important; display: flex !important;
+            align-items: center; justify-content: center;
+            font-size: 20px !important; text-decoration: none !important;
+            z-index: 99999 !important; box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
             border: none !important;
         }
 
         /* ✨ 火箭提示氣泡 */
         .scroll-to-top::after {
             content: "回到最頂";
-            position: absolute;
-            right: 55px;
-            top: 50%;
+            position: absolute; right: 55px; top: 50%;
             transform: translateY(-50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
+            background-color: rgba(0, 0, 0, 0.8); color: white;
+            padding: 5px 10px; border-radius: 6px; font-size: 12px;
+            white-space: nowrap; opacity: 0;
+            transition: opacity 0.3s ease; pointer-events: none;
             border: 1px solid #f77f00;
         }
         .scroll-to-top:hover::after { opacity: 1; }
@@ -90,14 +87,13 @@ def apply_custom_style():
 
         .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
         
-        /* 🔥 去白鎖死補強：確保盒子內文字背景絕對透明 */
+        /* 🔥 去白鎖死補強 */
         .content-box {
             background: #1c2128 !important;
             border: 1px solid #30363d !important;
             border-radius: 12px;
             padding: 18px 20px;
         }
-        /* 精準鎖死所有子標籤背景，不准變白 */
         .content-box *, .inner-text, .inner-text * {
             background: transparent !important;
             background-color: transparent !important;
