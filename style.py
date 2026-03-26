@@ -14,34 +14,33 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🛡️ 封鎖系統白條，但保留一點操作空間 */
+        /* 🛡️ 封鎖系統白條，騰出按鈕空間 */
         header, [data-testid="stHeader"], #MainMenu, footer {
             visibility: hidden !important;
             height: 0 !important;
         }
 
-        /* 🛠️ 【絕對顯影按鈕】讓妳收起來後一定找得到它 */
+        /* 🛠️ 【絕對顯影：收合按鈕】強制出現在畫面上 */
         [data-testid="stSidebarCollapseButton"] {
-            display: flex !important;
-            background-color: rgba(0, 0, 0, 0.8) !important; /* 深黑底，不透光 */
-            color: #32CD32 !important;                       /* 螢光綠箭頭 */
-            border: 2px solid #32CD32 !important;            /* 螢光綠粗邊框 */
-            border-radius: 10px !important;
             position: fixed !important;
-            top: 60px !important;    /* 往下挪 60px，避開死角 */
-            left: 20px !important;   /* 離左邊 20px */
-            z-index: 9999999 !important;
-            width: 45px !important;
-            height: 45px !important;
-            box-shadow: 0 0 15px rgba(50, 205, 50, 0.6) !important; /* 螢光綠光暈 */
+            top: 20px !important;     /* 距離頂部 20px */
+            left: 20px !important;    /* 距離左側 20px */
+            display: flex !important; /* 強制顯示 */
+            z-index: 10000000 !important;
+            background-color: #f77f00 !important; /* 橘色，讓妳一眼看到 */
+            color: white !important;
+            border-radius: 8px !important;
+            width: 40px !important;
+            height: 40px !important;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px rgba(247, 127, 0, 0.7) !important;
+            border: 2px solid white !important;
         }
         
-        /* 💡 懸停效果：亮到妳受不了 */
         [data-testid="stSidebarCollapseButton"]:hover {
-            background-color: #32CD32 !important;
-            color: black !important;
-            box-shadow: 0 0 25px rgba(50, 205, 50, 1) !important;
-            transform: scale(1.1);
+            transform: scale(1.1) !important;
+            background-color: #ff9f1c !important;
         }
 
         /* 🚀 究極縮小主內容間距 */
@@ -51,17 +50,19 @@ def apply_custom_style():
         [data-testid="stAppViewContainer"] .block-container {
             padding-left: 0.5rem !important;
             max-width: 98% !important;
-            padding-top: 5rem !important; /* 避免標題撞到收合按鈕 */
+            padding-top: 5rem !important; /* 給左上角按鈕留點空間 */
         }
 
-        /* 🚀 其他樣式鎖死 */
-        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; }
+        /* 🚀 標籤與按鈕樣式鎖死 */
+        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; font-weight: bold; }
+        
         .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 18px 20px; }
         .content-box *, .inner-text, .inner-text * { background: transparent !important; color: #c9d1d9 !important; }
         
-        .scroll-to-top { position: fixed; top: 50% !important; right: 15px !important; transform: translateY(-50%) !important; width: 42px !important; height: 42px !important; background-color: #f77f00 !important; color: white !important; border-radius: 50% !important; display: flex !important; align-items: center; justify-content: center; z-index: 99999 !important; box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important; }
+        /* 🚀 回到頂部火箭 */
+        .scroll-to-top { position: fixed; top: 50% !important; right: 15px !important; transform: translateY(-50%) !important; width: 42px !important; height: 42px !important; background-color: #f77f00 !important; color: white !important; border-radius: 50% !important; display: flex !important; align-items: center; justify-content: center; z-index: 99999 !important; }
         
         img, [data-testid="stImage"] { display: none !important; }
         .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; }
