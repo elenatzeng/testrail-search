@@ -5,9 +5,10 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化 (強制側邊欄永遠展開)
-st.set_page_config(page_title="TestRail AI Search", layout="wide", initial_sidebar_state="expanded")
+# 1. 頁面初始化 (強制側邊欄永遠展開，layout wide)
+st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪", initial_sidebar_state="expanded")
 apply_custom_style()
+st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
@@ -72,14 +73,21 @@ if tr_url and tr_user and tr_pw:
 
             for _, item, u in results:
                 cid = str(item.get('id'))
+                
+                # ✨ 1. 第一行：路徑 (font-size 13px，獨立不黏在一起)
                 st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
+                
                 tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
+                
+                # ✨ 2. 第二行：標題 (font-size 15px，margin-bottom 確保不重疊)
                 c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
+                # ✨ 3. 第三行：展開按鈕
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
+                    
                     def final_render(text):
                         if not text: return "(無內容)"
                         text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
@@ -88,7 +96,10 @@ if tr_url and tr_user and tr_pw:
                         for line in lines:
                             s = line.strip()
                             if not s: continue
+                            is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                            # ✨ 內文字體設定為 13px
                             style = "margin-bottom:4px; display:block; font-size:13px;"
+                            if is_list: style += "padding-left:18px;"
                             html_out += f'<div style="{style}">{s}</div>'
                         html_out += '</div>'
                         return html_out
@@ -98,11 +109,15 @@ if tr_url and tr_user and tr_pw:
                             c_html = final_render(s.get('content', ''))
                             e_html = final_render(s.get('expected', ''))
                             st.markdown(f'''
-                                <div style="border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px;">
+                                <div style="border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
                                     <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
                                     <div class="content-box">{c_html}</div>
                                     <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
                                     <div class="content-box">{e_html}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="no-content-hint">💡 (無文字內容)</div>', unsafe_allow_html=True)
                 st.markdown("---")
+
+    st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
