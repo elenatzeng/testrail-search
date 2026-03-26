@@ -14,23 +14,29 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【新加入】縮小左側邊欄與主內容的間距 */
+        /* 🚀 【究極縮小】側邊欄與主內容的間距 */
         [data-testid="stAppViewContainer"] > .main {
-            padding-left: 1rem !important;   /* 原本預設很大，調小後內容會往左靠 */
-            padding-right: 2rem !important;
-        }
-        /* 同步調整內部容器寬度，讓整體看起來更緊湊 */
-        [data-testid="stAppViewContainer"] .block-container {
-            padding-left: 1rem !important;
+            padding-left: 1rem !important;   /* 這裡從 2rem 改成 1rem，讓內容更靠左 */
             padding-right: 1rem !important;
-            max-width: 95% !important;
         }
         
-        /* 🛡️ 封鎖系統白邊：隱藏選單與工具列 */
+        /* 縮小內部容器的左右留白，讓內容利用率更高 */
+        [data-testid="stAppViewContainer"] .block-container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+            max-width: 98% !important;  /* 讓寬度撐得更開 */
+            padding-top: 2rem !important;
+        }
+        
+        /* 側邊欄寬度固定 */
+        [data-testid="stSidebar"] {
+            width: 280px !important; 
+        }
+        
+        /* 🛡️ 封鎖系統白邊 */
         header, [data-testid="stHeader"], #MainMenu, footer, [data-testid="stToolbar"] {
             visibility: hidden !important;
             height: 0 !important;
-            background-color: #0b0e14 !important;
         }
         
         /* 🚀 名字標籤樣式 */
