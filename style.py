@@ -3,8 +3,8 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 靈魂星空背景 */
-        .stApp {
+        /* 🌌 靈魂星空背景 - 鎖死深色底層 */
+        .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
             background-color: #0b0e14 !important;
             background-image: 
                 radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
@@ -12,6 +12,13 @@ def apply_custom_style():
                 radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px) !important;
             background-size: 550px 550px, 350px 350px, 250px 250px !important;
             background-position: 0 0, 40px 60px, 130px 270px !important;
+        }
+        
+        /* 🛡️ 封鎖系統白邊：隱藏選單與工具列，強制背景漆黑 */
+        header, [data-testid="stHeader"], #MainMenu, footer, [data-testid="stToolbar"] {
+            visibility: hidden !important;
+            height: 0 !important;
+            background-color: #0b0e14 !important;
         }
         
         /* 🚀 名字標籤樣式 */
@@ -36,7 +43,7 @@ def apply_custom_style():
             display: block !important;
         }
 
-        /* 🚀 火箭回到頂部按鈕 */
+        /* 🚀 火箭回到頂部按鈕 - 固定在右邊中間 */
         .scroll-to-top {
             position: fixed;
             top: 50% !important;
@@ -83,18 +90,25 @@ def apply_custom_style():
 
         .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
         
-        /* 🔥 去白鎖死補強 */
+        /* 🔥 去白鎖死補強：確保盒子內文字背景絕對透明 */
         .content-box {
             background: #1c2128 !important;
             border: 1px solid #30363d !important;
             border-radius: 12px;
             padding: 18px 20px;
         }
+        /* 精準鎖死所有子標籤背景，不准變白 */
         .content-box *, .inner-text, .inner-text * {
             background: transparent !important;
             background-color: transparent !important;
             color: #c9d1d9 !important;
         }
-        img { display: none !important; }
+        
+        /* 📸 圖片與破圖徹底消失 */
+        img, [data-testid="stImage"] { display: none !important; }
+        
+        /* 🛠️ 側邊欄與輸入框鎖死深色 */
+        [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #adb5bd !important; }
+        .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; }
         </style>
     """, unsafe_allow_html=True)
