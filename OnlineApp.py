@@ -145,5 +145,4 @@ if tr_url and tr_user and tr_pw:
 else:
     st.info("👈 請先在左側完成連線設定。")
 
-# ✨ 【精緻圓火箭】加入 title 屬性實現懸停 Tips，href 對應頂部停機坪
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端">🚀</a>', unsafe_allow_html=True)
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 12px;">🚀</span></a>', unsafe_allow_html=True)
