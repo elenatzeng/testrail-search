@@ -31,7 +31,7 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心抓取與搜尋邏輯
+# 3. 核心數據邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
@@ -79,37 +79,35 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 眾生平等渲染器：強制捕捉所有形式的換行並「切碎」它們
-                    def pixel_render(text):
+                    # 🔥 終極像素還原器：每一行都強行佔領 100% 寬度，絕不妥協
+                    def ultimate_pixel_fix(text):
                         if not text: return ""
-                        # 圖片佔位
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', str(text)).strip()
-                        # 將文字按行切開
+                        # 全面捕捉換行
                         lines = text.splitlines()
                         processed_html = ""
                         for l in lines:
                             s = l.strip()
-                            # 脫水廢行
                             if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
-                            # 關鍵：每一行都包在 p 標籤裡，並加上 margin 確保視覺上有斷開
-                            processed_html += f'<p style="margin-bottom:8px; line-height:1.6;">{s}</p>'
+                            # 關鍵：display: block + width: 100% 強制斷行
+                            processed_html += f'<div style="display:block; width:100%; clear:both; margin-bottom:10px; line-height:1.6;">{s}</div>'
                         return processed_html
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = pixel_render(s.get('content', ''))
-                            e_html = pixel_render(s.get('expected', ''))
+                            c_html = ultimate_pixel_fix(s.get('content', ''))
+                            e_html = ultimate_pixel_fix(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 靈魂綠線絕對鎖死：結構性包圍標題與內容
-                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; word-break:break-all;"
+                            # 🟢 靈魂綠線絕對鎖死：CSS 結構包圍
+                            green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block; overflow:hidden;"
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px;"
                             
                             st.markdown(f'''
-                                <div style="{green_line_style}">
-                                    <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
+                                <div style="{green_line_box}">
+                                    <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px; width:100%;">Step {s_idx}:</div>
                                     <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
-                                    <div style="color:white; font-weight:bold; margin-top:18px; margin-bottom:10px; font-size:16px;">Expected:</div>
+                                    <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px; width:100%;">Expected:</div>
                                     <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
