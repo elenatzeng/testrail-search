@@ -91,4 +91,14 @@ def apply_custom_style():
         }
         
         .scroll-to-top {
-            position: fixed; top: 50% !important; right:
+            position: fixed; top: 50% !important; right: 15px !important;
+            transform: translateY(-50%) !important;
+            width: 42px !important; height: 42px !important;
+            background-color: #f77f00 !important; color: white !important;
+            border-radius: 50% !important; display: flex !important; align-items: center; justify-content: center; z-index: 99999 !important;
+        }
+
+        img { display: none !important; }
+        .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
+        </style>
+    """, unsafe_allow_html=True)
