@@ -86,6 +86,10 @@ def apply_custom_style():
         }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
 
+        /* 🔥 黑盒子鎖死 */
+        .content-box {
+            background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 18px 20px;
+        }
         .content-box *, .inner-text, .inner-text * { background: transparent !important; color: #c9d1d9 !important; }
         
         .scroll-to-top {
