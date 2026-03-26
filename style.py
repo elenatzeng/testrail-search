@@ -2,12 +2,6 @@ import streamlit as st
 
 def apply_custom_style():
     st.markdown("""
-        <style>
-        /* 1. 🌌 全域永夜鎖死 */
-        .stApp, [data-testid="stSidebar"], .stAppViewContainer {
-            background-color: #0b0e14 !important;
-        }
-        
         /* 🌌 靈魂星空背景 */
         .stApp {
             background-color: #0b0e14 !important;
