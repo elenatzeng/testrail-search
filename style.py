@@ -80,4 +80,37 @@ def apply_custom_style():
             display: flex !important;
             align-items: center;
             justify-content: center;
-            font-
+            font-size: 20px !important;
+            text-decoration: none !important;
+            z-index: 99999 !important;
+            box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
+            border: none !important;
+        }
+
+        /* ✨ 火箭提示氣泡 */
+        .scroll-to-top::after {
+            content: "回到最頂";
+            position: absolute; right: 55px; top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white; padding: 5px 10px; border-radius: 6px;
+            font-size: 12px; white-space: nowrap; opacity: 0;
+            transition: opacity 0.3s ease; pointer-events: none;
+            border: 1px solid #f77f00;
+        }
+        .scroll-to-top:hover::after { opacity: 1; }
+        .scroll-to-top:hover {
+            transform: translateY(-50%) scale(1.1) !important;
+            box-shadow: 0 0 20px rgba(247, 127, 0, 0.8) !important;
+        }
+
+        .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
+        
+        /* 📸 圖片與破圖徹底消失 */
+        img, [data-testid="stImage"] { display: none !important; }
+        
+        /* 🛠️ 側邊欄與輸入框鎖死深色 */
+        [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #adb5bd !important; }
+        .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
+        </style>
+    """, unsafe_allow_html=True)
