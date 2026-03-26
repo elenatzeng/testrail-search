@@ -31,7 +31,7 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心數據邏輯
+# 3. 核心抓取與搜尋邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
@@ -54,7 +54,7 @@ if tr_url and tr_user and tr_pw:
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
-            img_regex = r'!\[\]\(index\.php\?/attachments/get/(\d+)\)'
+            img_pattern = r'!\[\]\(index\.php\?/attachments/get/\d+\)'
 
             for c in all_cases:
                 title, cid = str(c.get('title', '')), str(c.get('id'))
@@ -79,21 +79,19 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_raw = item.get('custom_steps') or item.get('custom_steps_separated')
                     
-                    # 🔥 終極渲染器：圖片還原 + 階層鎖死
-                    def image_and_layer_render(text):
+                    # 🔥 終極渲染器：圖片隱藏 + 階層鎖死
+                    def hierarchy_and_image_hide_render(text):
                         if not text: return ""
-                        # 1. 還原圖片：將 Markdown 圖片轉為漂亮的 HTML 圖片
-                        base_url = tr_url.strip('/')
-                        processed = re.sub(img_regex, 
-                            f'<img src="{base_url}/index.php?/attachments/get/\\1" style="max-width:100%; border-radius:10px; margin:10px 0; border:1px solid #30363d;">', 
-                            str(text))
+                        text = str(text)
+                        # ✨ 核心修正：降維打擊・隱藏術。直接將所有圖片標籤炸掉
+                        text = re.sub(img_pattern, '', text).strip()
                         
-                        # 2. 處理換行：保留原始層次
-                        lines = processed.splitlines()
+                        # 處理換行：保留原始階層
+                        lines = text.splitlines()
                         html_out = ""
                         for line in lines:
                             s = line.strip()
-                            if not s: continue
+                            if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
                             # 如果開頭是點點或編號，給予縮排樣式
                             is_list = re.match(r'^([•\-\*]|\d+\.)', s)
                             style = "margin-bottom:6px; display:block;"
@@ -104,8 +102,9 @@ if tr_url and tr_user and tr_pw:
 
                     if isinstance(steps_raw, list) and len(steps_raw) > 0:
                         for s_idx, s in enumerate(steps_raw, 1):
-                            c_html = image_and_layer_render(s.get('content', ''))
-                            e_html = image_and_layer_render(s.get('expected', ''))
+                            c_html = hierarchy_and_image_hide_render(s.get('content', ''))
+                            e_html = hierarchy_and_image_hide_render(s.get('expected', ''))
+                            if not c_html and not e_html: continue
                             
                             # 🟢 靈魂綠線絕對鎖死樣式
                             green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;"
@@ -114,9 +113,9 @@ if tr_url and tr_user and tr_pw:
                             st.markdown(f'''
                                 <div style="{green_line_box}">
                                     <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_html if c_html else "(無操作內容)"}</div>
+                                    <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_html if e_html else "(無預期結果)"}</div>
+                                    <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
