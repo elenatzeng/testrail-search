@@ -78,7 +78,7 @@ SEARCH_DICTIONARY = [
     ["maintenance", "維護中", "維護中", "service_maintain_text1", "game_main", "maintenance"],
 
     # --- [Crypto] 虛擬幣與加密貨幣 ---
-    ["crypto", "虛擬幣", "虛擬貨幣", "加密貨幣", "數字貨幣", "Cryptocurrency", "crypto_currency", "digitalAsset"],
+    ["crypto", "虛擬幣", "虛擬貨幣", "加密貨幣", "數字貨幣", "Crypto", "digitalAsset"],
     ["usdt", "泰達幣", "USDT", "usdt", "Tether", "tether_token"],
     ["btc", "比特幣", "BTC", "Bitcoin", "btc_token"],
     ["eth", "乙太幣", "以太坊", "ETH", "Ethereum", "eth_token"],
