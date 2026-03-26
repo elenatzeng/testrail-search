@@ -14,53 +14,52 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【核心修正】讓內容收起時完全靠左 */
+        /* 🚀 【消滅隱形牆】收起時內容完全靠左 */
         [data-testid="stAppViewContainer"][data-collapsed="true"] .main {
             padding-left: 0 !important;
             margin-left: 0 !important;
         }
-        
         [data-testid="stAppViewContainer"] .block-container {
             max-width: 92% !important;
-            padding-top: 2rem !important; 
             margin: 0 auto !important;
+            padding-top: 2rem !important; 
         }
 
-        /* 🚀 【懸浮 >> 按鈕】永遠靠右上 */
-        /* 當側邊欄收合時，Streamlit 的控制項會被搬移到這裡 */
+        /* 🚀 【右上角 >> 懸浮按鈕】強制捕獲 */
+        /* 使用 fixed 定位，脫離原本的 header 限制 */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important;
-            right: 20px !important; /* 靠右 */
-            top: 20px !important;   /* 靠上 */
-            left: auto !important;  /* 取消左邊定位 */
-            display: flex !important;
-            visibility: visible !important;
-            width: 45px !important;
-            height: 45px !important;
-            background-color: rgba(255, 255, 255, 0.2) !important;
+            right: 25px !important; 
+            top: 25px !important;   
+            background-color: #ffffff22 !important; /* 透明白 */
+            border: 2px solid #ffffff44 !important;
             border-radius: 50% !important;
-            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            width: 50px !important;
+            height: 50px !important;
+            display: flex !important;
             justify-content: center !important;
             align-items: center !important;
-            z-index: 1000001 !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6) !important;
+            z-index: 9999999 !important; /* 最高層級 */
             cursor: pointer !important;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2) !important;
+            visibility: visible !important;
         }
-        
-        /* 讓 >> 圖示變亮白色 */
+
+        /* 讓 >> 圖示變白變大 */
         [data-testid="stSidebarCollapsedControl"] svg {
             fill: white !important;
             color: white !important;
-            width: 24px !important;
-            height: 24px !important;
+            width: 28px !important;
+            height: 28px !important;
         }
 
-        /* 🚀 展開時的收合按鈕 (<<) 樣式統一 */
+        /* 🚀 展開時的收合按鈕 (<<) 也要變圓漂亮 */
         [data-testid="stSidebarCollapseButton"] button {
-            background-color: rgba(255, 255, 255, 0.1) !important;
+            background-color: #ffffff22 !important;
             border-radius: 50% !important;
-            width: 40px !important;
-            height: 40px !important;
+            width: 42px !important;
+            height: 42px !important;
+            border: 1px solid #ffffff44 !important;
         }
 
         /* 🚀 【綠色按鈕】鎖死無底線 */
@@ -73,17 +72,16 @@ def apply_custom_style():
             text-decoration: none !important;
             font-size: 14px !important;
             font-weight: bold !important;
-            border: none !important;
-        }
-        .view-btn:hover {
-            background-color: #3fb950 !important;
-            text-decoration: none !important;
-            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
         }
 
-        /* 🛡️ 隱藏系統雜物 */
-        [data-testid="stHeader"], header { display: none !important; }
-        hr, .stMarkdown hr { display: none !important; }
+        /* 🛡️ 隱藏 Deploy, Share 等干擾項 */
+        header, [data-testid="stHeader"] { 
+            background: transparent !important;
+            height: 0 !important;
+            overflow: visible !important;
+        }
+        [data-testid="stToolbar"] { display: none !important; }
         #MainMenu, footer { display: none !important; }
 
         /* 🔥 黑盒子 */
@@ -93,12 +91,11 @@ def apply_custom_style():
             border-radius: 12px;
             padding: 18px 20px;
         }
-        .content-box *, .inner-text, .inner-text * { background: transparent !important; color: #c9d1d9 !important; }
         
-        /* 🚀 火箭位置微調：移到右下角，避免撞到右上按鈕 */
+        /* 🚀 火箭位置：右下角 */
         .scroll-to-top {
             position: fixed; 
-            bottom: 30px !important; /* 放到右下角 */
+            bottom: 30px !important; 
             right: 25px !important;
             width: 45px !important; 
             height: 45px !important;
@@ -115,6 +112,5 @@ def apply_custom_style():
         .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
-        img { display: none !important; }
         </style>
     """, unsafe_allow_html=True)
