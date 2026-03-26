@@ -5,6 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
+# 1. 頁面初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
@@ -12,6 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
+# 2. 側邊欄守護
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -29,11 +31,13 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
+# 3. 核心數據與搜尋邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
+        
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -62,19 +66,22 @@ if tr_url and tr_user and tr_pw:
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
-                    content_len = len(str(steps_raw))
-                    weight_score = (10000 + user_info.get("weight", 0)) if content_len > 10 else -50000
+                    weight_score = (10000 + user_info.get("weight", 0)) if len(str(steps_raw)) > 10 else -50000
                     results.append((weight_score, c, user_info))
 
             results.sort(key=lambda x: x[0], reverse=True)
 
             for _, item, u in results:
                 cid = str(item.get('id'))
-                st.markdown(f'<div style="font-size:14px; color:#adb5bd; margin-top:20px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
-                # 2. 調整標題字體與下方間距 (margin-bottom 改為負值)
-                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:-15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                # ✨ 1. 調整目錄路徑間距 (margin-top 縮小, margin-bottom 負值)
+                st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:12px; margin-bottom:-12px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
+                
+                # ✨ 2. 先定義 tag 和 columns，避免 NameError
                 tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
-                c1.markdown(f'<div style="display:flex; align-items:center;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
+                
+                # ✨ 3. 調整標題字體(15px)與下方間距 (margin-bottom 負值)
+                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:-18px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("查閱測試步驟", expanded=False):
