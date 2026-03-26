@@ -14,7 +14,34 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 縮小側邊欄與內容的大空隙 ( image_d3134c 修正 ) */
+        /* 🛡️ 封鎖系統白邊 (稍微留一點高度給按鈕) */
+        header, [data-testid="stHeader"], #MainMenu, footer {
+            visibility: hidden !important;
+            height: 0 !important;
+        }
+
+        /* 🛠️ 【收合按鈕強化】確保收起來後妳一定找得到 */
+        [data-testid="stSidebarCollapseButton"] {
+            display: flex !important;
+            background-color: rgba(255, 255, 255, 0.05) !important; /* 給它一點極淡的底色 */
+            color: #8b949e !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 4px !important;
+            top: 15px !important;    /* 往下挪一點 */
+            left: 15px !important;   /* 往右挪一點 */
+            z-index: 1000000 !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        /* 滑鼠移過去立刻變亮綠色 */
+        [data-testid="stSidebarCollapseButton"]:hover {
+            color: #32CD32 !important; 
+            background-color: rgba(50, 205, 50, 0.2) !important;
+            border-color: #32CD32 !important;
+            transform: scale(1.1);
+        }
+
+        /* 🚀 究極縮小主內容間距 */
         [data-testid="stAppViewContainer"] > .main {
             padding-left: 0.5rem !important;
             padding-right: 1rem !important;
@@ -23,56 +50,19 @@ def apply_custom_style():
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
             max-width: 98% !important;
-            padding-top: 2rem !important;
         }
 
-        /* 🛠️ 【極簡收合鈕】修正收起來後找不到的問題 */
-        [data-testid="stSidebarCollapseButton"] {
-            background-color: transparent !important;
-            color: #8b949e !important; /* 預設灰色 */
-            border: none !important;
-            box-shadow: none !important;
-            transition: all 0.3s ease !important;
-        }
-        
-        /* 當妳滑鼠靠近或是按鈕出現時，給它一點點螢光綠感 */
-        [data-testid="stSidebarCollapseButton"]:hover {
-            color: #32CD32 !important; /* 螢光綠，跟 Elena 標籤一樣 */
-            background-color: rgba(50, 205, 50, 0.1) !important;
-            transform: scale(1.2);
-        }
-
-        /* 🛡️ 封鎖系統白邊 */
-        header, [data-testid="stHeader"], #MainMenu, footer, [data-testid="stToolbar"] {
-            visibility: hidden !important;
-            height: 0 !important;
-        }
-        
-        /* 🚀 名字標籤樣式 */
+        /* 🚀 名字標籤、火箭、黑盒子等樣式鎖死 */
         .author-tag { 
             font-size: 13px !important; border-radius: 20px !important; 
             padding: 4px 14px !important; display: inline-flex !important;
             align-items: center; margin-left: 15px !important; 
             font-weight: 800 !important; border: 2px solid !important; 
-            background: rgba(0,0,0,0.5) !important; vertical-align: middle;
+            background: rgba(0,0,0,0.5) !important; 
         }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
-        .status-inactive { color: #FF4B4B !important; border-color: #FF4B4B !important; }
-
-        .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
-
-        /* 🚀 火箭回到頂部按鈕 */
-        .scroll-to-top {
-            position: fixed; top: 50% !important; right: 15px !important;
-            transform: translateY(-50%) !important;
-            width: 42px !important; height: 42px !important;
-            background-color: #f77f00 !important; color: white !important;
-            border-radius: 50% !important; display: flex !important;
-            align-items: center; justify-content: center;
-            z-index: 99999 !important; box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
-        }
-
-        /* 🔥 黑盒子去白底 */
+        .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; font-weight: bold; }
+        
         .content-box {
             background: #1c2128 !important;
             border: 1px solid #30363d !important;
@@ -85,9 +75,17 @@ def apply_custom_style():
             color: #c9d1d9 !important;
         }
         
-        img, [data-testid="stImage"] { display: none !important; }
+        .scroll-to-top {
+            position: fixed; top: 50% !important; right: 15px !important;
+            transform: translateY(-50%) !important;
+            width: 42px !important; height: 42px !important;
+            background-color: #f77f00 !important; color: white !important;
+            border-radius: 50% !important; display: flex !important;
+            align-items: center; justify-content: center;
+            z-index: 99999 !important; box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
+        }
         
-        /* 🛠️ 輸入框鎖死深色 */
+        img, [data-testid="stImage"] { display: none !important; }
         [data-testid="stSidebar"] label { color: #adb5bd !important; }
         .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; }
         </style>
