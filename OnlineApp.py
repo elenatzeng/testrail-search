@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與功能守護
+# 2. 側邊欄與按鈕守護
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -38,7 +38,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋功能區 (清除、重新查詢)
+        # 搜尋功能區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -79,50 +79,47 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 終極像素還原渲染器：專門處理階層式點點
-                    def ultimate_hierarchy_render(text):
+                    # 🔥 終極階層渲染器：專門對付那些黏在一起的點點
+                    def hierarchy_fix_render(text):
                         if not text: return ""
                         text = str(text)
-                        # 處理圖片
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
                         
-                        # 核心邏輯：在「點點」符號或「數字.」前，不管有沒有換行，通通強行塞一個換行符號
-                        # 匹配：•, -, *, 數字.
-                        # 並排除已經有換行的情況
+                        # 在任何 •, -, *, 或 數字. 前面強行插入換行 (如果前面沒有換行的話)
+                        # 這是解決「黏在一起」問題的關鍵
                         text = re.sub(r'(?<!\n)([•\-\*]|\d+\.)', r'\n\1', text)
                         
                         lines = text.split('\n')
                         html_res = ""
                         for l in lines:
                             s = l.strip()
-                            # 脫水廢行：如果整行只有 1. 或是點點，就跳過
                             if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
                             
-                            is_bullet = re.match(r'^([•\-\*]|\d+\.)', s)
-                            # 使用 block 確保每一行都是獨立的房間，不准併桌
-                            row_style = "display:block; width:100%; margin-bottom:5px; line-height:1.6; white-space:pre-wrap; word-wrap:break-word;"
-                            if is_bullet:
-                                row_style += "padding-left:14px; color:#e6edf3;"
+                            is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                            # 每一行都是獨立區塊，絕對不併桌
+                            style = "display:block; width:100%; margin-bottom:8px; line-height:1.6; word-break:break-word;"
+                            if is_list:
+                                style += "padding-left:15px; color:#e6edf3;" # 給點點縮排
                             
-                            html_res += f'<div style="{row_style}">{s}</div>'
+                            html_res += f'<div style="{style}">{s}</div>'
                         return html_res
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = ultimate_hierarchy_render(s.get('content', ''))
-                            e_html = ultimate_hierarchy_render(s.get('expected', ''))
+                            c_html = hierarchy_fix_render(s.get('content', ''))
+                            e_html = hierarchy_fix_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
                             # 🟢 靈魂綠線絕對鎖死樣式
-                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px;"
+                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;"
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px;"
                             
                             st.markdown(f'''
                                 <div style="{green_line_style}">
                                     <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_html if c_html else "(無操作內容)"}</div>
+                                    <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_html if e_html else "(無預期結果)"}</div>
+                                    <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
