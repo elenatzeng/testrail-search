@@ -2,6 +2,7 @@ import streamlit as st
 
 def apply_custom_style():
     st.markdown("""
+        <style>
         /* 🌌 靈魂星空背景 */
         .stApp {
             background-color: #0b0e14 !important;
