@@ -5,15 +5,20 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化
-st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
+# 1. 頁面初始化 (強制鎖定側邊欄為顯示狀態)
+st.set_page_config(
+    page_title="TestRail AI Search", 
+    layout="wide", 
+    page_icon="🧪",
+    initial_sidebar_state="expanded" # ✨ 強制預設展開
+)
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄守護 (永久固定顯示，無收合邏輯)
+# 2. 側邊欄守護 (永久固定，不加收合邏輯)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -74,13 +79,13 @@ if tr_url and tr_user and tr_pw:
             for _, item, u in results:
                 cid = str(item.get('id'))
                 
-                # ✨ 1. 第一行：路徑 (間距適中，不重疊)
+                # ✨ 1. 第一行：目錄路徑
                 st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
                 
                 tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 
-                # ✨ 2. 第二行：標題 (固定 15px)
+                # ✨ 2. 第二行：標題字體固定在 15px，間距 15px
                 c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
@@ -97,7 +102,7 @@ if tr_url and tr_user and tr_pw:
                             s = line.strip()
                             if not s: continue
                             is_list = re.match(r'^([•\-\*]|\d+\.)', s)
-                            # ✨ 內文字體 13px，精緻好讀
+                            # ✨ 內文字體縮小為 13px，精緻排版
                             style = "margin-bottom:4px; display:block; font-size:13px;"
                             if is_list: style += "padding-left:18px;"
                             html_out += f'<div style="{style}">{s}</div>'
