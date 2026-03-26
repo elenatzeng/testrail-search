@@ -16,21 +16,33 @@ def apply_custom_style():
 
         /* 🚀 【究極縮小】側邊欄與主內容的間距 */
         [data-testid="stAppViewContainer"] > .main {
-            padding-left: 1rem !important;   /* 這裡從 2rem 改成 1rem，讓內容更靠左 */
+            padding-left: 1rem !important;
             padding-right: 1rem !important;
         }
         
-        /* 縮小內部容器的左右留白，讓內容利用率更高 */
         [data-testid="stAppViewContainer"] .block-container {
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
-            max-width: 98% !important;  /* 讓寬度撐得更開 */
+            max-width: 98% !important;
             padding-top: 2rem !important;
         }
         
         /* 側邊欄寬度固定 */
         [data-testid="stSidebar"] {
             width: 280px !important; 
+        }
+
+        /* 🛠️ 【新增加】極簡收合按鈕樣式 - 只保留簡單的箭頭 */
+        [data-testid="stSidebarCollapseButton"] {
+            background-color: transparent !important;
+            color: #8b949e !important; /* 低調灰色 */
+            border: none !important;
+            box-shadow: none !important;
+            transition: color 0.3s ease !important;
+        }
+        [data-testid="stSidebarCollapseButton"]:hover {
+            color: white !important; /* 只有移過去才會變亮 */
+            background-color: rgba(255, 255, 255, 0.1) !important;
         }
         
         /* 🛡️ 封鎖系統白邊 */
