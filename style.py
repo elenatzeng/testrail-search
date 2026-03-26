@@ -14,41 +14,42 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
+        /* 🛡️ 封鎖系統白邊 (留一點點空間給按鈕) */
+        header, [data-testid="stHeader"], #MainMenu, footer, [data-testid="stToolbar"] {
+            visibility: hidden !important;
+            height: 0 !important;
+        }
+
+        /* 🛠️ 【絕對顯影】收合按鈕修正 - 讓它在左上角有微光 */
+        [data-testid="stSidebarCollapseButton"] {
+            background-color: rgba(255, 255, 255, 0.05) !important; /* 極淡的底色，讓妳看得到框 */
+            color: #8b949e !important; /* 平常是灰色 */
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 50% !important;
+            top: 20px !important;   /* 往下挪 20px */
+            left: 20px !important;  /* 往右挪 20px */
+            z-index: 1000001 !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        /* 💡 螢光引導：滑鼠靠近就變 Elena 螢光綠 */
+        [data-testid="stSidebarCollapseButton"]:hover {
+            color: #32CD32 !important; 
+            background-color: rgba(50, 205, 50, 0.2) !important;
+            border-color: #32CD32 !important;
+            transform: scale(1.2); /* 變大一點點方便點擊 */
+        }
+
         /* 🚀 【究極縮小】側邊欄與主內容的間距 */
         [data-testid="stAppViewContainer"] > .main {
             padding-left: 1rem !important;
             padding-right: 1rem !important;
         }
-        
         [data-testid="stAppViewContainer"] .block-container {
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
             max-width: 98% !important;
-            padding-top: 2rem !important;
-        }
-        
-        /* 側邊欄寬度固定 */
-        [data-testid="stSidebar"] {
-            width: 280px !important; 
-        }
-
-        /* 🛠️ 【新增加】極簡收合按鈕樣式 - 只保留簡單的箭頭 */
-        [data-testid="stSidebarCollapseButton"] {
-            background-color: transparent !important;
-            color: #8b949e !important; /* 低調灰色 */
-            border: none !important;
-            box-shadow: none !important;
-            transition: color 0.3s ease !important;
-        }
-        [data-testid="stSidebarCollapseButton"]:hover {
-            color: white !important; /* 只有移過去才會變亮 */
-            background-color: rgba(255, 255, 255, 0.1) !important;
-        }
-        
-        /* 🛡️ 封鎖系統白邊 */
-        header, [data-testid="stHeader"], #MainMenu, footer, [data-testid="stToolbar"] {
-            visibility: hidden !important;
-            height: 0 !important;
+            padding-top: 2.5rem !important; /* 給頂部按鈕留位置 */
         }
         
         /* 🚀 名字標籤樣式 */
@@ -57,54 +58,10 @@ def apply_custom_style():
             padding: 4px 14px !important; display: inline-flex !important;
             align-items: center; margin-left: 15px !important; 
             font-weight: 800 !important; border: 2px solid !important; 
-            background: rgba(0,0,0,0.5) !important; vertical-align: middle;
+            background: rgba(0,0,0,0.5) !important;
         }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
-        .status-inactive { color: #FF4B4B !important; border-color: #FF4B4B !important; }
 
-        .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
-
-        /* 🚀 無文字內容提示 */
-        .no-content-hint { 
-            color: #8b949e !important; 
-            font-size: 14px !important; 
-            padding: 10px 0 10px 25px !important; 
-            font-style: italic !important;
-            display: block !important;
-        }
-
-        /* 🚀 火箭回到頂部按鈕 */
-        .scroll-to-top {
-            position: fixed; top: 50% !important; right: 15px !important;
-            transform: translateY(-50%) !important;
-            width: 42px !important; height: 42px !important;
-            background-color: #f77f00 !important; color: white !important;
-            border-radius: 50% !important; display: flex !important;
-            align-items: center; justify-content: center;
-            font-size: 20px !important; text-decoration: none !important;
-            z-index: 99999 !important; box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
-            border: none !important;
-        }
-
-        /* ✨ 火箭提示氣泡 */
-        .scroll-to-top::after {
-            content: "回到最頂";
-            position: absolute; right: 55px; top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(0, 0, 0, 0.8); color: white;
-            padding: 5px 10px; border-radius: 6px; font-size: 12px;
-            white-space: nowrap; opacity: 0;
-            transition: opacity 0.3s ease; pointer-events: none;
-            border: 1px solid #f77f00;
-        }
-        .scroll-to-top:hover::after { opacity: 1; }
-        .scroll-to-top:hover {
-            transform: translateY(-50%) scale(1.1) !important;
-            box-shadow: 0 0 20px rgba(247, 127, 0, 0.8) !important;
-        }
-
-        .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
-        
         /* 🔥 去白鎖死補強 */
         .content-box {
             background: #1c2128 !important;
@@ -117,12 +74,19 @@ def apply_custom_style():
             background-color: transparent !important;
             color: #c9d1d9 !important;
         }
+
+        /* 🚀 火箭回到頂部按鈕 */
+        .scroll-to-top {
+            position: fixed; top: 50% !important; right: 15px !important;
+            transform: translateY(-50%) !important;
+            width: 42px !important; height: 42px !important;
+            background-color: #f77f00 !important; color: white !important;
+            border-radius: 50% !important; display: flex !important;
+            align-items: center; justify-content: center;
+            z-index: 99999 !important; box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
+        }
         
-        /* 📸 圖片與破圖徹底消失 */
         img, [data-testid="stImage"] { display: none !important; }
-        
-        /* 🛠️ 側邊欄與輸入框鎖死深色 */
-        [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #adb5bd !important; }
         .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; }
         </style>
     """, unsafe_allow_html=True)
