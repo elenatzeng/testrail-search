@@ -81,7 +81,7 @@ if tr_url and tr_user and tr_pw:
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 
                 # ✨ 3. 調整標題字體(15px)與下方間距 (margin-bottom 負值)
-                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:-18px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:10px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("查閱測試步驟", expanded=False):
