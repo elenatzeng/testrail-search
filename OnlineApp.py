@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與按鈕功能守護
+# 2. 側邊欄與按鈕守護
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -38,7 +38,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋功能區 (按鈕回歸)
+        # 搜尋功能區 (按鈕全部找回來了！)
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -84,33 +84,37 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 終極老實人渲染器：使用 pre 標籤鎖死換行與編號
-                    def pre_render(text):
+                    # 🔥 強制斷行渲染器：這版不玩虛的，直接塞 <br>
+                    def force_br_render(text):
                         if not text: return ""
+                        # 圖片變佔位
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
-                        # 將文字中的特殊 HTML 字元轉義
-                        text = text.replace('<', '&lt;').replace('>', '&gt;')
-                        # 將文字包在 pre 標籤裡，這會強行保留所有換行和格式
-                        return f'<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: inherit; margin: 0; color: inherit;">{text}</pre>'
+                        # 把換行符號全部換成 HTML 的強制斷行標籤
+                        lines = text.split('\n')
+                        clean_lines = []
+                        for l in lines:
+                            s = l.strip()
+                            if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
+                            clean_lines.append(s)
+                        return "<br>".join(clean_lines)
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = pre_render(s.get('content', ''))
-                            e_html = pre_render(s.get('expected', ''))
+                            c_html = force_br_render(s.get('content', ''))
+                            e_html = force_br_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 靈魂綠線樣式鎖死
+                            # 🟢 綠線容器與黑盒子
                             green_line_style = "border-left: 4px solid #4CAF50; padding-left: 20px; margin-left: 5px; margin-bottom: 25px;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6;"
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;"
                             
-                            st.markdown(f'''
-                                <div style="{green_line_style}">
-                                    <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
-                                    <div style="color:white; font-weight:bold; margin-top:15px; margin-bottom:8px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
-                                </div>
-                            ''', unsafe_allow_html=True)
+                            # 採用單行 Markdown 注入，防止縮進被當成內容
+                            st.markdown(f'<div style="{green_line_style}">'
+                                        f'<div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {s_idx}:</div>'
+                                        f'<div style="{box_style}">{c_html if c_html else "(無內容)"}</div>'
+                                        f'<div style="color:white; font-weight:bold; margin-top:15px; margin-bottom:8px; font-size:16px;">Expected:</div>'
+                                        f'<div style="{box_style}">{e_html if e_html else "(無內容)"}</div>'
+                                        f'</div>', unsafe_allow_html=True)
                     else:
                         st.markdown('<div class="no-content-hint">💡 (此案例無文字步驟內容)</div>', unsafe_allow_html=True)
                 st.markdown("---")
