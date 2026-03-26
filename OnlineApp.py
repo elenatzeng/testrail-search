@@ -1,7 +1,6 @@
 import streamlit as st
 import re
 from style import apply_custom_style
-# 核心升級：utils 函數升級，支援圖片還原
 from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
@@ -14,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與功能守護
+# 2. 側邊欄與按鈕 (守護妳所有的功能)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -34,7 +33,6 @@ st.title("🧪 TestRail 智能檢索中心")
 
 # 3. 核心數據邏輯
 if tr_url and tr_user and tr_pw:
-    # utils 升級： fetch_data_from_tr 會主動還原圖片連結
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
@@ -56,8 +54,8 @@ if tr_url and tr_user and tr_pw:
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
-            
-            # utils 升級：SEARCH_DICTIONARY 不再包含圖片附件，直接搜尋還原後的圖片標籤
+            img_regex = r'!\[\]\(index\.php\?/attachments/get/(\d+)\)'
+
             for c in all_cases:
                 title, cid = str(c.get('title', '')), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
@@ -79,27 +77,46 @@ if tr_url and tr_user and tr_pw:
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("查閱測試步驟", expanded=False):
-                    #utils 升級： clean_html 現在會還原並美化圖片標籤
-                    steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
+                    steps_raw = item.get('custom_steps') or item.get('custom_steps_separated')
                     
-                    if isinstance(steps_data, list) and len(steps_data) > 0:
-                        for s_idx, s in enumerate(steps_data, 1):
-                            # 🔥 utils 升級：c_text 和 e_text 現在包含還原後的 <img> 標籤
-                            c_text = s.get('content', '')
-                            e_text = s.get('expected', '')
-                            if not c_text and not e_text: continue
+                    # 🔥 終極渲染器：圖片還原 + 階層鎖死
+                    def image_and_layer_render(text):
+                        if not text: return ""
+                        # 1. 還原圖片：將 Markdown 圖片轉為漂亮的 HTML 圖片
+                        base_url = tr_url.strip('/')
+                        processed = re.sub(img_regex, 
+                            f'<img src="{base_url}/index.php?/attachments/get/\\1" style="max-width:100%; border-radius:10px; margin:10px 0; border:1px solid #30363d;">', 
+                            str(text))
+                        
+                        # 2. 處理換行：保留原始層次
+                        lines = processed.splitlines()
+                        html_out = ""
+                        for line in lines:
+                            s = line.strip()
+                            if not s: continue
+                            # 如果開頭是點點或編號，給予縮排樣式
+                            is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                            style = "margin-bottom:6px; display:block;"
+                            if is_list:
+                                style += "padding-left:15px; color:#e6edf3;"
+                            html_out += f'<div style="{style}">{s}</div>'
+                        return html_out
+
+                    if isinstance(steps_raw, list) and len(steps_raw) > 0:
+                        for s_idx, s in enumerate(steps_raw, 1):
+                            c_html = image_and_layer_render(s.get('content', ''))
+                            e_html = image_and_layer_render(s.get('expected', ''))
                             
                             # 🟢 靈魂綠線絕對鎖死樣式
-                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
-                            # ✨ 關鍵：黑盒子樣式支持 HTML 渲染（包含圖片）
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px; line-height:1.7; white-space:pre-wrap;"
+                            green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;"
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px; line-height:1.7;"
                             
                             st.markdown(f'''
-                                <div style="{green_line_style}">
+                                <div style="{green_line_box}">
                                     <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_text if c_text else "(無內容)"}</div>
+                                    <div style="{box_style}">{c_html if c_html else "(無操作內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_text if e_text else "(無內容)"}</div>
+                                    <div style="{box_style}">{e_html if e_html else "(無預期結果)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
