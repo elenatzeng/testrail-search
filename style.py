@@ -3,86 +3,81 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 背景 */
-        .stApp { background-color: #0b0e14 !important; }
-        
-        /* 🚀 (8) 作者標籤：恢復扎實感 */
+        /* 🌌 靈魂星空背景 */
+        .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
+            background-color: #0b0e14 !important;
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px) !important;
+            background-size: 550px 550px, 350px 350px, 250px 250px !important;
+            background-position: 0 0, 40px 60px, 130px 270px !important;
+        }
+
+        /* 🚀 (8) 名字標籤：膠囊形狀、不再使用超粗字體 */
         .author-tag { 
-            font-size: 13px !important; 
+            font-size: 12px !important; 
             border-radius: 20px !important; 
-            padding: 3px 14px !important; 
+            padding: 2px 12px !important; 
             display: inline-flex !important;
             align-items: center; 
-            margin-left: 12px !important; 
-            font-weight: 700 !important; /* 👈 加粗一點，不再虛虛的 */
-            border: 2px solid !important; /* 👈 線條加粗到 2px */
-            background: rgba(0,0,0,0.6) !important;
+            margin-left: 10px !important; 
+            font-weight: 500 !important; /* 👈 取消超粗體，改為中等粗度 */
+            border: 1px solid !important; 
+            background: rgba(255,255,255,0.05) !important;
             vertical-align: middle;
         }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
 
-        /* 🚀 (9) 核心黑盒子：強化邊框亮度 */
+        /* 🚀 (9) 核心黑盒子：妳喜歡的精緻感 */
         .content-box { 
             background: #1c2128 !important; 
-            border: 1.5px solid #444c56 !important; /* 👈 邊框顏色調亮，線條加粗 */
-            border-radius: 10px; 
+            border: 1px solid #30363d !important; 
+            border-radius: 12px; 
             padding: 15px 20px; 
             color: #c9d1d9 !important;
             font-size: 14px !important;
-            font-weight: 400 !important; /* 👈 內文保持細體，視覺才乾淨 */
-            line-height: 1.7;
+            font-weight: 400 !important; /* 👈 內文不使用粗體 */
+            line-height: 1.6;
             margin-bottom: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); /* 👈 增加陰影更有份量 */
         }
 
-        /* 🚀 列表縮進排版 */
-        .list-item {
-            display: block;
-            padding-left: 24px;
-            text-indent: -24px;
-            margin-bottom: 4px;
-        }
-
-        /* 🚀 (10) Open Case 按鈕：強力鎖死無底線 */
-        .view-btn, .view-btn:link, .view-btn:visited { 
+        /* 🚀 (10) Open Case 按鈕：亮綠色、無底線 */
+        .view-btn { 
             display: inline-block !important; 
-            padding: 8px 18px !important; 
+            padding: 6px 14px !important; 
             background-color: #2ea44f !important; 
             color: white !important; 
             border-radius: 6px !important; 
-            text-decoration: none !important; /* 🔥 絕對禁止底線 */
-            font-size: 14px !important; 
+            text-decoration: none !important; /* 👈 徹底消滅底線 */
+            font-size: 13px !important; 
             font-weight: 600 !important; 
-            border: none !important;
+            transition: 0.3s;
+        }
+        .view-btn:hover {
+            background-color: #3fb950 !important;
+            text-decoration: none !important;
+            transform: translateY(-1px);
         }
 
-        /* 🚀 【修正：火箭左側置中】 */
-        .scroll-to-top {
-            position: fixed !important;
-            top: 60% !important; /* 👈 放在中間偏下一點，避開展開鈕 */
-            left: 15px !important; /* 👈 移到左邊 */
-            width: 45px !important; 
-            height: 45px !important;
-            background-color: #f77f00 !important; 
-            color: white !important; 
-            border-radius: 50% !important;
-            z-index: 99999 !important; 
-            display: flex !important; 
-            align-items: center; 
-            justify-content: center;
-            text-decoration: none !important; 
-            font-size: 22px !important; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
-        }
-
-        /* 側邊欄控制鈕 (>>) */
+        /* 🚀 調整側邊欄收合按鈕位置，避免擋到內容 */
         [data-testid="stSidebarCollapsedControl"] {
-            top: 45% !important; /* 👈 放在中間偏上一點 */
-            left: 15px !important;
-            position: fixed !important;
-            background-color: rgba(255,255,255,0.2) !important;
+            top: 10px !important;
+            left: 10px !important;
+            background-color: rgba(255,255,255,0.1) !important;
             border-radius: 50% !important;
-            z-index: 100000 !important;
+        }
+
+        /* 🚀 隱藏 Streamlit 原生雜物 */
+        [data-testid="stHeader"], header { background: transparent !important; }
+        footer { display: none !important; }
+        
+        /* 火箭按鈕 */
+        .scroll-to-top {
+            position: fixed; bottom: 30px; right: 25px; width: 45px; height: 45px;
+            background-color: #f77f00; color: white !important; border-radius: 50%;
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
+            text-decoration: none !important; font-size: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
         </style>
     """, unsafe_allow_html=True)
