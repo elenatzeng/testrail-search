@@ -14,21 +14,23 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 作者標籤：2px 扎實邊框 */
+        /* 🚀 (8) 名字標籤：邊框 2px 扎實感、名字強力加粗 */
         .author-tag { 
             font-size: 12px !important; 
             border-radius: 20px !important; 
-            padding: 2px 12px !important; 
+            padding: 3px 14px !important; 
             display: inline-flex !important;
             align-items: center; 
             margin-left: 10px !important; 
-            font-weight: 600 !important; 
-            border: 2px solid !important; 
-            background: rgba(0,0,0,0.5) !important;
+            font-weight: 700 !important; /* 👈 名字強力加粗 */
+            border: 2px solid !important; /* 👈 邊框 2px */
+            background: rgba(0,0,0,0.6) !important;
+            vertical-align: middle;
+            color: white !important;
         }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
 
-        /* 🚀 核心黑盒子 */
+        /* 🚀 (9) 核心黑盒子：內文 14px 不粗體 */
         .content-box { 
             background: #1c2128 !important; 
             border: 1px solid #30363d !important; 
@@ -38,12 +40,13 @@ def apply_custom_style():
             font-size: 14px !important;
             font-weight: 400 !important; 
             line-height: 1.6;
+            margin-bottom: 10px;
         }
 
-        /* 🚀 Open Case 按鈕 */
+        /* 🚀 (10) Open Case 按鈕：亮綠色、無底線 */
         .view-btn, .view-btn:link, .view-btn:visited { 
             display: inline-block !important; 
-            padding: 6px 14px !important; 
+            padding: 7px 16px !important; 
             background-color: #2ea44f !important; 
             color: white !important; 
             border-radius: 6px !important; 
@@ -52,36 +55,39 @@ def apply_custom_style():
             font-weight: 600 !important; 
             border: none !important;
         }
+        .view-btn:hover { background-color: #3fb950 !important; text-decoration: none !important; }
 
-        /* 🚀 【修正：大字體火箭按鈕】 */
+        /* 🚀 【修正：大字體文字版火箭按鈕】 */
         .scroll-to-top {
             position: fixed !important;
             top: 50% !important;
-            right: 0px !important;   /* 貼齊右邊 */
+            right: 0px !important;
             transform: translateY(-50%) !important;
             width: auto !important;
-            height: 50px !important;  /* 稍微加高 */
+            min-width: 130px !important; /* 增加寬度容納大字體 */
+            height: 48px !important;
             background-color: #f77f00 !important; 
             color: white !important; 
-            border-radius: 25px 0 0 25px !important; /* 左半圓膠囊 */
-            z-index: 9999999 !important; 
+            border-radius: 24px 0 0 24px !important; /* 左圓角膠囊 */
+            z-index: 10000000 !important; 
             display: flex !important; 
             align-items: center !important; 
             justify-content: center !important;
             text-decoration: none !important; 
             padding: 0 20px !important;
-            box-shadow: -4px 0 15px rgba(0,0,0,0.5) !important;
+            box-shadow: -4px 0 15px rgba(0,0,0,0.6) !important;
             transition: all 0.3s ease;
         }
         .scroll-to-top span {
-            font-size: 16px !important; /* 👈 【修改】字體變大到 16px */
-            font-weight: 600 !important;
-            margin-left: 8px !important;
+            font-size: 16px !important; /* 👈 字體變大 16px */
+            font-weight: 700 !important; /* 👈 字體加粗 */
+            margin-left: 10px !important;
             white-space: nowrap !important;
+            color: white !important;
         }
         .scroll-to-top:hover { 
             background-color: #ff9f43 !important; 
-            padding-right: 30px !important; /* 懸停時稍微伸出來 */
+            transform: translateY(-50%) scale(1.05) !important; 
         }
 
         /* 🚀 【左側展開鈕】 */
@@ -98,6 +104,19 @@ def apply_custom_style():
             justify-content: center !important;
             align-items: center !important;
             z-index: 10000001 !important;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.6) !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] svg {
+            fill: white !important; color: white !important; width: 28px !important; height: 28px !important;
+        }
+
+        [data-testid="stHeader"], header { background: transparent !important; }
+        footer { display: none !important; }
+
+        /* 收合時內容吸附 */
+        [data-testid="stAppViewContainer"][data-collapsed="true"] .main {
+            padding-left: 0 !important;
+            margin-left: 0 !important;
         }
         </style>
     """, unsafe_allow_html=True)
