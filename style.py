@@ -16,7 +16,7 @@ def apply_custom_style():
 
         /* 🚀 【究極縮小】側邊欄與主內容的間距 */
         [data-testid="stAppViewContainer"] > .main {
-            padding-left: 0.5rem !important;   /* 極致縮小，讓內容貼近側欄 */
+            padding-left: 0.5rem !important;
             padding-right: 1rem !important;
         }
         
@@ -27,18 +27,16 @@ def apply_custom_style():
             padding-top: 2rem !important;
         }
 
-        /* 🛠️ 【核心回歸】自製側邊欄收合按鈕樣式 (<) */
+        /* 🛠️ 【極簡修正】拿掉浮誇樣式，只留簡單的箭頭 */
         [data-testid="stSidebarCollapseButton"] {
-            background-color: rgba(247, 127, 0, 0.2) !important; /* 淡淡的橘色底 */
-            color: #f77f00 !important; /* 橘色箭頭 */
-            border-radius: 50% !important;
-            border: 1px solid #f77f00 !important;
-            top: 10px !important;
-            right: -15px !important;
+            background-color: transparent !important; /* 拿掉底色 */
+            color: #8b949e !important; /* 簡單的灰色 */
+            border: none !important; /* 拿掉邊框 */
+            box-shadow: none !important; /* 拿掉陰影 */
         }
         [data-testid="stSidebarCollapseButton"]:hover {
-            background-color: #f77f00 !important;
-            color: white !important;
+            color: white !important; /* 滑鼠移過去才變亮 */
+            background-color: rgba(255, 255, 255, 0.1) !important;
         }
 
         /* 🛡️ 封鎖系統白邊 */
