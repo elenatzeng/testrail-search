@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與按鈕守護
+# 2. 側邊欄與按鈕功能守護
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -57,7 +57,7 @@ if tr_url and tr_user and tr_pw:
             img_pattern = r'!\[\]\(index\.php\?/attachments/get/\d+\)'
 
             for c in all_cases:
-                title, cid = str(c.get('title', '')), str(c.get('id'))
+                title, cid = str(c.get('title', '')), str(cid := str(c.get('id')))
                 f_path = path_map.get(c.get('section_id'), "")
                 is_match = True
                 for t in terms:
@@ -79,47 +79,43 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 終極階層渲染器：專門對付那些黏在一起的點點
-                    def hierarchy_fix_render(text):
+                    # 🔥 原力渲染器：保留原始換行，並干擾自動編號系統
+                    def force_hierarchy_render(text):
                         if not text: return ""
                         text = str(text)
+                        # 處理圖片佔位
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
                         
-                        # 在任何 •, -, *, 或 數字. 前面強行插入換行 (如果前面沒有換行的話)
-                        # 這是解決「黏在一起」問題的關鍵
-                        text = re.sub(r'(?<!\n)([•\-\*]|\d+\.)', r'\n\1', text)
+                        # ✨ 核心黑科技：在所有數字、點點、橫槓開頭的地方插入一個「隱形空格」
+                        # 這樣 Markdown 引擎就不會把它當成清單，就不會亂合併、亂跳號
+                        lines = text.splitlines()
+                        processed_lines = []
+                        for line in lines:
+                            if not line.strip(): continue
+                            # 如果開頭是 1. 或 • 或 -，在最前面塞一個隱形字元
+                            if re.match(r'^(\d+\.|[•\-\*])', line.strip()):
+                                line = "\u200b" + line.strip()
+                            processed_lines.append(line)
                         
-                        lines = text.split('\n')
-                        html_res = ""
-                        for l in lines:
-                            s = l.strip()
-                            if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
-                            
-                            is_list = re.match(r'^([•\-\*]|\d+\.)', s)
-                            # 每一行都是獨立區塊，絕對不併桌
-                            style = "display:block; width:100%; margin-bottom:8px; line-height:1.6; word-break:break-word;"
-                            if is_list:
-                                style += "padding-left:15px; color:#e6edf3;" # 給點點縮排
-                            
-                            html_res += f'<div style="{style}">{s}</div>'
-                        return html_res
+                        return "\n".join(processed_lines)
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = hierarchy_fix_render(s.get('content', ''))
-                            e_html = hierarchy_fix_render(s.get('expected', ''))
-                            if not c_html and not e_html: continue
+                            c_text = force_hierarchy_render(s.get('content', ''))
+                            e_text = force_hierarchy_render(s.get('expected', ''))
+                            if not c_text and not e_text: continue
                             
-                            # 🟢 靈魂綠線絕對鎖死樣式
-                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px;"
+                            # 🟢 靈魂綠線絕對鎖死：使用 CSS 結構包裹
+                            green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
+                            # ✨ 關鍵：white-space: pre-wrap 確保原始換行被尊重
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px; white-space:pre-wrap; line-height:1.7;"
                             
                             st.markdown(f'''
-                                <div style="{green_line_style}">
+                                <div style="{green_line_box}">
                                     <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
+                                    <div style="{box_style}">{c_text if c_text else "(無內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
+                                    <div style="{box_style}">{e_text if e_text else "(無內容)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
