@@ -53,7 +53,7 @@ with st.sidebar:
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
-    if st.button("💾 储存资讯并记住我", use_container_width=True):
+    if st.button("💾 储存资讯到网址", use_container_width=True):
         # 1. 寫入網址參數 (安全性：這會讓用戶可以存成書籤，下次點開直接進去)
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         
