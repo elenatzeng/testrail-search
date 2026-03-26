@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄與按鈕守護
+# 2. 側邊欄守護
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -31,33 +31,29 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心數據邏輯
+# 3. 核心抓取與搜尋
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋功能區
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            q_input = st.text_input("", value=st.session_state.get("q_text", ""), placeholder="輸入關鍵字查詢...", label_visibility="collapsed")
+            q_input = st.text_input("", value=st.session_state.q_text, placeholder="輸入關鍵字查詢...", label_visibility="collapsed")
             st.session_state.q_text = q_input
         with col_c:
-            if st.button("🗑️ 清除條件", use_container_width=True): 
-                st.session_state.q_text = ""; st.rerun()
+            if st.button("🗑️ 清除條件", use_container_width=True): st.session_state.q_text = ""; st.rerun()
         with col_r:
             if st.button("🔎 重新查詢", use_container_width=True): st.rerun()
 
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
-            
-            # 🔥 圖片與破圖地毯式清理正則
-            # 1. 匹配 Markdown 圖片 ![]() 2. 匹配 HTML <img> 標籤
-            img_trash_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
+            # 蒸發圖片的正則：Markdown 與 HTML <img> 一起殺
+            img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
 
             for c in all_cases:
                 title, cid = str(c.get('title', '')), str(c.get('id'))
@@ -82,38 +78,33 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_raw = item.get('custom_steps') or item.get('custom_steps_separated')
                     
-                    # 🔥 終極渲染器：圖片徹底蒸發 + 階層鎖死
-                    def clean_hierarchy_render(text):
+                    def final_render(text):
                         if not text: return ""
-                        text = str(text)
-                        # 1. 蒸發所有圖片與 img 標籤，不留任何殘渣
-                        text = re.sub(img_trash_pattern, '', text, flags=re.IGNORECASE).strip()
-                        
+                        # 1. 徹底蒸發圖片
+                        text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
                         # 2. 處理階層斷行
                         lines = text.splitlines()
                         html_out = ""
                         for line in lines:
                             s = line.strip()
                             if not s: continue
-                            
-                            # 偵測點點或數字開頭，給予階層縮排
-                            is_list = re.match(r'^([•\-\*]|\d+\.)', s)
-                            style = "margin-bottom:6px; display:block; width:100%; white-space:pre-wrap;"
-                            if is_list:
+                            is_bullet = re.match(r'^([•\-\*]|\d+\.)', s)
+                            # 每一行都是獨立 div，保證 100% 換行
+                            style = "margin-bottom:6px; display:block; width:100%; line-height:1.6;"
+                            if is_bullet:
                                 style += "padding-left:18px; color:#e6edf3;"
-                            
                             html_out += f'<div style="{style}">{s}</div>'
                         return html_out
 
                     if isinstance(steps_raw, list) and len(steps_raw) > 0:
                         for s_idx, s in enumerate(steps_raw, 1):
-                            c_html = clean_hierarchy_render(s.get('content', ''))
-                            e_html = clean_hierarchy_render(s.get('expected', ''))
+                            c_html = final_render(s.get('content', ''))
+                            e_html = final_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 靈魂綠線樣式
+                            # 🟢 靈魂綠線絕對鎖死：結構性包圍
                             green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px; line-height:1.7;"
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px;"
                             
                             st.markdown(f'''
                                 <div style="{green_line_box}">
@@ -124,7 +115,7 @@ if tr_url and tr_user and tr_pw:
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
-                        st.markdown('<div class="no-content-hint">💡 (此案例無文字內容)</div>', unsafe_allow_html=True)
+                        st.markdown('<div class="no-content-hint">💡 (無步驟內容)</div>', unsafe_allow_html=True)
                 st.markdown("---")
 
     st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
