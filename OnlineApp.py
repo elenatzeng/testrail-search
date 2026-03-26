@@ -14,13 +14,13 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【修復】在頂部放置錨點，火箭點擊後才能飛回來
+# ✨ 【停機坪】在最頂端放置錨點，火箭點擊後才能飛回來
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄守護
+# 2. 側邊欄守護 (連線設定)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -112,11 +112,14 @@ if tr_url and tr_user and tr_pw:
                             if not text: return "(無內容)"
                             text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
                             lines = text.splitlines()
-                            html_out = '<div class="inner-text">'
+                            html_out = '<div class="inner-text" style="font-weight: 400;">' # 👈 內文不粗體
                             for line in lines:
                                 s = line.strip()
                                 if not s: continue
-                                style = "margin-bottom:4px; display:block; font-size:13px;"
+                                # ✨ 列表判斷
+                                is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                                style = "margin-bottom:4px; display:block; font-size:14px;"
+                                if is_list: style += "padding-left:18px;"
                                 html_out += f'<div style="{style}">{s}</div>'
                             html_out += '</div>'
                             return html_out
@@ -125,19 +128,22 @@ if tr_url and tr_user and tr_pw:
                             for s_idx, s in enumerate(steps_data, 1):
                                 c_html = final_render(s.get('content', ''))
                                 e_html = final_render(s.get('expected', ''))
+                                # ✨ 這裡套用 style.py 定義的 content-box (黑盒子)
                                 st.markdown(f'''
-                                    <div style="border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
-                                        <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
+                                    <div style="border-left:4px solid #2ea44f; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
+                                        <div style="color:#8b949e; font-weight:500; margin-bottom:10px; font-size:13px;">Step {s_idx}:</div>
                                         <div class="content-box">{c_html}</div>
-                                        <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
+                                        <div style="color:#8b949e; font-weight:500; margin-top:20px; margin-bottom:10px; font-size:13px;">Expected:</div>
                                         <div class="content-box">{e_html}</div>
                                     </div>
                                 ''', unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div style="color:#484f58; font-size:13px; padding:10px;">💡 (無文字內容)</div>', unsafe_allow_html=True)
                     st.markdown("---")
         else:
             st.markdown('<div style="color:#484f58; margin-top:50px; text-align:center; font-style: italic;">請輸入關鍵字開始檢索...</div>', unsafe_allow_html=True)
 else:
     st.info("👈 請先在左側完成連線設定。")
 
-# ✨ 【火箭按鈕】加入 title 屬性實現懸停 Tips，href 對應頂部錨點
+# ✨ 【精緻圓火箭】加入 title 屬性實現懸停 Tips，href 對應頂部停機坪
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端">🚀</a>', unsafe_allow_html=True)
