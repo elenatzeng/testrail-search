@@ -164,7 +164,7 @@ if tr_url and tr_user and tr_pw:
                             st.markdown('<div style="color:#484f58; font-size:13px; padding:10px;">💡 (無文字內容)</div>', unsafe_allow_html=True)
                     st.markdown("---")
         else:
-            st.markdown('<div style="color:#484f58; margin-top:50px; text-align:center; font-style: italic;">請輸入關鍵字開始檢索...</div>', unsafe_allow_html=True)
+            st.markdown('<div style="color:#484f58; margin-top:50px; text-align:center; font-style: italic;">請輸入關鍵字開始檢索，多個查詢關鍵字請以空格格開</div>', unsafe_allow_html=True)
 else:
     st.info("👈 請先在左側完成連線設定。")
 
