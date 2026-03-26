@@ -45,7 +45,7 @@ SEARCH_DICTIONARY = [
     ["bonus_fc", "免費籌碼", "免费筹码", "Free Chip", "fc", "bonus_fc_tag", "bonus_fc_worth", "numberOfChips", "freeChipPrize"],
     ["turnover", "提款流水要求", "提款流水要求", "Withdrawal To Requirements", "depositLimit", "turnoverMultiple", "wagerRequirement", "bet_process"],
     ["reward_status", "待領取", "待認領", "Wait to be claimed", "left_claim", "wait_claimed", "remaining_reward_amount", "left_to_claim"],
-    ["vip_bene", "保級福利", "保级福利", "Maintenance Bonus", "rege_bene", "retentionBonus", "birthdayBonus", "upgradeLedPackage"],
+    ["vip_bene", "保級福利", "保級福利", "Maintenance Bonus", "rege_bene", "retentionBonus", "birthdayBonus", "upgradeLedPackage"],
     ["neg_clear", "負值清零", "负值清零", "Clear negative assets", "c_n_assets", "negativeClear"],
     ["clear_credit", "抵用金清零", "抵用金清零", "Clear credit", "confirm_clear_credit_title", "clear_credit_desc1", "clear_credit_desc4"],
 
@@ -67,4 +67,15 @@ SEARCH_DICTIONARY = [
     ["risk", "風控管理", "风控管理", "Risk Management", "windControl", "riskLevel", "highRiskMemberDetail"],
 
     # --- [Affiliate] 聯盟計畫 (代理) ---
-    ["affiliate", "聯盟計畫", "联盟计划", "Affiliate
+    ["affiliate", "聯盟計畫", "联盟计划", "Affiliate Program", "global_alli", "affiliate_join_how", "affiliate_step1_title"],
+    ["sub_agent", "下級代理", "下级代理", "Sub-agent", "subUID", "fourth_recom"],
+    ["aff_comm", "佣金率", "佣金率", "Commission ratio", "commission_ratio", "affiliate_banner_title", "高达55%佣金比例"],
+
+    # --- [System / UI] 基礎設施與更新 ---
+    ["notification", "系統通知", "系统通知", "System Notification", "messageManagement", "insite_noti", "notification"],
+    ["report", "報表下載", "报表下载", "Report Download", "reportDownload", "playerPromotion", "vipPerformance", "dailyDataRecon"],
+    ["update", "更新", "Update", "new_version_discovered", "update_immediately", "new_version"],
+    ["maintenance", "維護中", "維護中", "service_maintain_text1", "game_main", "maintenance"],
+
+    # --- [Crypto] 虛擬幣與加密貨幣 ---
+    ["crypto
