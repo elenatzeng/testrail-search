@@ -31,7 +31,7 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心抓取邏輯
+# 3. 核心數據邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
@@ -79,43 +79,44 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 像素還原處理器：專門對付紅框框裡的點點
-                    def list_pixel_fix(text):
+                    # 🔥 點點雷達渲染器：看到點點符號就強行炸開換行
+                    def bullet_radar_render(text):
                         if not text: return ""
+                        # 處理圖片與統一換行
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', str(text)).strip()
-                        
-                        # 1. 統一換行符
                         text = text.replace('\r\n', '\n').replace('\r', '\n')
                         
-                        # 2. 偵測點點與編號：如果一行開頭是點點或數字，強行給它一個獨立 div
+                        # 雷達掃描：在點點或編號前，如果沒有換行符號，強行補上換行
+                        # 匹配 •, -, *, 數字.
+                        text = re.sub(r'(?<!\n)([•\-\*]|\d+\.)', r'\n\1', text)
+                        
                         lines = text.split('\n')
                         html_res = ""
                         for l in lines:
                             s = l.strip()
-                            if not s: continue
+                            if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
                             
-                            # 判斷是否為列表項目 (開頭為 •, -, *, 數字.)
-                            is_list_item = re.match(r'^([•\-\*]|\d+\.)', s)
-                            style = "margin-bottom:8px; line-height:1.6; display:block; width:100%;"
-                            if is_list_item:
-                                # 列表項目給一點點左縮排
-                                style += "padding-left:15px; color:#e6edf3;"
+                            is_bullet = re.match(r'^([•\-\*]|\d+\.)', s)
+                            # 每一行都是獨立 div，寬度 100% 鎖死斷行
+                            row_style = "display:block; width:100%; margin-bottom:6px; line-height:1.6;"
+                            if is_bullet:
+                                row_style += "padding-left:12px; color:#e6edf3;"
                             
-                            html_res += f'<div style="{style}">{s}</div>'
+                            html_res += f'<div style="{row_style}">{s}</div>'
                         return html_res
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = list_pixel_fix(s.get('content', ''))
-                            e_html = list_pixel_fix(s.get('expected', ''))
+                            c_html = bullet_radar_render(s.get('content', ''))
+                            e_html = bullet_radar_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 靈魂綠線絕對鎖死：保證綠線高度覆蓋整個步驟區塊
-                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block; overflow:hidden;"
+                            # 🟢 靈魂綠線絕對守護：CSS 容器包圍
+                            green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
                             box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:18px 20px; color:#c9d1d9; font-size:14px;"
                             
                             st.markdown(f'''
-                                <div style="{green_line_style}">
+                                <div style="{green_line_box}">
                                     <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
                                     <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
