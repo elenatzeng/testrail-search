@@ -12,6 +12,14 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
+    
+# 在左上角放一個顯眼的按鈕
+col_btn, _ = st.columns([1, 10])
+with col_btn:
+    btn_label = "⬅️ 收合設定" if st.session_state.sidebar_state == "expanded" else "➡️ 連線設定"
+    if st.button(btn_label):
+        st.session_state.sidebar_state = "collapsed" if st.session_state.sidebar_state == "expanded" else "expanded"
+        st.rerun()
 
 # 2. 側邊欄守護
 with st.sidebar:
