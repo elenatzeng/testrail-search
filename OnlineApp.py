@@ -13,7 +13,7 @@ st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄設定 (功能完全守護)
+# 2. 側邊欄與按鈕守護
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -27,8 +27,7 @@ with st.sidebar:
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
         st.success("✅ 已儲存")
     if st.button("🔄 強制刷新數據", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
+        st.cache_data.clear(); st.rerun()
 
 st.title("🧪 TestRail 智能檢索中心")
 
@@ -39,7 +38,6 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋功能區按鈕
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -85,25 +83,25 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 強制斷行渲染器：手動塞入 <br>，不讓瀏覽器有機會擠成一坨
-                    def force_break_render(text):
+                    # 🔥 像素還原處理器：直接將原始換行符替換為 HTML 換行
+                    def raw_pixel_render(text):
                         if not text: return ""
-                        # 圖片佔位
+                        # 1. 處理圖片佔位
                         text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
-                        # 按行切開後，每一行後面強制加 <br>
-                        lines = text.split('\n')
-                        clean_lines = [l.strip() for l in lines if l.strip() and not re.fullmatch(r'[\.\-\*•1]+', l.strip())]
-                        return "<br>".join(clean_lines)
+                        # 2. 將原始 \n 直接換成 <br>，保留 TestRail 的所有斷行
+                        # 並包裹在 span 裡防止 Markdown 引擎誤判編號
+                        text_with_br = text.replace('\n', '<br>')
+                        return f'<span style="display:inline-block; width:100%;">{text_with_br}</span>'
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = force_break_render(s.get('content', ''))
-                            e_html = force_break_render(s.get('expected', ''))
+                            c_html = raw_pixel_render(s.get('content', ''))
+                            e_html = raw_pixel_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 綠線容器與黑盒子
+                            # 🟢 綠線與黑盒子 (CSS 鎖死)
                             green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px;"
-                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.6;"
+                            box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;"
                             
                             st.markdown(f'''
                                 <div style="{green_line_style}">
