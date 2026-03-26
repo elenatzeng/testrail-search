@@ -14,40 +14,48 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 側邊欄強制固定 300px */
-        [data-testid="stSidebar"] {
-            min-width: 300px !important;
-            max-width: 300px !important;
-        }
-
-        /* ✨ 【救援按鈕】讓展開按鈕 (》) 可以被看見並點擊 */
-        [data-testid="stSidebarCollapseButton"] {
+        /* 🚀 強制統一按鈕大小與樣式 (《 與 》) */
+        [data-testid="stSidebarCollapseButton"] button, 
+        button[kind="header"] {
+            width: 40px !important;
+            height: 40px !important;
             background-color: rgba(255, 255, 255, 0.1) !important;
             border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        /* 鼠標懸停效果 */
+        [data-testid="stSidebarCollapseButton"] button:hover, 
+        button[kind="header"]:hover {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+            transform: scale(1.1);
+        }
+
+        /* 修正圖示顏色 */
+        [data-testid="stSidebarCollapseButton"] svg, 
+        button[kind="header"] svg {
+            fill: white !important;
             color: white !important;
-            inset: 10px auto auto 10px !important; /* 固定在左上角 */
-        }
-        
-        /* 🛡️ 隱藏頂部其餘白條 */
-        header, [data-testid="stHeader"] {
-            background: transparent !important;
-            border: none !important;
+            width: 20px !important;
+            height: 20px !important;
         }
 
-        /* 🚀 內容區間距 */
-        [data-testid="stAppViewContainer"] > .main {
-            padding-left: 0.5rem !important;
-        }
-        [data-testid="stAppViewContainer"] .block-container {
-            max-width: 98% !important;
-            padding-top: 2rem !important; 
-        }
+        /* 🛡️ 隱藏頂部其餘雜物 */
+        header, [data-testid="stHeader"] { background: transparent !important; }
+        #MainMenu, footer { display: none !important; }
 
-        /* 🚀 名字標籤 (15px / 13px) */
+        /* 🚀 側邊欄與內容區間距 */
+        [data-testid="stSidebar"] { min-width: 300px !important; max-width: 300px !important; }
+        [data-testid="stAppViewContainer"] > .main { padding-left: 0.5rem !important; }
+        [data-testid="stAppViewContainer"] .block-container { max-width: 98% !important; padding-top: 2rem !important; }
+
+        /* 🚀 標題與標籤 (15px / 13px) */
         .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; vertical-align: middle; }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
-
-        /* 🔥 黑盒子去白底 */
         .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 18px 20px; }
         .content-box *, .inner-text, .inner-text * { background: transparent !important; color: #c9d1d9 !important; }
         
