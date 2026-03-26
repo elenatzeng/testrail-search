@@ -38,7 +38,6 @@ def apply_custom_style():
             font-size: 14px !important;
             font-weight: 400 !important; 
             line-height: 1.6;
-            margin-bottom: 10px;
         }
 
         /* 🚀 Open Case 按鈕：綠色無底線 */
@@ -54,23 +53,23 @@ def apply_custom_style():
             border: none !important;
         }
 
-        /* 🚀 【精緻火箭：靠右垂直置中】 */
+        /* 🚀 【修正：精緻火箭圓圈】 */
         .scroll-to-top {
             position: fixed !important;
             top: 50% !important;
             right: 15px !important;
             transform: translateY(-50%) !important;
-            width: 42px !important;  /* 👈 縮小圓圈 */
-            height: 42px !important; /* 👈 縮小圓圈 */
+            width: 42px !important;  /* 👈 縮回精緻圓圈大小 */
+            height: 42px !important;
             background-color: #f77f00 !important; 
             color: white !important; 
-            border-radius: 50% !important; 
+            border-radius: 50% !important; /* 正圓 */
             z-index: 9999999 !important; 
             display: flex !important; 
             align-items: center !important; 
             justify-content: center !important;
             text-decoration: none !important; 
-            font-size: 18px !important; /* 👈 讓火箭圖示精緻置中 */
+            font-size: 20px !important; /* 👈 火箭圖示大小 */
             box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
             transition: all 0.3s ease;
         }
@@ -79,34 +78,24 @@ def apply_custom_style():
             transform: translateY(-50%) scale(1.1) !important; 
         }
 
-        /* 🚀 【左側展開鈕：綠色半圓標籤】 */
+        /* 🚀 【左側展開鈕：綠色半圓】 */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important;
             top: 50% !important;
             left: 0px !important;
             transform: translateY(-50%) !important;
             width: 40px !important;
-            height: 60px !important;
+            height: 65px !important;
             background-color: #2ea44f !important; 
-            border-radius: 0 30px 30px 0 !important;
+            border-radius: 0 35px 35px 0 !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             z-index: 10000001 !important;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.5) !important;
-        }
-        [data-testid="stSidebarCollapsedControl"] svg {
-            fill: white !important; color: white !important; width: 25px !important; height: 25px !important;
         }
 
-        /* 🛡️ 隱藏系統雜物與背景 */
+        /* 🛡️ 隱藏系統雜物 */
         [data-testid="stHeader"], header { background: transparent !important; }
         footer { display: none !important; }
-
-        /* 內容靠左吸附 */
-        [data-testid="stAppViewContainer"][data-collapsed="true"] .main {
-            padding-left: 0 !important;
-            margin-left: 0 !important;
-        }
         </style>
     """, unsafe_allow_html=True)
