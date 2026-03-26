@@ -36,26 +36,18 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # ✨ 頂部 Project 資訊
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
-        
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
-        
         with col_s:
-            # 🎨 [ Elena 調整區 ] 搜尋框上方的微小提示字
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
             q_input = st.text_input("", value=st.session_state.q_text, placeholder="輸入關鍵字查詢...", label_visibility="collapsed", key="search_box")
             st.session_state.q_text = q_input
-            
         with col_c:
-            if st.button("🗑️ 清除條件", use_container_width=True): 
-                st.session_state.q_text = ""
-                st.rerun()
+            if st.button("🗑️ 清除條件", use_container_width=True): st.session_state.q_text = ""; st.rerun()
         with col_r:
             if st.button("🔎 重新查詢", use_container_width=True): st.rerun()
 
-        # 顯示搜尋結果
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
@@ -78,70 +70,47 @@ if tr_url and tr_user and tr_pw:
 
             results.sort(key=lambda x: x[0], reverse=True)
 
-            if not results:
-                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的測試案例。</div>', unsafe_allow_html=True)
-            else:
-                for _, item, u in results:
-                    cid = str(item.get('id'))
-                    
-                    # ✨ 1. 第一行：路徑目錄
-                    # 🎨 [ Elena 調整區 ] 目錄文字：目前為 13px
-                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
-                    
-                    tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
-                    c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                    
-                    # ✨ 2. 第二行：標題
-                    # 🎨 [ Elena 調整區 ] Case 標題文字：目前鎖死 15px (font-weight:bold 為粗體)
-                    c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
-                    
-                    # 🎨 [ Elena 調整區 ] 綠色按鈕內文字：目前樣式寫在 style.py，這裡控制 HTML 結構
-                    c2.markdown(f'''
-                        <div style="text-align:right;">
-                            <a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a>
-                        </div>
-                    ''', unsafe_allow_html=True)
-                    
-                    # ✨ 3. 第三行：展開按鈕
-                    with st.expander("查閱測試步驟", expanded=False):
-                        steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
-                        
-                        def final_render(text):
-                            if not text: return "(無內容)"
-                            text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
-                            lines = text.splitlines()
-                            html_out = '<div class="inner-text">'
-                            for line in lines:
-                                s = line.strip()
-                                if not s: continue
-                                is_list = re.match(r'^([•\-\*]|\d+\.)', s)
-                                
-                                # 🎨 [ Elena 調整區 ] 步驟內文文字：目前鎖死 13px
-                                style = "margin-bottom:4px; display:block; font-size:13px;"
-                                if is_list: style += "padding-left:18px;"
-                                html_out += f'<div style="{style}">{s}</div>'
-                            html_out += '</div>'
-                            return html_out
+            for _, item, u in results:
+                cid = str(item.get('id'))
+                # 🎨 [ Elena 調整區 ] 目錄文字：13px
+                st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path_map.get(item.get("section_id"), "")}</div>', unsafe_allow_html=True)
+                tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
+                c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
+                # 🎨 [ Elena 調整區 ] 標題文字：15px
+                c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:15px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                
+                # ✨ 綠色 Open Case 按鈕 (HTML 結構)
+                c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
+                
+                with st.expander("查閱測試步驟", expanded=False):
+                    steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
+                    def final_render(text):
+                        if not text: return "(無內容)"
+                        text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
+                        lines = text.splitlines()
+                        html_out = '<div class="inner-text">'
+                        for line in lines:
+                            s = line.strip()
+                            if not s: continue
+                            # 🎨 [ Elena 調整區 ] 步驟內文：13px
+                            style = "margin-bottom:4px; display:block; font-size:13px;"
+                            html_out += f'<div style="{style}">{s}</div>'
+                        html_out += '</div>'
+                        return html_out
 
-                        if isinstance(steps_data, list) and len(steps_data) > 0:
-                            for s_idx, s in enumerate(steps_data, 1):
-                                c_html = final_render(s.get('content', ''))
-                                e_html = final_render(s.get('expected', ''))
-                                
-                                # 🎨 [ Elena 調整區 ] "Step 1:" 與 "Expected:" 的小標題：目前為 16px
-                                st.markdown(f'''
-                                    <div style="border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
-                                        <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
-                                        <div class="content-box">{c_html}</div>
-                                        <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
-                                        <div class="content-box">{e_html}</div>
-                                    </div>
-                                ''', unsafe_allow_html=True)
-                        else:
-                            st.markdown('<div class="no-content-hint">💡 (無文字內容)</div>', unsafe_allow_html=True)
-                    st.markdown("---")
+                    if isinstance(steps_data, list) and len(steps_data) > 0:
+                        for s_idx, s in enumerate(steps_data, 1):
+                            c_html = final_render(s.get('content', ''))
+                            e_html = final_render(s.get('expected', ''))
+                            st.markdown(f'''
+                                <div style="border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
+                                    <div style="color:white; font-weight:bold; margin-bottom:10px; font-size:16px;">Step {s_idx}:</div>
+                                    <div class="content-box">{c_html}</div>
+                                    <div style="color:white; font-weight:bold; margin-top:20px; margin-bottom:10px; font-size:16px;">Expected:</div>
+                                    <div class="content-box">{e_html}</div>
+                                </div>
+                            ''', unsafe_allow_html=True)
         else:
-            # 🎨 [ Elena 調整區 ] 未搜尋時的導引文字：預設沒寫大小(隨系統)，可在 style 內調
             st.markdown('<div style="color:#484f58; margin-top:50px; text-align:center; font-style: italic;">請輸入關鍵字開始檢索...</div>', unsafe_allow_html=True)
 else:
     st.info("👈 請先在左側完成連線設定。")
