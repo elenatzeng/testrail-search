@@ -46,11 +46,11 @@ SEARCH_DICTIONARY = [
     ["turnover", "提款流水要求", "提款流水要求", "Withdrawal To Requirements", "depositLimit", "turnoverMultiple", "wagerRequirement", "bet_process"],
     ["reward_status", "待領取", "待認領", "Wait to be claimed", "left_claim", "wait_claimed", "remaining_reward_amount", "left_to_claim"],
     ["vip_bene", "保級福利", "保級福利", "Maintenance Bonus", "rege_bene", "retentionBonus", "birthdayBonus", "upgradeLedPackage"],
-    ["neg_clear", "負值清零", "负值清零", "Clear negative assets", "c_n_assets", "negativeClear"],
+    ["neg_clear", "負值清零", "負值清零", "Clear negative assets", "c_n_assets", "negativeClear"],
     ["clear_credit", "抵用金清零", "抵用金清零", "Clear credit", "confirm_clear_credit_title", "clear_credit_desc1", "clear_credit_desc4"],
 
     # --- [Social] 社交帳號與第三方綁定 ---
-    ["social_acc", "社交帳號", "社交账号", "Social Account", "第三方登錄", "三方登入", "綁定", "绑定", "Bind", "Unbind", "解綁"],
+    ["social_acc", "社交帳號", "社交賬號", "Social Account", "第三方登錄", "三方登入", "綁定", "绑定", "Bind", "Unbind", "解綁"],
     ["QQ", "騰訊", "Tencent", "企鵝"],
     ["Telegram", "TG", "電報", "飛機"],
     ["微信", "WeChat", "WX", "Weixin"],
@@ -59,23 +59,40 @@ SEARCH_DICTIONARY = [
     ["ebpay", "EBPay", "EBPay", "ebpay_ad", "eb_pay", "eb_complete"],
 
     # --- [KYC & Risk] 認證與風控 ---
-    ["kyc", "身分認證", "身份认证", "Identity Verification", "Identification", "kycManagement", "basic_ver", "mid_ver", "ad_ver"],
-    ["prof_ad", "地址證明", "地址证明", "Proof of Address", "poa", "residence_ad"],
+    ["kyc", "身分認證", "身份認證", "Identity Verification", "Identification", "kycManagement", "basic_ver", "mid_ver", "ad_ver"],
+    ["prof_ad", "地址證明", "地址證明", "Proof of Address", "poa", "residence_ad"],
     ["edd", "風險評估問卷", "風險評估問卷", "Risk Assessment Questionnaire", "edd_veri", "edd_popup_tips", "加強型盡職調查"],
-    ["sow", "財富來源", "财富来源", "Source of Wealth", "source_wealth", "proof_wealth"],
-    ["face_verify", "活體認證", "活体认证", "Face Verification", "livingBody", "faceRecognition", "vivoAuthentication"],
-    ["risk", "風控管理", "风控管理", "Risk Management", "windControl", "riskLevel", "highRiskMemberDetail"],
+    ["sow", "財富來源", "財富來源", "Source of Wealth", "source_wealth", "proof_wealth"],
+    ["face_verify", "活體認證", "活體認證", "Face Verification", "livingBody", "faceRecognition", "vivoAuthentication"],
+    ["risk", "風控管理", "風控管理", "Risk Management", "windControl", "riskLevel", "highRiskMemberDetail"],
 
     # --- [Affiliate] 聯盟計畫 (代理) ---
-    ["affiliate", "聯盟計畫", "联盟计划", "Affiliate Program", "global_alli", "affiliate_join_how", "affiliate_step1_title"],
-    ["sub_agent", "下級代理", "下级代理", "Sub-agent", "subUID", "fourth_recom"],
+    ["affiliate", "聯盟計畫", "聯盟計畫", "Affiliate Program", "global_alli", "affiliate_join_how", "affiliate_step1_title"],
+    ["sub_agent", "下級代理", "下級代理", "Sub-agent", "subUID", "fourth_recom"],
     ["aff_comm", "佣金率", "佣金率", "Commission ratio", "commission_ratio", "affiliate_banner_title", "高达55%佣金比例"],
 
     # --- [System / UI] 基礎設施與更新 ---
-    ["notification", "系統通知", "系统通知", "System Notification", "messageManagement", "insite_noti", "notification"],
-    ["report", "報表下載", "报表下载", "Report Download", "reportDownload", "playerPromotion", "vipPerformance", "dailyDataRecon"],
+    ["notification", "系統通知", "系統通知", "System Notification", "messageManagement", "insite_noti", "notification"],
+    ["report", "報表下載", "報表下載", "Report Download", "reportDownload", "playerPromotion", "vipPerformance", "dailyDataRecon"],
     ["update", "更新", "Update", "new_version_discovered", "update_immediately", "new_version"],
     ["maintenance", "維護中", "維護中", "service_maintain_text1", "game_main", "maintenance"],
 
     # --- [Crypto] 虛擬幣與加密貨幣 ---
-    ["crypto
+    ["crypto", "虛擬幣", "虛擬貨幣", "加密貨幣", "數字貨幣", "Cryptocurrency", "crypto_currency", "digitalAsset"],
+    ["usdt", "泰達幣", "USDT", "usdt", "Tether", "tether_token"],
+    ["btc", "比特幣", "BTC", "Bitcoin", "btc_token"],
+    ["eth", "乙太幣", "以太坊", "ETH", "Ethereum", "eth_token"],
+    ["chain", "主網", "鏈條", "網路協議", "Network", "chainName", "protocol", "TRC20", "ERC20", "BEP20", "Polygon"],
+    ["wallet_addr", "錢包地址", "錢包地址", "Wallet Address", "address", "addr", "cryptoAddress", "destination_tag", "memo"],
+    ["gas_fee", "礦工費", "Gas 費", "Gas fee", "gasFee", "minerFee", "priorityFee"],
+    ["hash", "交易雜湊", "交易哈希", "TXID", "Hash", "transactionHash", "tx_hash"],
+
+    # --- [Fiat] 法幣與傳統支付 ---
+    ["fiat", "法幣", "法定貨幣", "法幣", "Fiat Currency", "fiat_money", "legalCurrency"],
+    ["bank_card", "銀行卡", "銀行卡", "金融卡", "Bank Card", "bankCard", "debitCard", "creditCard", "card_number"],
+    ["bank_name", "銀行名稱", "開戶行", "Bank Name", "bankName", "branchName", "issuing_bank"],
+    ["currency", "幣別", "幣別", "Currency", "currencyCode", "TWD", "CNY", "USD", "MYR", "VND", "THB"],
+    ["otc", "場外交易", "OTC", "otc_trade", "p2p_trading", "商家交易"],
+    ["payment_gate", "支付通道", "三方支付", "Payment Gateway", "channelName", "merchantId", "payment_method"],
+    ["offline_pay", "線下轉帳", "線下匯款", "Offline Transfer", "remittance", "receipt_upload", "上傳憑證"]
+]
