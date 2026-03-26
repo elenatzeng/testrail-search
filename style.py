@@ -3,77 +3,45 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 靈魂星空背景 */
-        .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
-            background-color: #0b0e14 !important;
-            background-image: 
-                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
-                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
-                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px) !important;
-            background-size: 550px 550px, 350px 350px, 250px 250px !important;
-            background-position: 0 0, 40px 60px, 130px 270px !important;
-        }
-
-        /* 🚀 【修正內容不靠左】移除 main 的 padding，讓內容隨側邊欄收放自動對齊 */
-        [data-testid="stAppViewContainer"] > .main {
-            padding-left: 0 !important;
-            margin-left: 0 !important;
-        }
-        [data-testid="stAppViewContainer"] .block-container {
-            max-width: 95% !important;
-            padding-top: 2rem !important; 
-            margin: 0 auto !important; /* 居中對齊，讓縮放時更好看 */
-        }
-
-        /* 🚀 【按鈕樣式對稱】強制統一 《 與 》 的大小與外觀 */
-        /* 展開按鈕 (》) */
-        button[kind="header"] {
-            width: 40px !important;
-            height: 40px !important;
-            background-color: rgba(255, 255, 255, 0.1) !important;
-            border-radius: 50% !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            left: 10px !important;
-            top: 10px !important;
-        }
-        /* 收合按鈕 (《) */
-        [data-testid="stSidebarCollapseButton"] button {
-            width: 40px !important;
-            height: 40px !important;
-            background-color: rgba(255, 255, 255, 0.1) !important;
-            border-radius: 50% !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        }
-
-        /* 修正圖示顏色與大小 */
-        button[kind="header"] svg, [data-testid="stSidebarCollapseButton"] svg {
-            fill: white !important;
-            color: white !important;
-            width: 20px !important;
-            height: 20px !important;
-        }
-
-        /* 🛡️ 隱藏其餘白邊 */
-        header, [data-testid="stHeader"] { background: transparent !important; }
-        #MainMenu, footer { display: none !important; }
-
-        /* 🚀 側邊欄固定寬度 */
-        [data-testid="stSidebar"] { min-width: 300px !important; max-width: 300px !important; }
-
-        /* 🚀 標題與標籤 (15px / 13px) */
-        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; vertical-align: middle; }
-        .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
-        .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 18px 20px; }
-        .content-box *, .inner-text, .inner-text * { background: transparent !important; color: #c9d1d9 !important; }
+        .stApp { background-color: #0b0e14 !important; }
         
-        .scroll-to-top { position: fixed; top: 50% !important; right: 15px !important; transform: translateY(-50%) !important; width: 42px !important; height: 42px !important; background-color: #f77f00 !important; color: white !important; border-radius: 50% !important; display: flex !important; align-items: center; justify-content: center; z-index: 99999 !important; }
-        img, [data-testid="stImage"] { display: none !important; }
-        .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
+        /* 🚀 (8) 名字標籤：膠囊形狀、發光感 */
+        .author-tag { 
+            font-size: 13px !important; 
+            border-radius: 20px !important; 
+            padding: 4px 14px !important; 
+            display: inline-flex !important;
+            align-items: center; 
+            margin-left: 15px !important; 
+            font-weight: 800 !important; 
+            border: 2px solid !important; 
+            background: rgba(0,0,0,0.5) !important;
+            vertical-align: middle;
+            transition: all 0.3s ease;
+        }
+        
+        /* 🚀 (9) 測試步驟盒子 */
+        .step-content-box { 
+            color: #c9d1d9 !important; background: #1c2128; 
+            padding: 16px 20px; border-radius: 10px; border: 1px solid #30363d; 
+            margin-top: 8px; font-size: 15px; line-height: 1.8;
+            white-space: pre-wrap !important;
+        }
+        .step-container { border-left: 4px solid #2ea44f; padding-left: 18px; margin-bottom: 25px; }
+
+        /* 🚀 (10) Open Case 按鈕 */
+        .view-btn { 
+            display: inline-block; padding: 7px 16px; background-color: #2ea44f; 
+            color: white !important; border-radius: 6px; text-decoration: none; 
+            font-size: 14px; font-weight: bold; 
+        }
+
+        /* 🚀 火箭按鈕 */
+        .scroll-to-top {
+            position: fixed; bottom: 85px; right: 25px; width: 50px; height: 50px;
+            background-color: #f77f00; color: white !important; border-radius: 50%;
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
+            text-decoration: none !important; font-size: 26px; box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
         </style>
     """, unsafe_allow_html=True)
