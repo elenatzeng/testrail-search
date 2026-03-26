@@ -14,8 +14,19 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 強制統一按鈕大小與樣式 (《 與 》) */
-        [data-testid="stSidebarCollapseButton"] button, 
+        /* 🚀 【修正內容不靠左】移除 main 的 padding，讓內容隨側邊欄收放自動對齊 */
+        [data-testid="stAppViewContainer"] > .main {
+            padding-left: 0 !important;
+            margin-left: 0 !important;
+        }
+        [data-testid="stAppViewContainer"] .block-container {
+            max-width: 95% !important;
+            padding-top: 2rem !important; 
+            margin: 0 auto !important; /* 居中對齊，讓縮放時更好看 */
+        }
+
+        /* 🚀 【按鈕樣式對稱】強制統一 《 與 》 的大小與外觀 */
+        /* 展開按鈕 (》) */
         button[kind="header"] {
             width: 40px !important;
             height: 40px !important;
@@ -25,33 +36,35 @@ def apply_custom_style():
             align-items: center !important;
             justify-content: center !important;
             border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            transition: all 0.3s ease !important;
+            left: 10px !important;
+            top: 10px !important;
+        }
+        /* 收合按鈕 (《) */
+        [data-testid="stSidebarCollapseButton"] button {
+            width: 40px !important;
+            height: 40px !important;
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
         }
 
-        /* 鼠標懸停效果 */
-        [data-testid="stSidebarCollapseButton"] button:hover, 
-        button[kind="header"]:hover {
-            background-color: rgba(255, 255, 255, 0.2) !important;
-            transform: scale(1.1);
-        }
-
-        /* 修正圖示顏色 */
-        [data-testid="stSidebarCollapseButton"] svg, 
-        button[kind="header"] svg {
+        /* 修正圖示顏色與大小 */
+        button[kind="header"] svg, [data-testid="stSidebarCollapseButton"] svg {
             fill: white !important;
             color: white !important;
             width: 20px !important;
             height: 20px !important;
         }
 
-        /* 🛡️ 隱藏頂部其餘雜物 */
+        /* 🛡️ 隱藏其餘白邊 */
         header, [data-testid="stHeader"] { background: transparent !important; }
         #MainMenu, footer { display: none !important; }
 
-        /* 🚀 側邊欄與內容區間距 */
+        /* 🚀 側邊欄固定寬度 */
         [data-testid="stSidebar"] { min-width: 300px !important; max-width: 300px !important; }
-        [data-testid="stAppViewContainer"] > .main { padding-left: 0.5rem !important; }
-        [data-testid="stAppViewContainer"] .block-container { max-width: 98% !important; padding-top: 2rem !important; }
 
         /* 🚀 標題與標籤 (15px / 13px) */
         .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; vertical-align: middle; }
