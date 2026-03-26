@@ -14,104 +14,66 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【核心修正：讓 >> 復活】不要隱藏整個 Header，改用透明度 */
-        header[data-testid="stHeader"] {
-            background: transparent !important;
-            color: transparent !important;
-        }
-        /* 隱藏 Header 裡除了按鈕以外的雜物 (Deploy, Share, 1號按鈕) */
-        header[data-testid="stHeader"] [data-testid="stToolbar"] {
-            display: none !important;
-        }
-
-        /* 🚀 【救援 >> 按鈕】強制固定在左側中間，做成半圓形標籤 */
-        [data-testid="stSidebarCollapsedControl"] {
-            position: fixed !important;
-            top: 50% !important;
-            left: 0 !important;
-            transform: translateY(-50%) !important;
-            display: flex !important;
-            visibility: visible !important;
-            width: 40px !important;
-            height: 80px !important;
-            background-color: #2ea44f !important; /* 妳喜歡的綠色，更顯眼 */
-            border-radius: 0 40px 40px 0 !important;
-            justify-content: center !important;
-            align-items: center !important;
-            z-index: 10000000 !important;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.5) !important;
-            cursor: pointer !important;
-        }
-
-        /* 讓 >> 圖示變白 */
-        [data-testid="stSidebarCollapsedControl"] svg {
-            fill: white !important;
-            color: white !important;
-            width: 25px !important;
-            height: 25px !important;
-        }
-
-        /* 🚀 展開後的收合鈕 (<<) 也要漂亮 */
-        [data-testid="stSidebarCollapseButton"] button {
-            background-color: rgba(255, 255, 255, 0.15) !important;
-            border-radius: 50% !important;
-            border: 1px solid white !important;
-        }
-
-        /* 🚀 【修正：收起時靠左】內容完全吸附 */
-        [data-testid="stAppViewContainer"][data-collapsed="true"] .main {
+        /* 🚀 【修正內容不靠左】移除 main 的 padding，讓內容隨側邊欄收放自動對齊 */
+        [data-testid="stAppViewContainer"] > .main {
             padding-left: 0 !important;
             margin-left: 0 !important;
-            width: 100vw !important;
         }
         [data-testid="stAppViewContainer"] .block-container {
-            max-width: 90% !important;
-            margin: 0 auto !important;
-            padding-top: 3rem !important;
+            max-width: 95% !important;
+            padding-top: 2rem !important; 
+            margin: 0 auto !important; /* 居中對齊，讓縮放時更好看 */
         }
 
-        /* 🚀 【標題 20px & 綠色按鈕無底線】鎖死 */
-        .view-btn, .view-btn:link, .view-btn:visited {
-            display: inline-block !important;
-            padding: 10px 22px !important;
-            background-color: #2ea44f !important;
+        /* 🚀 【按鈕樣式對稱】強制統一 《 與 》 的大小與外觀 */
+        /* 展開按鈕 (》) */
+        button[kind="header"] {
+            width: 40px !important;
+            height: 40px !important;
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            left: 10px !important;
+            top: 10px !important;
+        }
+        /* 收合按鈕 (《) */
+        [data-testid="stSidebarCollapseButton"] button {
+            width: 40px !important;
+            height: 40px !important;
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }
+
+        /* 修正圖示顏色與大小 */
+        button[kind="header"] svg, [data-testid="stSidebarCollapseButton"] svg {
+            fill: white !important;
             color: white !important;
-            border-radius: 8px !important;
-            text-decoration: none !important;
-            font-size: 14px !important;
-            font-weight: bold !important;
-        }
-        .view-btn:hover { background-color: #3fb950 !important; text-decoration: none !important; }
-
-        /* 🔥 黑盒子 */
-        .content-box {
-            background: #1c2128 !important;
-            border: 1px solid #30363d !important;
-            border-radius: 12px;
-            padding: 18px 20px;
-        }
-        
-        /* 🚀 火箭位置：右側中間 */
-        .scroll-to-top {
-            position: fixed !important;
-            top: 50% !important; 
-            right: 20px !important;
-            transform: translateY(-50%) !important;
-            width: 45px !important; 
-            height: 45px !important;
-            background-color: #f77f00 !important; 
-            color: white !important;
-            border-radius: 50% !important; 
-            display: flex !important; 
-            align-items: center; 
-            justify-content: center; 
-            z-index: 999999 !important;
-            text-decoration: none !important;
+            width: 20px !important;
+            height: 20px !important;
         }
 
+        /* 🛡️ 隱藏其餘白邊 */
+        header, [data-testid="stHeader"] { background: transparent !important; }
         #MainMenu, footer { display: none !important; }
-        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; }
+
+        /* 🚀 側邊欄固定寬度 */
+        [data-testid="stSidebar"] { min-width: 300px !important; max-width: 300px !important; }
+
+        /* 🚀 標題與標籤 (15px / 13px) */
+        .author-tag { font-size: 13px !important; border-radius: 20px !important; padding: 4px 14px !important; display: inline-flex !important; align-items: center; margin-left: 15px !important; font-weight: 800 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; vertical-align: middle; }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
+        .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 18px 20px; }
+        .content-box *, .inner-text, .inner-text * { background: transparent !important; color: #c9d1d9 !important; }
+        
+        .scroll-to-top { position: fixed; top: 50% !important; right: 15px !important; transform: translateY(-50%) !important; width: 42px !important; height: 42px !important; background-color: #f77f00 !important; color: white !important; border-radius: 50% !important; display: flex !important; align-items: center; justify-content: center; z-index: 99999 !important; }
+        img, [data-testid="stImage"] { display: none !important; }
         .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; }
         </style>
     """, unsafe_allow_html=True)
