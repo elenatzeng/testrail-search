@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化
+# 1. 初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
@@ -38,7 +38,7 @@ if tr_url and tr_user and tr_pw:
     if all_cases:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋區 (清除、重新查詢)
+        # 搜尋功能區 (清除、查詢回歸)
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         with col_s:
@@ -65,13 +65,8 @@ if tr_url and tr_user and tr_pw:
                     if not (any(w in (title.lower() + f_path.lower()) for w in exp) or any(w == cid for w in exp)):
                         is_match = False; break
                 if is_match:
-                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated')
-                    clean_content = re.sub(img_pattern, '', str(steps_raw)).strip()
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    score = (10000 + u.get("weight", 0)) if len(clean_content) > 5 else -500000
-                    results.append((score, c, u))
-
-            results.sort(key=lambda x: x[0], reverse=True) 
+                    results.append((100, c, u))
 
             for _, item, u in results:
                 cid = str(item.get('id'))
@@ -84,37 +79,36 @@ if tr_url and tr_user and tr_pw:
                 with st.expander("查閱測試步驟", expanded=False):
                     steps_data = clean_html(item.get('custom_steps') or item.get('custom_steps_separated'))
                     
-                    # 🔥 爆破渲染器：強制捕捉所有形式的換行並替換為 <br>
-                    def blast_render(text):
+                    # 🔥 眾生平等渲染器：強制捕捉所有 \n，不分 Step 還是 Expected 都要換行！
+                    def universal_render(text):
                         if not text: return ""
-                        text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', text).strip()
-                        # 將文字切碎後，對每一行進行處理
+                        text = re.sub(img_pattern, ' [🖼️ 圖片附件] ', str(text)).strip()
+                        # 將所有形式的換行 (\n, \r, \r\n) 全部統一換成 HTML 的 <br>
                         lines = text.splitlines()
-                        processed_lines = []
+                        processed = []
                         for l in lines:
                             s = l.strip()
-                            # 過濾廢行 (只有 1. 或點點的廢行)
                             if not s or re.fullmatch(r'[\.\-\*•1]+', s): continue
-                            processed_lines.append(s)
-                        # 用 HTML 強制斷行標籤結合
-                        return "<br>".join(processed_lines)
+                            processed.append(s)
+                        return "<br>".join(processed)
 
                     if isinstance(steps_data, list) and len(steps_data) > 0:
                         for s_idx, s in enumerate(steps_data, 1):
-                            c_html = blast_render(s.get('content', ''))
-                            e_html = blast_render(s.get('expected', ''))
+                            # 對 content 和 expected 進行同樣嚴格的換行處理
+                            c_html = universal_render(s.get('content', ''))
+                            e_html = universal_render(s.get('expected', ''))
                             if not c_html and not e_html: continue
                             
-                            # 🟢 綠線絕對守護：把所有標題跟內容都包進綠線容器裡
-                            green_line_box = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
+                            # 🟢 綠線絕對鎖死：保證綠線高度覆蓋整個步驟區塊
+                            green_line_style = "border-left:4px solid #4CAF50; padding-left:20px; margin-left:5px; margin-bottom:25px; display:block;"
                             box_style = "background:#1c2128; border:1px solid #30363d; border-radius:12px; padding:15px 20px; color:#c9d1d9; font-size:14px; line-height:1.8;"
                             
                             st.markdown(f'''
-                                <div style="{green_line_box}">
+                                <div style="{green_line_style}">
                                     <div style="color:white; font-weight:bold; margin-bottom:8px; font-size:16px;">Step {s_idx}:</div>
-                                    <div style="{box_style}">{c_html if c_html else "(無內容)"}</div>
+                                    <div style="{box_style}">{c_html if c_html else "(無操作內容)"}</div>
                                     <div style="color:white; font-weight:bold; margin-top:15px; margin-bottom:8px; font-size:16px;">Expected:</div>
-                                    <div style="{box_style}">{e_html if e_html else "(無內容)"}</div>
+                                    <div style="{box_style}">{e_html if e_html else "(無預期結果)"}</div>
                                 </div>
                             ''', unsafe_allow_html=True)
                     else:
