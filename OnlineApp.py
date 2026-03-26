@@ -6,15 +6,21 @@ from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
 # 1. 頁面初始化
-st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="TestRail AI Search", 
+    layout="wide", 
+    page_icon="🧪", 
+    initial_sidebar_state="expanded"
+)
 apply_custom_style()
 
+# ✨ 【停機坪】在最頂端放置錨點，火箭點擊後才能精準飛回頂部
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄
+# 2. 側邊欄守護 (連線設定)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -38,32 +44,36 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
+        # ✨ 顯示 Project 資訊
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
+        # 搜尋列佈局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
-        # ✨ 確保 session_state 存在
+        # ✨ 初始化控制變數 (確保清除功能運作)
         if "q_text" not in st.session_state:
             st.session_state.q_text = ""
+        if "search_key" not in st.session_state:
+            st.session_state.search_key = 0
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            # 💡 重點：不要給 text_input 固定的 key，或者用一個動態 key 來達成重置
-            # 這裡我們維持簡單做法，直接綁定到 session_state
+            # 💡 重點：使用動態 key (search_key)，當按下清除時 key 改變，輸入框就會被強迫重置
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
                 placeholder="輸入關鍵字查詢...", 
-                label_visibility="collapsed"
+                label_visibility="collapsed",
+                key=f"search_input_{st.session_state.search_key}"
             )
             st.session_state.q_text = q_input
             
         with col_c:
-            # ✨ 【修正後的清除按鈕】：只清空邏輯變數，然後 rerun
+            # ✨ 【修正：清除按鈕】
             if st.button("🗑️ 清除條件", use_container_width=True): 
                 st.session_state.q_text = "" 
+                st.session_state.search_key += 1 # 👈 改變 Key 強制元件重新渲染
                 st.rerun() 
-                
         with col_r:
             if st.button("🔎 重新查詢", use_container_width=True): 
                 st.rerun()
@@ -77,6 +87,7 @@ if tr_url and tr_user and tr_pw:
                 title, cid = str(c.get('title', '')), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
                 
+                # 權重計算
                 match_score = 0
                 is_match = True
                 for t in terms:
@@ -92,10 +103,11 @@ if tr_url and tr_user and tr_pw:
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
-                    # 🤫 妳的小秘密邏輯保留
+                    # 🤫 內容長度權重 (過濾垃圾 Case 的關鍵)
                     quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
                     results.append((match_score + quality_weight, f_path, c, user_info))
 
+            # ✨ 排序邏輯：匹配度與內容品質優先，其次按路徑排序
             results.sort(key=lambda x: (-x[0], x[1]))
 
             if not results:
@@ -103,20 +115,29 @@ if tr_url and tr_user and tr_pw:
             else:
                 for _, path, item, u in results:
                     cid = str(item.get('id'))
+                    # 目錄路徑
                     st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
+                    
+                    # 作者標籤 (加粗名字)
                     tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                     
                     c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
+                    
+                    # ✨ 【核心】標題 20px 鎖死
                     c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                    
+                    # ✨ 綠色按鈕 (無底線)
                     c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
                     
+                    # 展開步驟
                     with st.expander("查閱測試步驟", expanded=False):
                         steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
                         def final_render(text):
                             if not text: return "(無內容)"
+                            # ✨ 這裡已經包含妳要求的圖片代碼過濾
                             text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
                             lines = text.splitlines()
-                            html_out = '<div class="inner-text" style="font-weight: 400;">'
+                            html_out = '<div class="inner-text" style="font-weight: 400;">' 
                             for line in lines:
                                 s = line.strip()
                                 if not s: continue
@@ -139,10 +160,13 @@ if tr_url and tr_user and tr_pw:
                                         <div class="content-box">{e_html}</div>
                                     </div>
                                 ''', unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div style="color:#484f58; font-size:13px; padding:10px;">💡 (無文字內容)</div>', unsafe_allow_html=True)
                     st.markdown("---")
         else:
             st.markdown('<div style="color:#484f58; margin-top:50px; text-align:center; font-style: italic;">請輸入關鍵字開始檢索...</div>', unsafe_allow_html=True)
 else:
     st.info("👈 請先在左側完成連線設定。")
 
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 22px;">🚀</span></a>', unsafe_allow_html=True)
+# ✨ 【精緻圓火箭】加入 span 控制火箭圖示大小，title 提供懸停提示
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
