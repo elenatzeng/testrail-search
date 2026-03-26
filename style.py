@@ -14,7 +14,7 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 (8) 名字標籤：膠囊形狀、不再使用超粗字體 */
+        /* 🚀 (8) 名字標籤：膠囊形狀、邊框加粗到 2px */
         .author-tag { 
             font-size: 12px !important; 
             border-radius: 20px !important; 
@@ -22,14 +22,14 @@ def apply_custom_style():
             display: inline-flex !important;
             align-items: center; 
             margin-left: 10px !important; 
-            font-weight: 500 !important; /* 👈 取消超粗體，改為中等粗度 */
-            border: 1px solid !important; 
+            font-weight: 500 !important; 
+            border: 2px solid !important; /* 👈 【修改】從 1px 加粗到 2px */
             background: rgba(255,255,255,0.05) !important;
             vertical-align: middle;
         }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
 
-        /* 🚀 (9) 核心黑盒子：妳喜歡的精緻感 */
+        /* 🚀 (9) 核心黑盒子：精緻感 */
         .content-box { 
             background: #1c2128 !important; 
             border: 1px solid #30363d !important; 
@@ -37,7 +37,7 @@ def apply_custom_style():
             padding: 15px 20px; 
             color: #c9d1d9 !important;
             font-size: 14px !important;
-            font-weight: 400 !important; /* 👈 內文不使用粗體 */
+            font-weight: 400 !important; 
             line-height: 1.6;
             margin-bottom: 10px;
         }
@@ -49,7 +49,7 @@ def apply_custom_style():
             background-color: #2ea44f !important; 
             color: white !important; 
             border-radius: 6px !important; 
-            text-decoration: none !important; /* 👈 徹底消滅底線 */
+            text-decoration: none !important; 
             font-size: 13px !important; 
             font-weight: 600 !important; 
             transition: 0.3s;
@@ -60,7 +60,7 @@ def apply_custom_style():
             transform: translateY(-1px);
         }
 
-        /* 🚀 調整側邊欄收合按鈕位置，避免擋到內容 */
+        /* 🚀 調整側邊欄收合按鈕位置 */
         [data-testid="stSidebarCollapsedControl"] {
             top: 10px !important;
             left: 10px !important;
@@ -72,12 +72,30 @@ def apply_custom_style():
         [data-testid="stHeader"], header { background: transparent !important; }
         footer { display: none !important; }
         
-        /* 火箭按鈕 */
+        /* 🚀 【修改】火箭按鈕：置左側中，做成半圓形標籤 */
         .scroll-to-top {
-            position: fixed; bottom: 30px; right: 25px; width: 45px; height: 45px;
-            background-color: #f77f00; color: white !important; border-radius: 50%;
-            z-index: 9999; display: flex; align-items: center; justify-content: center;
-            text-decoration: none !important; font-size: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            position: fixed !important;
+            top: 50% !important; /* 垂直置中 */
+            left: 0px !important;  /* 貼死左邊邊緣 */
+            transform: translateY(-50%) !important; /* 完美對齊中心線 */
+            width: 40px !important; /* 稍微縮小寬度 */
+            height: 60px !important; /* 增加高度變成半橢圓 */
+            background-color: #f77f00 !important; 
+            color: white !important; 
+            /* 圓角設定：右上、右下是圓的，左上、左下是直角，使其貼平邊緣 */
+            border-radius: 0 30px 30px 0 !important; 
+            z-index: 9999 !important; 
+            display: flex !important; 
+            align-items: center; 
+            justify-content: center;
+            text-decoration: none !important; 
+            font-size: 22px !important; 
+            box-shadow: 2px 0 10px rgba(0,0,0,0.4) !important;
+            transition: 0.3s;
+        }
+        .scroll-to-top:hover {
+            width: 45px !important; /* 懸停時稍微伸出來 */
+            background-color: #ff9f43 !important;
         }
         </style>
     """, unsafe_allow_html=True)
