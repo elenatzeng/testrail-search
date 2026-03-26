@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 靈魂星空背景 - 鎖死深色底層 */
+        /* 🌌 靈魂星空背景 */
         .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
             background-color: #0b0e14 !important;
             background-image: 
@@ -14,12 +14,11 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【究極縮小】側邊欄與主內容的間距 */
+        /* 🚀 縮小側邊欄與內容的大空隙 ( image_d3134c 修正 ) */
         [data-testid="stAppViewContainer"] > .main {
             padding-left: 0.5rem !important;
             padding-right: 1rem !important;
         }
-        
         [data-testid="stAppViewContainer"] .block-container {
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
@@ -27,16 +26,20 @@ def apply_custom_style():
             padding-top: 2rem !important;
         }
 
-        /* 🛠️ 【極簡修正】拿掉浮誇樣式，只留簡單的箭頭 */
+        /* 🛠️ 【極簡收合鈕】修正收起來後找不到的問題 */
         [data-testid="stSidebarCollapseButton"] {
-            background-color: transparent !important; /* 拿掉底色 */
-            color: #8b949e !important; /* 簡單的灰色 */
-            border: none !important; /* 拿掉邊框 */
-            box-shadow: none !important; /* 拿掉陰影 */
+            background-color: transparent !important;
+            color: #8b949e !important; /* 預設灰色 */
+            border: none !important;
+            box-shadow: none !important;
+            transition: all 0.3s ease !important;
         }
+        
+        /* 當妳滑鼠靠近或是按鈕出現時，給它一點點螢光綠感 */
         [data-testid="stSidebarCollapseButton"]:hover {
-            color: white !important; /* 滑鼠移過去才變亮 */
-            background-color: rgba(255, 255, 255, 0.1) !important;
+            color: #32CD32 !important; /* 螢光綠，跟 Elena 標籤一樣 */
+            background-color: rgba(50, 205, 50, 0.1) !important;
+            transform: scale(1.2);
         }
 
         /* 🛡️ 封鎖系統白邊 */
@@ -66,26 +69,10 @@ def apply_custom_style():
             background-color: #f77f00 !important; color: white !important;
             border-radius: 50% !important; display: flex !important;
             align-items: center; justify-content: center;
-            font-size: 20px !important; text-decoration: none !important;
             z-index: 99999 !important; box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
         }
 
-        /* ✨ 火箭提示氣泡 */
-        .scroll-to-top::after {
-            content: "回到最頂";
-            position: absolute; right: 55px; top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(0, 0, 0, 0.8); color: white;
-            padding: 5px 10px; border-radius: 6px; font-size: 12px;
-            white-space: nowrap; opacity: 0;
-            transition: opacity 0.3s ease; pointer-events: none;
-            border: 1px solid #f77f00;
-        }
-        .scroll-to-top:hover::after { opacity: 1; }
-
-        .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
-        
-        /* 🔥 去白鎖死補強 */
+        /* 🔥 黑盒子去白底 */
         .content-box {
             background: #1c2128 !important;
             border: 1px solid #30363d !important;
@@ -98,11 +85,10 @@ def apply_custom_style():
             color: #c9d1d9 !important;
         }
         
-        /* 📸 圖片與破圖徹底消失 */
         img, [data-testid="stImage"] { display: none !important; }
         
-        /* 🛠️ 側邊欄與輸入框鎖死深色 */
-        [data-testid="stSidebar"] label, [data-testid="stSidebar"] p { color: #adb5bd !important; }
+        /* 🛠️ 輸入框鎖死深色 */
+        [data-testid="stSidebar"] label { color: #adb5bd !important; }
         .stTextInput input { background-color: #161b22 !important; color: #c9d1d9 !important; }
         </style>
     """, unsafe_allow_html=True)
