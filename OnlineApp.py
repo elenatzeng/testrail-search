@@ -100,7 +100,7 @@ if tr_url and tr_user and tr_pw:
                             is_list = re.match(r'^([•\-\*]|\d+\.)', s)
                             
                             # ✨ ：內文字體設定為 13px
-                            style = "margin-bottom:4px; display:block; font-size:16px;"
+                            style = "margin-bottom:4px; display:block; font-size:14px;"
                             
                             if is_list: style += "padding-left:18px;"
                             html_out += f'<div style="{style}">{s}</div>'
