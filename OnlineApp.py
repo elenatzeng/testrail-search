@@ -8,12 +8,14 @@ from keywords import SEARCH_DICTIONARY
 # 1. 頁面初始化
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪", initial_sidebar_state="expanded")
 apply_custom_style()
-st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+
+# ✨ 【修復】在頂部放置錨點，火箭點擊後才能飛回來
+st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄守護
+# 2. 側邊欄守護 (代碼維持妳提供的邏輯...)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -113,4 +115,5 @@ if tr_url and tr_user and tr_pw:
 else:
     st.info("👈 請先在左側完成連線設定。")
 
-st.markdown('<a href="#top-anchor" class="scroll-to-top">🚀</a>', unsafe_allow_html=True)
+# ✨ 【火箭按鈕】新增 title 屬性提供懸停提示
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端">🚀</a>', unsafe_allow_html=True)
