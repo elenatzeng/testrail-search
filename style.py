@@ -14,7 +14,7 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 (8) 名字標籤：邊框加粗到 2px 扎實感 */
+        /* 🚀 (8) 名字標籤：邊框 2px 扎實感 */
         .author-tag { 
             font-size: 12px !important; 
             border-radius: 20px !important; 
@@ -29,7 +29,7 @@ def apply_custom_style():
         }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
 
-        /* 🚀 (9) 核心黑盒子 */
+        /* 🚀 (9) 核心黑盒子：內文 14px 不粗體 */
         .content-box { 
             background: #1c2128 !important; 
             border: 1px solid #30363d !important; 
@@ -42,7 +42,7 @@ def apply_custom_style():
             margin-bottom: 10px;
         }
 
-        /* 🚀 (10) Open Case 按鈕：強力消滅底線 */
+        /* 🚀 (10) Open Case 按鈕：亮綠色、絕對無底線 */
         .view-btn, .view-btn:link, .view-btn:visited { 
             display: inline-block !important; 
             padding: 6px 14px !important; 
@@ -56,46 +56,49 @@ def apply_custom_style():
         }
         .view-btn:hover { background-color: #3fb950 !important; text-decoration: none !important; }
 
-        /* 🚀 【核心修正：火箭絕對置中】貼在左邊緣 */
+        /* 🚀 【修正：火箭靠右置中】橘色半圓標籤 */
         .scroll-to-top {
             position: fixed !important;
-            top: 50% !important;   /* 👈 垂直絕對置中 */
-            left: 0px !important;   /* 👈 貼死左側邊緣 */
-            transform: translateY(-50%) !important; /* 👈 補償自身高度達到完美置中 */
+            top: 50% !important;   /* 垂直置中 */
+            right: 0px !important;  /* 👈 貼死右邊邊緣 */
+            transform: translateY(-50%) !important;
             width: 45px !important;
-            height: 65px !important;
-            background-color: #f77f00 !important;
-            color: white !important;
-            border-radius: 0 35px 35px 0 !important; /* 右半圓拉環狀 */
-            display: flex !important;
-            align-items: center !important;
+            height: 70px !important;
+            background-color: #f77f00 !important; 
+            color: white !important; 
+            border-radius: 35px 0 0 35px !important; /* 左半圓形 */
+            z-index: 10000000 !important; 
+            display: flex !important; 
+            align-items: center !important; 
             justify-content: center !important;
-            z-index: 9999999 !important; 
-            text-decoration: none !important;
-            font-size: 24px !important;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.6) !important;
+            text-decoration: none !important; 
+            font-size: 24px !important; 
+            box-shadow: -4px 0 15px rgba(0,0,0,0.6) !important;
             transition: all 0.3s ease;
         }
-        .scroll-to-top:hover {
-            width: 55px !important;
-            background-color: #ff9f43 !important;
-        }
+        .scroll-to-top:hover { width: 55px !important; background-color: #ff9f43 !important; }
 
-        /* 🚀 側邊欄展開鈕：稍微移開避開火箭，同樣貼左 */
+        /* 🚀 【左側展開鈕 >> 】綠色半圓標籤 */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important;
-            top: 40% !important; /* 👈 放在中間偏上 */
-            left: 0px !important;
+            top: 50% !important;   /* 垂直置中 */
+            left: 0px !important;   /* 貼死左邊邊緣 */
+            transform: translateY(-50%) !important;
             width: 45px !important;
-            height: 55px !important;
-            background-color: rgba(255,255,255,0.15) !important;
-            border-radius: 0 25px 25px 0 !important;
-            z-index: 10000000 !important;
+            height: 70px !important;
+            background-color: #2ea44f !important; 
+            border-radius: 0 35px 35px 0 !important; /* 右半圓形 */
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
+            z-index: 10000001 !important;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.6) !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] svg {
+            fill: white !important; color: white !important; width: 28px !important; height: 28px !important;
         }
 
+        /* 🛡️ 隱藏雜物 */
         [data-testid="stHeader"], header { background: transparent !important; }
         footer { display: none !important; }
         </style>
