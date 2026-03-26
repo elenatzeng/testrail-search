@@ -1,86 +1,67 @@
 import streamlit as st
 
 def apply_custom_style():
+    # 🔥 黑科技：鎖死 Dark 模式，不讓它變白
     st.markdown("""
         <style>
-        /* 🌌 靈魂星空背景 */
-        .stApp {
-            background-color: #0b0e14 !important;
-            background-image: 
-                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
-                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
-                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px) !important;
-            background-size: 550px 550px, 350px 350px, 250px 250px !important;
-            background-position: 0 0, 40px 60px, 130px 270px !important;
+        /* 核心介面鎖死黑星空 */
+        .stApp, [data-testid="stSidebar"], .stTextInput input, .stNumberInput input, div[role="listbox"] {
+            background-color: #0d1117 !important;
+            color: #c9d1d9 !important;
         }
         
-        /* 🚀 名字標籤樣式 */
-        .author-tag { 
-            font-size: 13px !important; border-radius: 20px !important; 
-            padding: 4px 14px !important; display: inline-flex !important;
-            align-items: center; margin-left: 15px !important; 
-            font-weight: 800 !important; border: 2px solid !important; 
-            background: rgba(0,0,0,0.5) !important; vertical-align: middle;
+        /* 文字顏色鎖死灰白 */
+        h1, h2, h3, h4, h5, p, span, li, label, .stMarkdown, .no-content-hint {
+            color: #adb5bd !important;
         }
-        .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
-        .status-inactive { color: #FF4B4B !important; border-color: #FF4B4B !important; }
-
-        .stExpander { border: none !important; box-shadow: none !important; background: transparent !important; }
-
-        /* 🚀 無文字內容提示 */
-        .no-content-hint { 
-            color: #8b949e !important; 
-            font-size: 14px !important; 
-            padding: 10px 0 10px 25px !important; 
-            font-style: italic !important;
-            display: block !important;
+        
+        /* 側邊欄標題與文字鎖死 */
+        [data-testid="stSidebar"] h2, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {
+            color: #adb5bd !important;
         }
 
-        /* 🚀 火箭回到頂部按鈕 - 固定在右邊中間 */
-        .scroll-to-top {
-            position: fixed;
-            top: 50% !important;
-            right: 15px !important;
-            transform: translateY(-50%) !important;
-            width: 42px !important;
-            height: 42px !important;
-            background-color: #f77f00 !important;
-            color: white !important;
-            border-radius: 50% !important;
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px !important;
-            text-decoration: none !important;
-            z-index: 99999 !important;
-            box-shadow: 0 0 10px rgba(247, 127, 0, 0.5) !important;
-            border: none !important;
+        /* Expander (步驟區塊) 強制 Dark */
+        .streamlit-expanderHeader {
+            background-color: #161b22 !important;
+            border-color: #30363d !important;
+        }
+        .streamlit-expanderHeader:hover {
+            background-color: #1f242c !important;
+        }
+        .streamlit-expanderContent {
+            background-color: #0d1117 !important;
+            border-color: #30363d !important;
+        }
+        
+        /* 搜尋框框顏色鎖死 */
+        .stTextInput>div>div>input {
+            border: 1px solid #30363d !important;
+            background-color: #161b22 !important;
+        }
+        
+        /* 功能按鈕樣式回歸 */
+        div.stButton > button {
+            background-color: #21262d !important;
+            color: #c9d1d9 !important;
+            border: 1px solid #30363d !important;
+        }
+        div.stButton > button:hover {
+            background-color: #30363d !important;
+            border-color: #adb5bd !important;
+        }
+        
+        /* 綠線與黑盒子 (這裡直接在 HTML 裡寫死，但 CSS 也保險一下) */
+        [style*="border-left:4px solid #4CAF50"] {
+            margin-top: 10px !important;
         }
 
-        /* ✨ 火箭提示氣泡 */
-        .scroll-to-top::after {
-            content: "回到最頂";
-            position: absolute;
-            right: 55px;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-            border: 1px solid #f77f00;
-        }
-        .scroll-to-top:hover::after { opacity: 1; }
-        .scroll-to-top:hover {
-            transform: translateY(-50%) scale(1.1) !important;
-            box-shadow: 0 0 20px rgba(247, 127, 0, 0.8) !important;
+        /* 分隔線鎖死 */
+        hr {
+            border-color: #30363d !important;
         }
 
-        .view-btn { display: inline-block; padding: 7px 16px; background-color: #2ea44f; color: white !important; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: bold; }
+        /* 下載與 Deploy 按鈕隱藏 ( image_18.png 指示) */
+        div[data-testid="stToolbarDownloads"] { display: none !important; }
+        div[data-testid="stToolbarDeploy"] { display: none !important; }
         </style>
     """, unsafe_allow_html=True)
