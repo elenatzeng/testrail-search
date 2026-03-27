@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 靈魂星空背景 */
+        /* 🌌 靈魂星空背景 (維持原樣) */
         .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
             background-color: #0b0e14 !important;
             background-image: 
@@ -33,16 +33,18 @@ def apply_custom_style():
             z-index: 999999 !important;
         }
 
-        /* 🚀 【火箭位置修正】 */
+        /* 🚀 【火箭座標修正】維持在「左側中間」 */
         .scroll-to-top {
             position: fixed !important;
-            /* 調整這兩個數值來移動火箭 */
-            bottom: 30px !important;   /* 距離底部 30 像素 */
-            right: 30px !important;    /* 距離右邊 30 像素 */
+            
+            /* 🎯 關鍵修正：將火箭移到「左側中間」 */
+            top: 50% !important;        /* 螢幕高度的 50% */
+            left: 5px !important;       /* 距離左邊 5 像素 */
+            transform: translateY(-50%) !important; /* 向上平移 50%，達到真正的垂直置中 */
             
             width: 45px !important;
             height: 45px !important;
-            background-color: #f77f00 !important; 
+            background-color: #f77f00 !important; /* 橘色，方便辨識 */
             color: white !important; 
             border-radius: 50% !important;
             z-index: 10000000 !important; /* 超高層級，保證浮在最上面 */
@@ -51,10 +53,12 @@ def apply_custom_style():
             justify-content: center !important;
             text-decoration: none !important; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.6) !important;
-            transition: transform 0.2s !important;
+            transition: transform 0.2s, box-shadow 0.2s !important;
         }
+        
         .scroll-to-top:hover {
             transform: translateY(-50%) scale(1.1) !important;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.8) !important;
         }
 
         /* 移除頂部白線與多餘間距 */
