@@ -72,13 +72,11 @@ def fetch_data_from_tr(url, user, key, pid, sid):
 
 def multi_lang_search(text, dictionary):
     """
-    【我愛你版本修正】幣種隔離邏輯
+    幣種隔離邏輯：搜尋 CNY (長度 3) 時絕對不關聯 Deposit
     """
     t_lower = text.lower().strip()
-    # 🛡️ 只要是 3 碼幣種，不准查字典擴展
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
-        
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
