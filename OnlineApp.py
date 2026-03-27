@@ -14,7 +14,7 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【停机坪】在最顶端放置锚点，火箭点击后才能精准飞回顶部
+# ✨ 【停机坪】
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
@@ -44,21 +44,17 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # ✨ 显示 Project 资讯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜寻列布局
-        col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
-        
-        # ✨ 初始化控制变数 (确保清除功能运作)
         if "q_text" not in st.session_state:
             st.session_state.q_text = ""
         if "search_key" not in st.session_state:
             st.session_state.search_key = 0
 
+        col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
+        
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
-            # 💡 透过 search_key 确保清除时重置
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
@@ -74,7 +70,6 @@ if tr_url and tr_user and tr_pw:
                 st.session_state.search_key += 1 
                 st.rerun() 
         with col_r:
-            # ✨ 改成「查询」
             if st.button("🔎 查询", use_container_width=True): 
                 st.rerun()
 
@@ -84,31 +79,45 @@ if tr_url and tr_user and tr_pw:
             img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
 
             for c in all_cases:
-                title, cid = str(c.get('title', '')), str(c.get('id'))
-                f_path = path_map.get(c.get('section_id'), "")
+                title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
+                f_path = path_map.get(c.get('section_id'), "").lower()
+                steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or []
+                steps_str = str(steps_raw).lower()
                 
-                # 权重计算
+                # --- ✨ 核心改動：AND 交集過濾 ---
+                match_count = 0
                 match_score = 0
-                is_match = True
-                for t in terms:
-                    exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
-                    path_match = any(w in f_path.lower() for w in exp)
-                    
-                    if title_match: match_score += 10
-                    elif path_match: match_score += 1
-                    else:
-                        is_match = False; break
                 
-                if is_match:
-                    user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
-                    # 🤫 内容品质权重
-                    quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
-                    results.append((match_score + quality_weight, f_path, c, user_info))
+                for t in terms:
+                    # 💡 幣種保護：長度小於 4 的關鍵字不進同義詞典，精確匹配
+                    exp = [t] if len(t) <= 4 else multi_lang_search(t, SEARCH_DICTIONARY)
+                    
+                    t_m = any(w in title for w in exp) or (t == cid)
+                    p_m = any(w in f_path for w in exp)
+                    c_m = any(w in steps_str for w in exp)
+                    
+                    if t_m or p_m or c_m:
+                        match_count += 1
+                        if t_m: match_score += 10
+                        elif p_m: match_score += 1
 
-            # ✨ 排序逻辑：匹配度优先，其次路径 A-Z
+                # 🛡️ 物理鎖死：必須同時命中所有關鍵字 (AND)
+                if match_count == len(terms):
+                    user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    
+                    # 💡 內容品質權重：以「步驟數量」為基準 (每步 1000 分)
+                    step_count = len(steps_raw) if isinstance(steps_raw, list) else 0
+                    quality_weight = step_count * 1000
+                    
+                    # 權重包含：標題/路徑分 + 品質分 + 人員權重
+                    final_score = match_score + quality_weight + user_info.get("weight", 0)
+                    results.append((final_score, f_path, c, user_info))
+
+            # ✨ 排序邏輯：總分優先，其次路徑
             results.sort(key=lambda x: (-x[0], x[1]))
+
+            # ✨ 新增：搜尋筆數顯示
+            st.markdown(f'<div style="color:#2ea44f; font-weight:bold; margin: 10px 0 20px 5px;">找到 {len(results)} 筆符合條件的測試案例</div>', unsafe_allow_html=True)
 
             if not results:
                 st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的测试案例。</div>', unsafe_allow_html=True)
@@ -157,5 +166,4 @@ if tr_url and tr_user and tr_pw:
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
-# ✨ 【小火箭】：24px 比例刚好，提示文字也改为简体
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
