@@ -14,7 +14,7 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【停机坪】在最顶端放置锚点，火箭点击后才能精准飞回顶部
+# ✨ 【停机坪】
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
@@ -23,8 +23,8 @@ def get_val(key):
 # 2. 侧边栏守护 (连线设定)
 with st.sidebar:
     st.header("🔐 连线设定")
-    tr_url = st.text_input("TestRail URL", value=get_val("url"))
-    tr_user = st.text_input("账号 Email", value=get_val("user"))
+    tr_url = st.text_input("TestRail URL", value=get_val("url") or "https://gorun.testrail.io/")
+    tr_user = st.text_input("账号 Email", value=get_val("user") or "ela@intellianalyze.com")
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
     pid_v, sid_v = get_val("pid"), get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
@@ -47,7 +47,6 @@ if tr_url and tr_user and tr_pw:
         # ✨ 显示 Project 资讯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜寻列布局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
         if "q_text" not in st.session_state:
@@ -57,7 +56,6 @@ if tr_url and tr_user and tr_pw:
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
-            # 💡 修正：空标签改为一个空格，防止崩溃
             q_input = st.text_input(
                 " ", 
                 value=st.session_state.q_text, 
@@ -82,83 +80,37 @@ if tr_url and tr_user and tr_pw:
             img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
 
             for c in all_cases:
-                title, cid = str(c.get('title', '')), str(c.get('id'))
-                f_path = path_map.get(c.get('section_id'), "")
+                title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
+                f_path = path_map.get(c.get('section_id'), "").lower()
                 
-                match_score = 0
                 is_match = True
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    
-                    # 🔒 鎖死精度判斷：如果是3碼幣別，鎖死單字邊界
-                    if len(t) == 3 and t.isalpha():
-                        title_match = any(re.search(rf'\b{re.escape(w)}\b', title.lower()) or w == cid for w in exp)
-                        path_match = any(re.search(rf'\b{re.escape(w)}\b', f_path.lower()) for w in exp)
-                    else:
-                        title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
-                        path_match = any(w in f_path.lower() for w in exp)
-                    
-                    if title_match: match_score += 10
-                    elif path_match: match_score += 1
-                    else:
+                    # 昨天的搜尋邏輯
+                    if not any(w in title for w in exp) and not any(w == cid for w in exp):
                         is_match = False; break
                 
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
-                    quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
-                    results.append((match_score + quality_weight, f_path, c, user_info))
+                    results.append((f_path, c, user_info))
 
-            results.sort(key=lambda x: (-x[0], x[1]))
-
-            if not results:
-                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的测试案例。</div>', unsafe_allow_html=True)
-            else:
-                for _, path, item, u in results:
-                    cid = str(item.get('id'))
-                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
+            if results:
+                for path, item, u in results:
+                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
                     tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
-                    
                     c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                    c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
-                    c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
-                    
-                    with st.expander("查阅测试步骤", expanded=False):
-                        steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
-                        def final_render(text):
-                            if not text: return "(无内容)"
-                            text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
-                            lines = text.splitlines()
-                            html_out = '<div class="inner-text" style="font-weight: 400;">' 
-                            for line in lines:
-                                s = line.strip()
-                                if not s: continue
-                                is_list = re.match(r'^([•\-\*]|\d+\.)', s)
-                                style = "margin-bottom:4px; display:block; font-size:14px;"
-                                if is_list: style += "padding-left:18px;"
-                                html_out += f'<div style="{style}">{s}</div>'
-                            html_out += '</div>'
-                            return html_out
-
-                        if isinstance(steps_data, list) and len(steps_data) > 0:
-                            for s_idx, s in enumerate(steps_data, 1):
-                                c_html = final_render(s.get('content', ''))
-                                e_html = final_render(s.get('expected', ''))
-                                st.markdown(f'''
-                                    <div style="border-left:4px solid #2ea44f; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
-                                        <div style="color:#8b949e; font-weight:500; margin-bottom:10px; font-size:13px;">Step {s_idx}:</div>
-                                        <div class="content-box">{c_html}</div>
-                                        <div style="color:#8b949e; font-weight:500; margin-top:20px; margin-bottom:10px; font-size:13px;">Expected:</div>
-                                        <div class="content-box">{e_html}</div>
-                                    </div>
-                                ''', unsafe_allow_html=True)
+                    c1.markdown(f'<div style="display:flex; align-items:center; color:white; font-size:20px; font-weight:bold;">{item.get("title")} (#{item.get("id")}){tag}</div>', unsafe_allow_html=True)
+                    c2.markdown(f'<a href="{tr_url.strip("/")}/index.php?/cases/view/{item.get("id")}" target="_blank" class="view-btn">📖 Open Case</a>', unsafe_allow_html=True)
+                    with st.expander("查阅测试步骤"):
+                        st.text(clean_html(item.get('custom_steps') or ""))
                     st.markdown("---")
-        else:
-            st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
+            else:
+                st.warning("🚫 找不到符合的案例。")
     else:
-        st.error(f"❌ 连线失败或资料为空：{sync_time}")
+        # 🔥 如果資料有錯，顯示這行
+        st.error(f"❌ 抓取失敗：{sync_time}")
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
 # ✨ 【小火箭】
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
