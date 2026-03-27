@@ -2,16 +2,13 @@ import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
 from html import unescape
 
-# 💡 物理剥皮：確保搜尋只看妳眼睛看到的文字
 def match_visual_only(text, keyword):
     if not text or not keyword: return False
-    # 1. 還原 HTML 轉義字元 (如 &nbsp; 變空格)
+    # 物理剥皮：只看純文字，不看 HTML 標籤
     clean = unescape(str(text))
-    # 2. 移除所有 <...> 標籤內容 (徹底殺掉 class="cny" 這種隱形地雷)
     clean = re.sub(r'<[^>]*>', ' ', clean) 
-    # 3. 規格化：轉小寫、只留單一空格
     clean = " ".join(clean.split()).lower()
-    # 4. \b 鎖死：搜尋 "cny" 時，前後必須是邊界
+    # \b 鎖死：搜尋 "cny" 時，前後必須是邊界
     return re.search(rf'\b{re.escape(str(keyword).lower())}\b', clean)
 
 def smart_format(text):
@@ -23,7 +20,7 @@ def smart_format(text):
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 🛡️ 幣別鎖死：3 碼英文不聯想，解決 USDT 亂跳的元兇
+    # 🛡️ 幣別鎖死：3 碼不擴展，斷絕聯想 (這關過了才去比對)
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
     res = {t_lower}
