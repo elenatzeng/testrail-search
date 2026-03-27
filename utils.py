@@ -5,7 +5,6 @@ from testrail_api import TestRailAPI
 from html import unescape
 
 def clean_html(text):
-    """清理 HTML 並保留換行"""
     if not text: return ""
     t = unescape(str(text))
     t = t.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
@@ -14,7 +13,6 @@ def clean_html(text):
 
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
-    """資料抓取：自動相容 List 與 Dict 格式"""
     try:
         base_url = url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, user, key)
@@ -30,7 +28,6 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
-    """聯想詞邏輯"""
     t_lower = text.lower().strip()
     res = {t_lower}
     for group in dictionary:
