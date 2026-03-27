@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 灵魂星空背景 */
+        /* 🌌 靈魂星空背景 */
         .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
             background-color: #0b0e14 !important;
             background-image: 
@@ -14,7 +14,7 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 主标题缩放 (32px) */
+        /* 🚀 主標題縮放 (32px) */
         h1 {
             font-size: 32px !important;
             font-weight: 700 !important;
@@ -23,7 +23,7 @@ def apply_custom_style():
             padding-bottom: 5px !important;
         }
 
-        /* 🚀 作者标签 */
+        /* 🚀 作者標籤 */
         .author-tag { 
             font-size: 12px !important; 
             border-radius: 20px !important; 
@@ -50,7 +50,7 @@ def apply_custom_style():
             line-height: 1.6; 
         }
 
-        /* 🚀 Open Case 按钮 */
+        /* 🚀 Open Case 按鈕 */
         .view-btn, .view-btn:link, .view-btn:visited { 
             display: inline-block !important; 
             padding: 6px 14px !important; 
@@ -63,7 +63,7 @@ def apply_custom_style():
             border: none !important; 
         }
 
-        /* 🚀 精制圆火箭 (右侧垂直居中) */
+        /* 🚀 精制圓火箭 (右側) */
         .scroll-to-top {
             position: fixed !important;
             top: 50% !important;
@@ -74,58 +74,67 @@ def apply_custom_style():
             background-color: #f77f00 !important; 
             color: white !important; 
             border-radius: 50% !important;
-            z-index: 10000000 !important;
+            z-index: 999999 !important;
             display: flex !important; 
             align-items: center !important; 
             justify-content: center !important;
             text-decoration: none !important; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
-            transition: all 0.3s ease;
             cursor: pointer !important;
         }
 
-        /* 🚀 左侧半圆拉环 (收合按钮 >>) */
+        /* 🚀 【核心修復：強制拉出左側半圓拉環】 */
+        /* 針對側邊欄收合時的按鈕進行暴力置頂 */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important;
             top: 50% !important;
             left: 0px !important;
             transform: translateY(-50%) !important;
-            width: 40px !important;
-            height: 65px !important;
-            background-color: rgba(255,255,255,0.2) !important; 
-            border-radius: 0 35px 35px 0 !important;
+            width: 45px !important;
+            height: 70px !important;
+            background-color: rgba(255,255,255,0.25) !important; 
+            border-radius: 0 40px 40px 0 !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
-            z-index: 10000005 !important; /* 提到最高层 */
+            z-index: 10000000 !important; /* 絕對最高層 */
             visibility: visible !important;
+            opacity: 1 !important;
         }
+        
+        /* 確保按鈕內部的 SVG 圖示是白的且可見 */
         [data-testid="stSidebarCollapsedControl"] svg { 
             fill: white !important; 
             color: white !important; 
+            width: 28px !important;
+            height: 28px !important;
+            visibility: visible !important;
         }
 
-        /* 🛡️ 彻底移除右上角所有菜单/模式切换那一行 */
+        /* 🛡️ 隱藏右上角雜物，但不影響整頁布局 */
+        /* 隱藏 Toolbar (選單、模式切換) */
+        [data-testid="stHeader"] [data-testid="stToolbar"], 
+        #MainMenu, 
+        footer { 
+            display: none !important; 
+            visibility: hidden !important; 
+        }
+
+        /* 移除 Header 背景，避免它攔截點擊 */
         [data-testid="stHeader"] {
             background: transparent !important;
-            color: transparent !important;
+            pointer-events: none !important;
         }
         
-        /* 精准爆破右上角工具栏：直接踢出屏幕外 */
-        [data-testid="stHeader"] [data-testid="stToolbar"] {
-            position: absolute !important;
-            right: -1000px !important; /* 踢到右边看不到的地方 */
-            display: none !important;
+        /* 讓 Header 內的子元素按鈕（如果是箭頭）可以被點擊 */
+        [data-testid="stHeader"] button {
+            pointer-events: auto !important;
         }
 
-        /* 隐藏旧版 ID 和 页脚 */
-        #MainMenu { display: none !important; }
-        footer { display: none !important; }
-
-        /* 移除顶部多余白边 */
+        /* 移除頂部白邊 */
         .block-container { padding-top: 2.5rem !important; }
         
-        /* 内容收合时吸附左侧 */
+        /* 內容收合時吸附左側 */
         [data-testid="stAppViewContainer"][data-collapsed="true"] .main { 
             padding-left: 0 !important; 
             margin-left: 0 !important; 
