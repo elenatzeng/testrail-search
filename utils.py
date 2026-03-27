@@ -14,31 +14,25 @@ def clean_html(text):
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
     try:
-        # 自動修正網址
         base_url = url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, user, key)
-        
-        # 1. 抓取專案
         p_info = api.projects.get_project(project_id=pid)
         p_name = p_info.get('name', 'Project')
 
-        # 2. 抓取目錄 (處理分頁)
+        # 抓取目錄
         sect_resp = api.sections.get_sections(project_id=pid)
         sects_list = sect_resp.get('sections', []) if isinstance(sect_resp, dict) else sect_resp
         path_map = {s['id']: s['name'] for s in sects_list}
         
-        # 🛡️ 3. 抓取案例 (核心修正：將 1000 改為 250)
-        # TestRail 限制單次請求最大值為 250
+        # 抓取案例 (限制 250)
         case_resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250)
         cases_list = case_resp.get('cases', []) if isinstance(case_resp, dict) else case_resp
         
         return cases_list, path_map, time.strftime("%H:%M:%S"), p_name
-
     except Exception as e:
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
-    if not text: return []
     t_lower = text.lower().strip()
     res = {t_lower}
     for group in dictionary:
