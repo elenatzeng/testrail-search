@@ -2,16 +2,24 @@ import re, time, streamlit as st
 from testrail_api import TestRailAPI
 from html import unescape
 
-# 💡 物理剥皮：只看妳在網頁上「肉眼」能看到的文字
 def match_visual_only(text, keyword):
     if not text or not keyword: return False
-    # 1. 解碼 HTML 符號 -> 移除所有 HTML 標籤
+    
+    # 1. 物理剥皮：還原 HTML 並移除所有 <...> 標籤，防止隱藏屬性干擾
     clean = unescape(str(text))
     clean = re.sub(r'<[^>]*>', ' ', clean) 
-    # 2. 規格化：轉小寫、只留單一空格
     clean = " ".join(clean.split()).lower()
-    # 3. \b 鎖死：確保搜尋 CNY 時，不會抓到 Currency 這種字
-    return re.search(rf'\b{re.escape(str(keyword).lower())}\b', clean)
+    
+    kw = str(keyword).lower()
+    
+    # 2. 鋼鐵鎖死：如果是英文/數字，使用 \b 確保「全字匹配」
+    # 這樣搜尋 "cny" 就不會抓到 "currency" 或 "cny_123"
+    if kw.isalnum() and not re.search(r'[\u4e00-\u9fff]', kw):
+        pattern = rf'\b{re.escape(kw)}\b'
+        return re.search(pattern, clean) is not None
+    else:
+        # 中文則維持包含匹配
+        return kw in clean
 
 def smart_format(text):
     if not text: return ""
@@ -22,9 +30,10 @@ def smart_format(text):
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 🛡️ 幣別鎖定：3 碼英文（CNY, THB...）絕對不准聯想，這能殺掉所有誤跳
+    # 🛡️ 幣別隔離：搜尋 3 碼英文時不准聯想，直接鎖死，斷絕與 USDT 的任何字典關連
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
+    
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
@@ -39,7 +48,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 獲取 Section 路徑
+        # 獲取所有目錄名稱
         all_sects = []
         offset = 0
         while True:
@@ -59,7 +68,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
                 curr = id_to_parent.get(curr)
             path_map[s_id] = " › ".join(parts)
             
-        # 獲取 Cases
+        # 獲取所有案例
         all_cases = []
         offset = 0
         while True:
