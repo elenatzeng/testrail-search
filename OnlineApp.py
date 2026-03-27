@@ -8,17 +8,17 @@ from keywords import SEARCH_DICTIONARY
 st.set_page_config(page_title="TestRail Search Pro", layout="wide")
 apply_custom_style()
 
-# 頂部狀態列
-st.success("✅ 系統已修復：解決標籤錯誤與搜尋精度優化")
+# 頂部狀態顯示
+st.success("✅ 系統更新成功：已修復標籤錯誤與幣別精準度優化")
 
 with st.sidebar:
     st.header("🔐 連線設定")
-    # 🛡️ 這裡的標籤文字絕對不能是空的 ""
-    tr_url = st.text_input("TestRail 網址", value="https://gorun.testrail.io/")
+    # 🛡️ 確保這裡的所有第一個參數 (label) 都不是空的
+    tr_url = st.text_input("TestRail URL 網址", value="https://gorun.testrail.io/")
     tr_user = st.text_input("帳號 Email", value="ela@intellianalyze.com")
-    tr_pw = st.text_input("API Key / 密碼", type="password")
-    pid = st.number_input("專案 ID (PID)", value=10)
-    sid = st.number_input("測試集 ID (SID)", value=10)
+    tr_pw = st.text_input("API Key 密鑰", type="password")
+    pid = st.number_input("Project ID 專案編號", value=10)
+    sid = st.number_input("Suite ID 套件編號", value=10)
     
     st.divider()
     if st.button("🔄 強制刷新所有數據", use_container_width=True):
@@ -29,8 +29,9 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, last_up, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        st.info(f"📍 當前專案：{p_name} | 資料更新：{last_up}")
-        q_text = st.text_input("🔍 請輸入關鍵字搜尋：", placeholder="例如: 充值 cny")
+        st.info(f"📍 專案：{p_name} | 資料更新時間：{last_up}")
+        # 🛡️ 搜尋框標籤也補齊了
+        q_text = st.text_input("🔍 搜尋內容 (例如: 充值 cny)", placeholder="在此輸入關鍵字...")
         
         if q_text:
             terms = [t.lower() for t in q_text.strip().split() if t]
@@ -43,10 +44,10 @@ if tr_url and tr_user and tr_pw:
                 
                 is_all_passed = True
                 for t in terms:
-                    # 幣別鎖死邏輯
+                    # 判斷是否為幣別，是的話鎖死不聯想
                     variants = [t] if (len(t) == 3 and t.isalpha()) else multi_lang_search(t, SEARCH_DICTIONARY)
                     
-                    # 呼叫 utils 裡的鎖死比對
+                    # 呼叫精確比對
                     hit = any(match_visual_only(t_content, v) or match_visual_only(s_content, v) or t == cid for v in variants)
                     
                     if not hit:
@@ -66,7 +67,7 @@ if tr_url and tr_user and tr_pw:
                 tag = "status-active" if u["is_active"] else "status-inactive"
                 c1.markdown(f'<h4>{item["title"]} (#{item["id"]}) <span class="author-tag {tag}">{"🟢" if u["is_active"] else "🔴"} {u["name"]}</span></h4>', unsafe_allow_html=True)
                 
-                c2.markdown(f'<div style="text-align:right;"><a href="{tr_url}/index.php?/cases/view/{item["id"]}" target="_blank" class="view-btn">📖 打開案例</a></div>', unsafe_allow_html=True)
+                c2.markdown(f'<div style="text-align:right;"><a href="{tr_url}/index.php?/cases/view/{item["id"]}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("查看步驟詳情"):
                     st.text(smart_format(s_content))
