@@ -14,6 +14,29 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
+        /* 🎯 【核心修正：精準隱藏貓咪與選單】 */
+        
+        /* 1. 隱藏 GitHub 貓咪圖標 (最精準的選擇器) */
+        .stHeader .stGithubIcon, 
+        [data-testid="stHeader"] a[href*="github.com"] {
+            display: none !important;
+        }
+
+        /* 2. 隱藏 Deploy 按鈕 (那個藍色的按鈕) */
+        .stDeployButton {
+            display: none !important;
+        }
+
+        /* 3. 隱藏右側三條線選單 (MainMenu) */
+        #MainMenu {
+            visibility: hidden !important;
+        }
+
+        /* 4. 讓 Header 變透明，防止有一條白/黑線擋住背景 */
+        [data-testid="stHeader"] {
+            background: rgba(0,0,0,0) !important;
+        }
+
         /* 🚀 主标题缩放 (32px) */
         h1 {
             font-size: 32px !important;
@@ -81,42 +104,13 @@ def apply_custom_style():
             box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
         }
 
-        /* 🚀 【核心修正：左侧展开钮】 */
+        /* 🛡️ 確保側邊欄控制鈕（小箭頭）維持可見 */
         [data-testid="stSidebarCollapsedControl"] {
-            position: fixed !important;
-            top: 50% !important;
-            left: 0px !important;
-            transform: translateY(-50%) !important;
-            width: 40px !important;
-            height: 65px !important;
-            background-color: rgba(255,255,255,0.1) !important; 
-            border-radius: 0 35px 35px 0 !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            z-index: 10000001 !important;
             visibility: visible !important;
-        }
-        [data-testid="stSidebarCollapsedControl"] svg { 
-            fill: white !important; 
-            color: white !important; 
-            width: 25px !important; 
-            height: 25px !important; 
+            z-index: 10000001 !important;
         }
 
-        /* 🛡️ 隐藏杂物 */
-        [data-testid="stHeader"] { background: transparent !important; }
         footer { display: none !important; }
-        #MainMenu { visibility: hidden !important; } 
-        iframe[title="notification"] { display: none !important; }
-
-        /* 内容收合时吸附左侧 */
-        [data-testid="stAppViewContainer"][data-collapsed="true"] .main { 
-            padding-left: 0 !important; 
-            margin-left: 0 !important; 
-        }
-        
-        /* 移除顶部白线 */
-        .block-container { padding-top: 2rem !important; }
+        .block-container { padding-top: 1rem !important; }
         </style>
     """, unsafe_allow_html=True)
