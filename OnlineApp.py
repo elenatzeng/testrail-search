@@ -14,14 +14,12 @@ st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', uns
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 側邊欄連線設定
+# 2. 側邊欄設定
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url") or "https://gorun.testrail.io/")
     tr_user = st.text_input("帳號 Email", value=get_val("user") or "ela@intellianalyze.com")
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
-    
-    # 這裡給預設值，避免全空
     p_val = get_val("pid")
     s_val = get_val("sid")
     pid = st.number_input("Project ID", value=int(p_val) if p_val else 10)
@@ -40,18 +38,17 @@ st.title("🧪 TestRail 智能檢索中心")
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
-    if all_cases:
+    if all_cases is not None:
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | 更新時間：{sync_time}", unsafe_allow_html=True)
         
-        # 搜尋列
+        # 搜尋功能
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         if "search_key" not in st.session_state: st.session_state.search_key = 0
 
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
-            # 🛡️ 修復點：Label 給一個空格 " "
-            q_input = st.text_input(" ", value=st.session_state.q_text, placeholder="輸入關鍵字...", label_visibility="collapsed", key=f"q_{st.session_state.search_key}")
+            q_input = st.text_input(" ", value=st.session_state.q_text, placeholder="搜尋標題或 ID...", label_visibility="collapsed", key=f"q_{st.session_state.search_key}")
             st.session_state.q_text = q_input
             
         with col_c:
@@ -61,32 +58,41 @@ if tr_url and tr_user and tr_pw:
             if st.button("🔎 查詢", use_container_width=True): st.rerun()
 
         if st.session_state.q_text:
-            # 這是妳原本的邏輯
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
             for c in all_cases:
                 title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
                 is_match = True
                 for t in terms:
-                    exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    if not any(w in title for w in exp) and not any(w == cid for w in exp):
-                        is_match = False; break
+                    # 🔒 鎖死幣別精度
+                    variants = multi_lang_search(t, SEARCH_DICTIONARY)
+                    if len(t) == 3 and t.isalpha():
+                        if not any(re.search(rf'\b{re.escape(v)}\b', title) or v == cid for v in variants):
+                            is_match = False; break
+                    else:
+                        if not any(v in title or v == cid for v in variants):
+                            is_match = False; break
+                
                 if is_match:
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     results.append((path_map.get(c.get('section_id'), ""), c, u))
 
             if results:
+                st.success(f"找到 {len(results)} 筆結果")
                 for path, item, u in results:
-                    st.write(f"📁 {path}")
+                    st.write(f"📁 {path} | 👤 {u['name']}")
                     st.markdown(f"#### {item['title']} (#{item['id']})")
                     with st.expander("查看步驟"):
                         st.text(clean_html(item.get('custom_steps') or ""))
+                    st.divider()
             else:
                 st.warning("🚫 找不到結果")
+        else:
+            st.info("💡 請輸入關鍵字搜尋...")
     else:
-        # 這裡會顯示到底哪裡出錯，不再讓妳看到「一片空白」
-        st.error(f"❌ 資料抓取失敗。原因：{sync_time}") 
+        # 🔥 顯示報錯內容
+        st.error(f"❌ 抓取失敗：{sync_time}")
 else:
-    st.info("👈 請先完成側邊欄連線設定。")
+    st.info("👈 請完成側邊欄連線設定。")
 
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
