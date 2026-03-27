@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import re
 from style import apply_custom_style
 from utils import clean_html, fetch_data_from_tr, multi_lang_search
@@ -14,7 +14,7 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【停机坪】在最顶端放置锚点，火箭点击后才能精准飞回顶部
+# ✨ 【停机坪】
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
@@ -44,13 +44,10 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        # ✨ 显示 Project 资讯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜寻列布局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
-        # ✨ 初始化控制变数 (确保清除功能运作)
         if "q_text" not in st.session_state:
             st.session_state.q_text = ""
         if "search_key" not in st.session_state:
@@ -58,7 +55,6 @@ if tr_url and tr_user and tr_pw:
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
-            # 💡 透过 search_key 确保清除时重置
             q_input = st.text_input(
                 " ", 
                 value=st.session_state.q_text, 
@@ -74,49 +70,52 @@ if tr_url and tr_user and tr_pw:
                 st.session_state.search_key += 1 
                 st.rerun() 
         with col_r:
-            # ✨ 改成「查询」
             if st.button("🔎 查询", use_container_width=True): 
                 st.rerun()
 
         if st.session_state.q_text:
+            # 拆分多個關鍵字
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
             img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
 
             for c in all_cases:
-                title, cid = str(c.get('title', '')), str(c.get('id'))
-                f_path = path_map.get(c.get('section_id'), "")
+                title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
+                f_path = path_map.get(c.get('section_id'), "").lower()
                 
-                # 权重计算
                 match_score = 0
                 is_match = True
                 
-                # 🔒 妳最看重的交集查詢 (AND 邏輯)
+                # 🛠️ 交集查詢核心：對每個輸入的關鍵字進行檢查
                 for t in terms:
+                    # 取得聯想詞
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
                     
-                    # 💡 精準鎖定判斷：如果是3碼英文(幣別)，使用正則邊界比對，防止 cny 匹配到 currency
-                    if len(t) == 3 and t.isalpha():
-                        title_match = any(re.search(rf'\b{re.escape(w)}\b', title.lower()) or w == cid for w in exp)
-                        path_match = any(re.search(rf'\b{re.escape(w)}\b', f_path.lower()) for w in exp)
-                    else:
-                        title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
-                        path_match = any(w in f_path.lower() for w in exp)
+                    term_hit = False
+                    for word in exp:
+                        word = word.lower()
+                        # 🔒 幣別精準鎖定 (\b)
+                        if len(word) == 3 and word.isalpha():
+                            if re.search(rf'\b{re.escape(word)}\b', title) or \
+                               re.search(rf'\b{re.escape(word)}\b', f_path) or \
+                               word == cid:
+                                term_hit = True; break
+                        else:
+                            if word in title or word in f_path or word == cid:
+                                term_hit = True; break
                     
-                    if title_match: match_score += 10
-                    elif path_match: match_score += 1
+                    if term_hit:
+                        match_score += 10
                     else:
-                        # 只要有一個關鍵字沒對上，就踢掉 (交集查詢的核心)
+                        # 只要其中一個關鍵字（及其聯想詞）沒中，這個 Case 就淘汰
                         is_match = False; break
                 
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
-                    # 🤫 内容品质权重
                     quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
                     results.append((match_score + quality_weight, f_path, c, user_info))
 
-            # ✨ 排序逻辑：匹配度优先，其次路径 A-Z
             results.sort(key=lambda x: (-x[0], x[1]))
 
             if not results:
@@ -164,9 +163,8 @@ if tr_url and tr_user and tr_pw:
         else:
             st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
     else:
-        st.error("❌ 获取数据失败，请检查连线设定。")
+        st.error("❌ 获取数据失败，请检查连线。")
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
-# ✨ 【小火箭】：24px 比例刚好，提示文字也改为简体
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
