@@ -3,7 +3,7 @@ import re
 from style import apply_custom_style
 from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
-from keywords import SEARCH_DICTIONARY
+from keywords import SEARCH_DICTIONARY # 🔒 確保這裡有抓到字典
 
 # 1. 页面初始化
 st.set_page_config(
@@ -68,8 +68,8 @@ if tr_url and tr_user and tr_pw:
             if st.button("🔎 查询", use_container_width=True): st.rerun()
 
         if st.session_state.q_text:
-            # 🎯 回歸昨天最穩定的拆分邏輯
-            terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
+            # 🎯 拆分關鍵字 (交集查詢的核心)
+            terms = [t.lower().strip() for t in st.session_state.q_text.strip().split() if t]
             results = []
 
             for c in all_cases:
@@ -77,28 +77,31 @@ if tr_url and tr_user and tr_pw:
                 f_path = path_map.get(c.get('section_id'), "").lower()
                 
                 is_match = True
-                # 🔒 核心 AND 邏輯：每一個輸入的詞都必須出現在標題、路徑或 ID 裡
+                # 🛠️ AND 邏輯：檢查輸入的每一個詞
                 for t in terms:
+                    # 📖 這裡就是去字典抓聯想詞的地方！
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
                     
-                    # 檢查當前這個 term 是否有任何一個聯想詞命中
                     term_hit = False
                     for word in exp:
                         word = word.lower()
-                        # 🔒 幣別鎖死 (如果是 3 碼英文才用正則，否則用一般包含)
+                        # 🔒 針對 CNY 等 3 碼幣別進行精準邊界鎖定
                         if len(word) == 3 and word.isalpha():
-                            if re.search(rf'\b{re.escape(word)}\b', title) or word == cid:
+                            if re.search(rf'\b{re.escape(word)}\b', title) or \
+                               re.search(rf'\b{re.escape(word)}\b', f_path) or \
+                               word == cid:
                                 term_hit = True; break
                         else:
+                            # 一般關鍵字包含比對
                             if word in title or word in f_path or word == cid:
                                 term_hit = True; break
                     
                     if not term_hit:
-                        is_match = False; break # 只要一個關鍵字沒中就剔除
+                        is_match = False; break # 只要其中一個詞沒中，就不顯示
                 
                 if is_match:
-                    user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((f_path, c, user_info))
+                    u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    results.append((f_path, c, u))
 
             if results:
                 for path, item, u in results:
@@ -113,7 +116,7 @@ if tr_url and tr_user and tr_pw:
             else:
                 st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的案例。</div>', unsafe_allow_html=True)
     else:
-        st.error(f"❌ 抓取失敗：{sync_time}")
+        st.error(f"❌ 抓取失败：{sync_time}")
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
