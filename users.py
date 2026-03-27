@@ -10,8 +10,8 @@
 USER_CONFIG = {
     2:  {"name": "Elena",  "weight": 70, "is_active": True},
     11: {"name": "Katty",  "weight": 70, "is_active": True},
-    3:  {"name": "Esther", "weight": 70, "is_active": True},
-    4:  {"name": "Emma",   "weight": 70, "is_active": True},
+    3:  {"name": "Esther", "weight": 60, "is_active": True},
+    4:  {"name": "Emma",   "weight": 50, "is_active": True},
     8:  {"name": "Cooper", "weight": 50, "is_active": True},
     5:  {"name": "Baron",  "weight": 10, "is_active": True},
     6:  {"name": "Meh",    "weight": 5,  "is_active": False}  # ⚪ 標記為 False 自動變灰標
