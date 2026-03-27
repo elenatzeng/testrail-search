@@ -5,79 +5,167 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 頁面初始化
-st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
+# 1. 页面初始化
+st.set_page_config(
+    page_title="TestRail AI Search", 
+    layout="wide", 
+    page_icon="🧪", 
+    initial_sidebar_state="expanded"
+)
 apply_custom_style()
 
+# ✨ 【停机坪】在最顶端放置锚点，火箭点击后才能精准飞回顶部
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
-# 2. 側邊欄 (略，維持原樣)
+def get_val(key):
+    return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
+
+# 2. 侧边栏守护 (连线设定)
 with st.sidebar:
-    st.header("🔐 連線設定")
-    tr_url = st.text_input("TestRail URL", value=st.query_params.get("url", ""))
-    tr_user = st.text_input("帳號 Email", value=st.query_params.get("user", ""))
-    tr_pw = st.text_input("API Key", type="password", value=st.query_params.get("pw", ""))
-    pid = st.number_input("Project ID", value=int(st.query_params.get("pid", 10)))
-    sid = st.number_input("Suite ID", value=int(st.query_params.get("sid", 10)))
-    if st.button("💾 儲存資訊至網址", use_container_width=True):
+    st.header("🔐 连线设定")
+    tr_url = st.text_input("TestRail URL", value=get_val("url"))
+    tr_user = st.text_input("账号 Email", value=get_val("user"))
+    tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
+    pid_v, sid_v = get_val("pid"), get_val("sid")
+    pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
+    sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
+    
+    if st.button("💾 储存资讯至网址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-        st.success("✅ 已儲存")
+        st.success("✅ 已储存")
+    if st.button("🔄 强制刷新数据", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
-st.title("🧪 TestRail 智能檢索中心")
+st.title("🧪 TestRail 智能检索中心")
 
-# 3. 核心數據邏輯
+# 3. 核心数据逻辑
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
-    if all_cases is not None:
-        st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span>", unsafe_allow_html=True)
+    if all_cases:
+        # ✨ 显示 Project 资讯
+        st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        q_text = st.text_input("● 搜尋內容:", placeholder="例如：充值 CNY", key="main_search")
+        # 搜寻列布局
+        col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
+        
+        # ✨ 初始化控制变数 (确保清除功能运作)
+        if "q_text" not in st.session_state:
+            st.session_state.q_text = ""
+        if "search_key" not in st.session_state:
+            st.session_state.search_key = 0
 
-        if q_text:
-            terms = [t.lower().strip() for t in q_text.split() if t]
+        with col_s:
+            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
+            # 💡 透过 search_key 确保清除时重置
+            q_input = st.text_input(
+                "", 
+                value=st.session_state.q_text, 
+                placeholder="请输入关键字查询，多个关键字请以空格格开", 
+                label_visibility="collapsed",
+                key=f"search_input_{st.session_state.search_key}"
+            )
+            st.session_state.q_text = q_input
+            
+        with col_c:
+            if st.button("🗑️ 清除条件", use_container_width=True): 
+                st.session_state.q_text = "" 
+                st.session_state.search_key += 1 
+                st.rerun() 
+        with col_r:
+            # ✨ 改成「查询」
+            if st.button("🔎 查询", use_container_width=True): 
+                st.rerun()
+
+        if st.session_state.q_text:
+            terms = [t.lower().strip() for t in st.session_state.q_text.strip().split() if t]
             results = []
+            img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
 
             for c in all_cases:
-                title = str(c.get('title', '')).lower()
-                cid = str(c.get('id'))
+                title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "").lower()
                 
+                # 权重计算
+                match_score = 0
                 is_match = True
+                
+                # 🛠️ 核心交集邏輯 (AND)
                 for t in terms:
-                    # 📖 取得聯想詞 (若字典沒這字，res 就只會包含 [t])
-                    expanded_words = multi_lang_search(t, SEARCH_DICTIONARY)
-                    
+                    # 📖 呼叫字典聯想
+                    exp = multi_lang_search(t, SEARCH_DICTIONARY)
                     term_hit = False
-                    for word in expanded_words:
+                    
+                    for word in exp:
                         w = word.lower()
-                        # 🔒 妳要求的：精確完整比對 (\b 代表單字邊界)
-                        # 這樣搜尋 cny 就不會搜到 currency
-                        if re.search(rf'\b{re.escape(w)}\b', title) or \
-                           re.search(rf'\b{re.escape(w)}\b', f_path) or w == cid:
-                            term_hit = True; break
-                        # 補充：如果是非英文（如中文），re.search 依然有效
-                        elif w in title or w in f_path:
-                            term_hit = True; break
+                        # 🔒 只要標題、路徑或 ID 包含這個詞組中的任一字，就算命中
+                        if w in title or w in f_path or w == cid:
+                            term_hit = True
+                            break
                     
                     if not term_hit:
-                        is_match = False; break
+                        is_match = False
+                        break
                 
                 if is_match:
-                    u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((f_path, c, u))
+                    user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
+                    # 🤫 内容品质权重
+                    quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
+                    results.append((10 + quality_weight, f_path, c, user_info))
 
-            if results:
-                for path, item, u in results:
-                    st.markdown(f'<div style="color:#adb5bd; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div style="color:white; font-size:18px; font-weight:bold;">{item["title"]} (#{item["id"]}) <span style="border:1px solid #32CD32; border-radius:10px; padding:0 10px; font-size:12px;">{u["name"]}</span></div>', unsafe_allow_html=True)
-                    st.markdown(f'<a href="{tr_url.strip("/")}/index.php?/cases/view/{item["id"]}" target="_blank" style="color:#2ea44f; text-decoration:none;">📖 Open Case</a>', unsafe_allow_html=True)
-                    with st.expander("查閱步驟"):
-                        st.text(clean_html(item.get('custom_steps') or ""))
-                    st.markdown("---")
+            # ✨ 排序逻辑：匹配度优先，其次路径 A-Z
+            results.sort(key=lambda x: (-x[0], x[1]))
+
+            if not results:
+                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的测试案例。</div>', unsafe_allow_html=True)
             else:
-                st.warning("🚫 找不到符合的案例。")
-    else:
-        st.error(f"❌ 抓取失敗：{sync_time}")
+                for _, path, item, u in results:
+                    cid = str(item.get('id'))
+                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
+                    tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
+                    
+                    c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
+                    c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                    c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
+                    
+                    with st.expander("查阅测试步骤", expanded=False):
+                        steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
+                        def final_render(text):
+                            if not text: return "(无内容)"
+                            text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
+                            lines = text.splitlines()
+                            html_out = '<div class="inner-text" style="font-weight: 400;">' 
+                            for line in lines:
+                                s = line.strip()
+                                if not s: continue
+                                is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                                style = "margin-bottom:4px; display:block; font-size:14px;"
+                                if is_list: style += "padding-left:18px;"
+                                html_out += f'<div style="{style}">{s}</div>'
+                            html_out += '</div>'
+                            return html_out
 
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端">🚀</a>', unsafe_allow_html=True)
+                        if isinstance(steps_data, list) and len(steps_data) > 0:
+                            for s_idx, s in enumerate(steps_data, 1):
+                                c_html = final_render(s.get('content', ''))
+                                e_html = final_render(s.get('expected', ''))
+                                st.markdown(f'''
+                                    <div style="border-left:4px solid #2ea44f; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
+                                        <div style="color:#8b949e; font-weight:500; margin-bottom:10px; font-size:13px;">Step {s_idx}:</div>
+                                        <div class="content-box">{c_html}</div>
+                                        <div style="color:#8b949e; font-weight:500; margin-top:20px; margin-bottom:10px; font-size:13px;">Expected:</div>
+                                        <div class="content-box">{e_html}</div>
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                    st.markdown("---")
+        else:
+            st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
+    else:
+        st.error(f"❌ 抓取失败：{sync_time}")
+else:
+    st.info("👈 请先在左侧完成连线设定。")
+
+# ✨ 【小火箭】：24px 比例刚好，提示文字也改为简体
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
