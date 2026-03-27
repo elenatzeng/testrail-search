@@ -43,13 +43,14 @@ st.title("🧪 TestRail 智能检索中心")
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
-    if all_cases is not None:
+    if all_cases:
         # ✨ 显示 Project 资讯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
         # 搜寻列布局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
+        # ✨ 初始化控制变数 (确保清除功能运作)
         if "q_text" not in st.session_state:
             st.session_state.q_text = ""
         if "search_key" not in st.session_state:
@@ -57,8 +58,9 @@ if tr_url and tr_user and tr_pw:
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
+            # 💡 透过 search_key 确保清除时重置
             q_input = st.text_input(
-                " ", 
+                "", 
                 value=st.session_state.q_text, 
                 placeholder="请输入关键字查询，多个关键字请以空格格开", 
                 label_visibility="collapsed",
@@ -72,6 +74,7 @@ if tr_url and tr_user and tr_pw:
                 st.session_state.search_key += 1 
                 st.rerun() 
         with col_r:
+            # ✨ 改成「查询」
             if st.button("🔎 查询", use_container_width=True): 
                 st.rerun()
 
@@ -84,19 +87,13 @@ if tr_url and tr_user and tr_pw:
                 title, cid = str(c.get('title', '')), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "")
                 
+                # 权重计算
                 match_score = 0
                 is_match = True
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    
-                    # 🔒 鎖死精度判斷：搜尋 cny 不會搜到 currency
-                    if len(t) == 3 and t.isalpha():
-                        # 使用 \b 正則表達式鎖定單字邊界
-                        title_match = any(re.search(rf'\b{re.escape(w)}\b', title.lower()) or w == cid for w in exp)
-                        path_match = any(re.search(rf'\b{re.escape(w)}\b', f_path.lower()) for w in exp)
-                    else:
-                        title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
-                        path_match = any(w in f_path.lower() for w in exp)
+                    title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
+                    path_match = any(w in f_path.lower() for w in exp)
                     
                     if title_match: match_score += 10
                     elif path_match: match_score += 1
@@ -105,11 +102,17 @@ if tr_url and tr_user and tr_pw:
                 
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((match_score, f_path, c, user_info))
+                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
+                    # 🤫 内容品质权重
+                    quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
+                    results.append((match_score + quality_weight, f_path, c, user_info))
 
+            # ✨ 排序逻辑：匹配度优先，其次路径 A-Z
             results.sort(key=lambda x: (-x[0], x[1]))
 
-            if results:
+            if not results:
+                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的测试案例。</div>', unsafe_allow_html=True)
+            else:
                 for _, path, item, u in results:
                     cid = str(item.get('id'))
                     st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
@@ -120,16 +123,39 @@ if tr_url and tr_user and tr_pw:
                     c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
                     
                     with st.expander("查阅测试步骤", expanded=False):
-                        st.text(clean_html(item.get('custom_steps') or ""))
+                        steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
+                        def final_render(text):
+                            if not text: return "(无内容)"
+                            text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
+                            lines = text.splitlines()
+                            html_out = '<div class="inner-text" style="font-weight: 400;">' 
+                            for line in lines:
+                                s = line.strip()
+                                if not s: continue
+                                is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                                style = "margin-bottom:4px; display:block; font-size:14px;"
+                                if is_list: style += "padding-left:18px;"
+                                html_out += f'<div style="{style}">{s}</div>'
+                            html_out += '</div>'
+                            return html_out
+
+                        if isinstance(steps_data, list) and len(steps_data) > 0:
+                            for s_idx, s in enumerate(steps_data, 1):
+                                c_html = final_render(s.get('content', ''))
+                                e_html = final_render(s.get('expected', ''))
+                                st.markdown(f'''
+                                    <div style="border-left:4px solid #2ea44f; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
+                                        <div style="color:#8b949e; font-weight:500; margin-bottom:10px; font-size:13px;">Step {s_idx}:</div>
+                                        <div class="content-box">{c_html}</div>
+                                        <div style="color:#8b949e; font-weight:500; margin-top:20px; margin-bottom:10px; font-size:13px;">Expected:</div>
+                                        <div class="content-box">{e_html}</div>
+                                    </div>
+                                ''', unsafe_allow_html=True)
                     st.markdown("---")
-            else:
-                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的测试案例。</div>', unsafe_allow_html=True)
         else:
             st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
-    else:
-        st.error(f"❌ 抓取失败：{sync_time}")
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
-# ✨ 【小火箭】
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
+# ✨ 【小火箭】：24px 比例刚好，提示文字也改为简体
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
