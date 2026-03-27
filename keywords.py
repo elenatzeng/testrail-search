@@ -17,13 +17,12 @@ SEARCH_DICTIONARY = [
     ["account", "帳戶", "账户", "帳號", "账号", "acct", "accountName", "memberId"],
     ["deposit", "存款", "充值", "Deposit", "deposit", "储值", "儲值"],
     ["withdraw", "提款", "提現", "提现", "Withdrawal", "取款"],
-    ["transfer", "轉帳", "转账", "Transfer", "劃轉", "划转", "transferRecord", "transferTime", "fromWalletCategory", "toWalletCategory"],
-    ["main_w", "主錢包", "主钱包", "Main Account", "Main Wallet", "masterAccount"],
+    ["transfer", "轉帳", "转账", "Transfer", "劃轉", "划转", "transferRecord", "transferTime"],
+    ["Wallet", "錢包", "钱包"],
     ["network_fee", "網路手續費", "网络手续费", "Network fee", "network__fee", "digitalFee", "gasFee"],
     ["exchange", "閃兌", "闪兑", "Rapid Exchange", "conversion", "previewExchange", "transactionOrderNo"],
     ["trans_addr", "轉出地址", "转出地址", "Transfer address", "transAddress", "receiveAddress", "transHash"],
     ["crypto", "虛擬幣", "虛擬貨幣", "加密貨幣", "數字貨幣", "Crypto", "digitalAsset"],
-    ["usdt", "泰達幣", "USDT", "usdt", "Tether", "tether_token"],
 
     # --- [auManage] 權限與成員管理 ---
     ["auManage", "權限管理", "权限管理", "Authority Management", "qx", "access", "authority"],
@@ -78,7 +77,7 @@ SEARCH_DICTIONARY = [
     ["maintenance", "維護中", "維護中", "service_maintain_text1", "game_main", "maintenance"],
 
     # --- [Fiat] 法幣與傳統支付 ---
-    ["fiat", "法幣", "法定貨幣", "法幣", "Fiat Currency", "fiat_money", "legalCurrency"],
+    ["fiat", "法幣", "法定貨幣", "法幣"],
     ["bank_card", "銀行卡", "銀行卡", "金融卡", "Bank Card", "bankCard", "debitCard", "creditCard", "card_number"],
     ["bank_name", "銀行名稱", "開戶行", "Bank Name", "bankName", "branchName", "issuing_bank"],
     ["otc", "場外交易", "OTC", "otc_trade", "p2p_trading", "商家交易"],
