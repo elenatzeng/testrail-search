@@ -2,26 +2,29 @@ import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
 from html import unescape
 
-def match_strict_visual(text, keyword):
+# 💡 視覺化匹配：先把標籤剝掉，再搜純文字
+def match_visual_only(text, keyword):
     if not text or not keyword: return False
-    # 1. 物理剝離：先把 HTML Entity 轉回文字 (例如 &nbsp; 轉成空格)
+    # 1. 物理移除：先把 HTML 轉義字元轉回 (如 &nbsp; 變空格)
     clean = unescape(str(text))
-    # 2. 物理移除：移除所有 <...> 標籤 (包含裡面的屬性如 class="cny")
+    # 2. 物理移除：移除所有 <...> 標籤 (包含屬性)
     clean = re.sub(r'<[^>]*>', ' ', clean)
-    # 3. 規格化：只留純文字，轉小寫並處理邊界
+    # 3. 規格化：移除多餘換行與空白，轉小寫
     clean = " ".join(clean.split()).lower()
-    # 4. \b 鎖死：搜尋 "cny" 前後必須是邊界，不准連在其他字裡面
+    # 4. \b 鎖死：搜尋 "cny" 時，前後必須是邊界，不准連在其他字裡面
     return re.search(rf'\b{re.escape(str(keyword).lower())}\b', clean)
 
 def smart_format(text):
+    """用於前端顯示，保持閱讀感"""
     if not text: return ""
     t = unescape(str(text))
     t = t.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
-    return re.sub(r'<[^>]*>', '', t).strip()
+    t = re.sub(r'<[^>]*>', '', t)
+    return t.strip()
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 🛡️ 幣別鎖死：3 碼不擴展，避免聯想 USDT
+    # 🛡️ 幣別鎖死：3 碼英文（如 CNY）絕對不准聯想，回傳只有自己
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
     res = {t_lower}
