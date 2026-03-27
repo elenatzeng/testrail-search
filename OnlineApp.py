@@ -50,7 +50,7 @@ if tr_url and tr_user and tr_pw:
         # 搜寻列布局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
-        # ✨ 初始化控制变数 (确保清除功能运作)
+        # ✨ 初始化控制变数
         if "q_text" not in st.session_state:
             st.session_state.q_text = ""
         if "search_key" not in st.session_state:
@@ -58,7 +58,6 @@ if tr_url and tr_user and tr_pw:
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
-            # 💡 透过 search_key 确保清除时重置
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
@@ -74,33 +73,35 @@ if tr_url and tr_user and tr_pw:
                 st.session_state.search_key += 1 
                 st.rerun() 
         with col_r:
-            # ✨ 改成「查询」
             if st.button("🔎 查询", use_container_width=True): 
                 st.rerun()
 
         if st.session_state.q_text:
+            # 🎯 統一轉小寫處理
             terms = [t.lower().strip() for t in st.session_state.q_text.strip().split() if t]
             results = []
             img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
 
             for c in all_cases:
-                title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
+                # 🔒 重點修正：標題在比對前先轉小寫
+                title_raw = str(c.get('title', ''))
+                title_lower = title_raw.lower()
+                cid = str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "").lower()
                 
-                # 权重计算
                 match_score = 0
                 is_match = True
                 
-                # 🛠️ 核心交集邏輯 (AND)
+                # 🛠️ 交集邏輯
                 for t in terms:
-                    # 📖 呼叫字典聯想
+                    # 📖 取得聯想詞 (包含原文)
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    term_hit = False
                     
+                    term_hit = False
                     for word in exp:
                         w = word.lower()
-                        # 🔒 只要標題、路徑或 ID 包含這個詞組中的任一字，就算命中
-                        if w in title or w in f_path or w == cid:
+                        # 🔍 搜尋 ID、標題或路徑 (全小寫比對)
+                        if w == cid or w in title_lower or w in f_path:
                             term_hit = True
                             break
                     
@@ -111,11 +112,10 @@ if tr_url and tr_user and tr_pw:
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
-                    # 🤫 内容品质权重
                     quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
                     results.append((10 + quality_weight, f_path, c, user_info))
 
-            # ✨ 排序逻辑：匹配度优先，其次路径 A-Z
+            # ✨ 排序
             results.sort(key=lambda x: (-x[0], x[1]))
 
             if not results:
@@ -167,5 +167,4 @@ if tr_url and tr_user and tr_pw:
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
-# ✨ 【小火箭】：24px 比例刚好，提示文字也改为简体
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
