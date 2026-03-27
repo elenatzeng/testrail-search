@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 灵魂星空背景 */
+        /* 🌌 靈魂星空背景 */
         .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
             background-color: #0b0e14 !important;
             background-image: 
@@ -14,73 +14,49 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 主标题缩放 (32px) */
-        h1 {
-            font-size: 32px !important;
-            font-weight: 700 !important;
-            color: white !important;
-            padding-top: 10px !important;
-            padding-bottom: 5px !important;
+        /* 🚀 主標題縮放 (32px) */
+        h1 { font-size: 32px !important; font-weight: 700 !important; color: white !important; }
+
+        /* 🚀 作者標籤基礎樣式 */
+        .author-tag { 
+            font-size: 12px !important; border-radius: 20px !important; padding: 2px 12px !important; 
+            display: inline-flex !important; align-items: center; margin-left: 10px !important; 
+            font-weight: 600 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; 
         }
 
-        /* 🚀 作者标签、黑盒子、按钮样式 */
-        .author-tag { font-size: 12px !important; border-radius: 20px !important; padding: 2px 12px !important; display: inline-flex !important; align-items: center; margin-left: 10px !important; font-weight: 600 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; color: white !important; }
+        /* 🟢 在職：綠字綠框 */
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
-        .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 15px 20px; color: #c9d1d9 !important; font-size: 14px !important; font-weight: 400 !important; line-height: 1.6; }
+
+        /* 🔴 離職：紅字紅框紅燈 (Meh 專用) */
+        .status-inactive { 
+            color: #FF4B4B !important; 
+            border-color: #FF4B4B !important; 
+            background: rgba(255, 75, 75, 0.15) !important; 
+        }
+
+        .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 15px 20px; color: #c9d1d9 !important; font-size: 14px !important; }
         .view-btn, .view-btn:link, .view-btn:visited { display: inline-block !important; padding: 6px 14px !important; background-color: #2ea44f !important; color: white !important; border-radius: 6px !important; text-decoration: none !important; font-size: 13px !important; font-weight: 600 !important; border: none !important; }
 
-        /* 🚀 精制圆火箭 */
+        /* 🚀 火箭與拉環 */
         .scroll-to-top {
-            position: fixed !important;
-            top: 50% !important;
-            right: 15px !important;
-            transform: translateY(-50%) !important;
-            width: 42px !important;
-            height: 42px !important;
-            background-color: #f77f00 !important; 
-            color: white !important; 
-            border-radius: 50% !important;
-            z-index: 10000000 !important;
-            display: flex !important; 
-            align-items: center !important; 
-            justify-content: center !important;
-            text-decoration: none !important; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+            position: fixed !important; top: 50% !important; right: 15px !important; transform: translateY(-50%) !important;
+            width: 42px !important; height: 42px !important; background-color: #f77f00 !important; color: white !important; 
+            border-radius: 50% !important; z-index: 10000000 !important; display: flex !important; align-items: center !important; justify-content: center !important;
+            text-decoration: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
         }
 
-        /* 🚀 【核心修正：左侧展开钮】 */
         [data-testid="stSidebarCollapsedControl"] {
-            position: fixed !important;
-            top: 50% !important;
-            left: 0px !important;
-            transform: translateY(-50%) !important;
-            width: 40px !important;
-            height: 65px !important;
-            background-color: rgba(255,255,255,0.1) !important; 
-            border-radius: 0 35px 35px 0 !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            z-index: 10000001 !important;
-            visibility: visible !important; /* 强制显示 */
+            position: fixed !important; top: 50% !important; left: 0px !important; transform: translateY(-50%) !important;
+            width: 40px !important; height: 65px !important; background-color: rgba(255,255,255,0.1) !important; 
+            border-radius: 0 35px 35px 0 !important; display: flex !important; justify-content: center !important; align-items: center !important;
+            z-index: 10000001 !important; visibility: visible !important; 
         }
-        [data-testid="stSidebarCollapsedControl"] svg { fill: white !important; color: white !important; width: 25px !important; height: 25px !important; }
 
-        /* 🛡️ 隐藏杂物但不破坏 Header 逻辑 */
+        /* 🛡️ 隱藏雜物 */
         [data-testid="stHeader"] { background: transparent !important; }
         footer { display: none !important; }
-        
-        /* ✨ 精准刺杀：隐藏菜单里的“Settings”和“主题切换”相关选项 */
-        /* 虽然不能直接禁掉按钮，但我们可以让菜单点开后里面是空的或者隐藏特定行 */
-        iframe[title="notification"] { display: none !important; } /* 隐藏通知 */
-        
-        /* 彻底干掉右上角那个“三条杠”里的特定内容 (利用 CSS 屏蔽) */
         #MainMenu { visibility: hidden !important; } 
 
-        /* 内容收合时吸附左侧 */
-        [data-testid="stAppViewContainer"][data-collapsed="true"] .main { padding-left: 0 !important; margin-left: 0 !important; }
-        
-        /* 移除顶部白线 */
         .block-container { padding-top: 2rem !important; }
         </style>
     """, unsafe_allow_html=True)
