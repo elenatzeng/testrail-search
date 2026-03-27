@@ -55,10 +55,11 @@ if tr_url and tr_user and tr_pw:
         
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
+            # 💡 修改 placeholder 提示使用者支持多关键字
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
-                placeholder="请输入关键字查詢 (例如: 充值 CNY)", 
+                placeholder="请输入多个关键字 (例如: 充值 CNY)，需全部符合才显示", 
                 label_visibility="collapsed",
                 key=f"search_input_{st.session_state.search_key}"
             )
@@ -74,6 +75,7 @@ if tr_url and tr_user and tr_pw:
                 st.rerun()
 
         if st.session_state.q_text:
+            # 💡 拆分关键字
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
             img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
@@ -84,50 +86,51 @@ if tr_url and tr_user and tr_pw:
                 steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or []
                 steps_str = str(steps_raw).lower()
                 
-                # --- ✨ 核心邏輯：AND (交集) 過濾 ---
+                # --- ✨ 核心邏輯：AND (交集) 過慮器 ✨ ---
                 match_count = 0
                 title_score = 0
-                path_score = 0
                 
                 for t in terms:
+                    # 取得字典中的擴展詞
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    # 檢查各維度命中 (含 ID 匹配)
+                    
+                    # 檢查這一個詞有沒有在任何地方出現
                     t_m = any(w in title for w in exp) or (t == cid)
                     p_m = any(w in f_path for w in exp)
                     c_m = any(w in steps_str for w in exp)
                     
                     if t_m or p_m or c_m:
                         match_count += 1
-                        # 💡 分數加成：標題中一次拿 2000，路徑中拿 500
-                        if t_m: title_score = 2000 
-                        if p_m: path_score = 500
+                        # 標題命中獎勵，不累加
+                        if t_m: title_score = 2000
                 
-                # 🛡️ 物理鎖死：所有關鍵字都必須同時命中 (AND 邏輯)
+                # 🛡️ 物理鎖死：必須「所有」關鍵字都命中，才准顯示
                 if match_count == len(terms):
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     u_weight = u.get("weight", 0)
                     
-                    # 💡 內容豐富度積分：每個步驟加 1000 分 (壓制雷包核心)
+                    # 💡 內容品質積分：每個步驟加 1000 分 (壓制雷包)
                     step_count = len(steps_raw) if isinstance(steps_raw, list) else 0
                     step_bonus = step_count * 1000 
 
                     # 總分計算
-                    total_score = title_score + step_bonus + path_score + u_weight
+                    total_score = title_score + step_bonus + u_weight
                     
-                    # 排序 key：高分優先，路徑字母其次
+                    # 排序：品質高分優先
                     sort_key = (-total_score, f_path, cid)
                     results.append((sort_key, f_path, c, u))
 
+            # 執行物理排序
             results.sort(key=lambda x: x[0])
 
             if not results:
-                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到同時符合所有關鍵字的測試案例。</div>', unsafe_allow_html=True)
+                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到「同時符合」所有關鍵字的測試案例。</div>', unsafe_allow_html=True)
             else:
                 for _, path, item, u in results:
                     cid = str(item.get('id'))
                     st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
                     
-                    # 🔴 這裡保留妳原本的 tag 邏輯與 CSS Class
+                    # 🔴 這裡保留妳原本的 tag 邏輯
                     is_active = u.get("is_active", True)
                     st_class = "active" if is_active else "inactive"
                     st_icon = "🟢" if is_active else "🔴"
