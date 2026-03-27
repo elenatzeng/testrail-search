@@ -14,7 +14,7 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【停机坪】
+# ✨ 【停机坪】在最顶端放置锚点，火箭点击后才能精准飞回顶部
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
@@ -47,10 +47,13 @@ if tr_url and tr_user and tr_pw:
         # ✨ 显示 Project 资讯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
+        # 搜寻列布局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
-        if "q_text" not in st.session_state: st.session_state.q_text = ""
-        if "search_key" not in st.session_state: st.session_state.search_key = 0
+        if "q_text" not in st.session_state:
+            st.session_state.q_text = ""
+        if "search_key" not in st.session_state:
+            st.session_state.search_key = 0
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
@@ -65,51 +68,68 @@ if tr_url and tr_user and tr_pw:
             
         with col_c:
             if st.button("🗑️ 清除条件", use_container_width=True): 
-                st.session_state.q_text = ""; st.session_state.search_key += 1; st.rerun() 
+                st.session_state.q_text = "" 
+                st.session_state.search_key += 1 
+                st.rerun() 
         with col_r:
-            if st.button("🔎 查询", use_container_width=True): st.rerun()
+            if st.button("🔎 查询", use_container_width=True): 
+                st.rerun()
 
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
+            img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
+
             for c in all_cases:
-                title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
-                f_path = path_map.get(c.get('section_id'), "").lower()
+                title, cid = str(c.get('title', '')), str(c.get('id'))
+                f_path = path_map.get(c.get('section_id'), "")
                 
+                match_score = 0
                 is_match = True
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
+                    
                     # 🔒 鎖死精度判斷：搜尋 cny 不會搜到 currency
                     if len(t) == 3 and t.isalpha():
-                        t_hit = any(re.search(rf'\b{re.escape(w)}\b', title) or w == cid for w in exp)
-                        p_hit = any(re.search(rf'\b{re.escape(w)}\b', f_path) for w in exp)
+                        # 使用 \b 正則表達式鎖定單字邊界
+                        title_match = any(re.search(rf'\b{re.escape(w)}\b', title.lower()) or w == cid for w in exp)
+                        path_match = any(re.search(rf'\b{re.escape(w)}\b', f_path.lower()) for w in exp)
                     else:
-                        t_hit = any(w in title or w == cid for w in exp)
-                        p_hit = any(w in f_path for w in exp)
+                        title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
+                        path_match = any(w in f_path.lower() for w in exp)
                     
-                    if not (t_hit or p_hit):
+                    if title_match: match_score += 10
+                    elif path_match: match_score += 1
+                    else:
                         is_match = False; break
                 
                 if is_match:
-                    u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((path_map.get(c.get('section_id'), ""), c, u))
+                    user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    results.append((match_score, f_path, c, user_info))
+
+            results.sort(key=lambda x: (-x[0], x[1]))
 
             if results:
-                for path, item, u in results:
-                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
+                for _, path, item, u in results:
+                    cid = str(item.get('id'))
+                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
                     tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
+                    
                     c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                    c1.markdown(f'<div style="display:flex; align-items:center; color:white; font-size:20px; font-weight:bold;">{item.get("title")} (#{item.get("id")}){tag}</div>', unsafe_allow_html=True)
-                    c2.markdown(f'<a href="{tr_url.strip("/")}/index.php?/cases/view/{item.get("id")}" target="_blank" class="view-btn">📖 Open Case</a>', unsafe_allow_html=True)
-                    with st.expander("查阅测试步骤"):
+                    c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                    c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
+                    
+                    with st.expander("查阅测试步骤", expanded=False):
                         st.text(clean_html(item.get('custom_steps') or ""))
                     st.markdown("---")
             else:
-                st.warning("🚫 找不到符合的案例。")
+                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的测试案例。</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
     else:
-        # 🔥 如果資料報錯，這裡會清楚顯示原因
-        st.error(f"❌ 抓取失敗：{sync_time}")
+        st.error(f"❌ 抓取失败：{sync_time}")
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
+# ✨ 【小火箭】
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
