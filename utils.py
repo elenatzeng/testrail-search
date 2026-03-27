@@ -39,8 +39,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
     try:
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
-        all_sects = []
-        offset = 0
+        all_sects, offset = [], 0
         while True:
             sect_resp = api.sections.get_sections(project_id=pid, offset=offset)
             sects = sect_resp['sections'] if isinstance(sect_resp, dict) else sect_resp
@@ -52,8 +51,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
         path_map = {}
         for s_id in id_to_name:
-            parts = []
-            curr = s_id
+            parts, curr = [], s_id
             while curr in id_to_name:
                 parts.insert(0, id_to_name[curr])
                 curr = id_to_parent.get(curr)
@@ -71,8 +69,13 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
-    """回傳輸入詞及其在字典中的所有同義詞"""
+    """
+    字典通用：如果是 3 碼幣種則不擴展；
+    其餘若在字典中則提供同義詞。
+    """
     t_lower = text.lower().strip()
+    if len(t_lower) == 3 and t_lower.isalpha():
+        return [t_lower]
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
