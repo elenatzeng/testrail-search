@@ -5,23 +5,23 @@ from utils import smart_format, fetch_data_from_tr, multi_lang_search, match_vis
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-st.set_page_config(page_title="TR Search Pro", layout="wide")
+st.set_page_config(page_title="TestRail Search Pro", layout="wide")
 apply_custom_style()
 
-# 頂部狀態顯示
-st.success("✅ 系統環境已就緒：已修復標籤空值與搜尋精度")
+# 確保網頁上方有成功標誌
+st.success("✅ 系統已就緒：已修復標籤空值與搜尋精度")
 
 with st.sidebar:
     st.header("🔐 連線設定")
-    # 🛡️ 確保這裡的所有第一個參數 (Label) 都有文字
+    # 🛡️ 這裡的標籤（第一個參數）絕對不能為空 ""
     tr_url = st.text_input("TestRail URL 網址", value="https://gorun.testrail.io/")
     tr_user = st.text_input("帳號 Email", value="ela@intellianalyze.com")
     tr_pw = st.text_input("API Key 密鑰", type="password")
-    pid = st.number_input("Project ID 專案編號", value=10)
-    sid = st.number_input("Suite ID 套件編號", value=10)
+    pid = st.number_input("專案編號 (PID)", value=10)
+    sid = st.number_input("套件編號 (SID)", value=10)
     
     st.divider()
-    if st.button("🔄 強制刷新所有數據", use_container_width=True):
+    if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
@@ -29,8 +29,9 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, last_up, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        st.info(f"📍 專案：{p_name} | 資料更新時間：{last_up}")
-        q_text = st.text_input("🔍 搜尋內容 (例如: 充值 cny)", placeholder="在此輸入關鍵字...")
+        st.info(f"📍 專案：{p_name} | 更新時間：{last_up}")
+        # 🛡️ 標籤補齊
+        q_text = st.text_input("🔍 搜尋關鍵字：", placeholder="例如: 充值 cny")
         
         if q_text:
             terms = [t.lower() for t in q_text.strip().split() if t]
@@ -44,7 +45,7 @@ if tr_url and tr_user and tr_pw:
                 is_all_passed = True
                 for t in terms:
                     variants = [t] if (len(t) == 3 and t.isalpha()) else multi_lang_search(t, SEARCH_DICTIONARY)
-                    # 呼叫 utils 裡的鎖死比對
+                    # 進行鋼鐵鎖死比對
                     hit = any(match_visual_only(t_content, v) or match_visual_only(s_content, v) or t == cid for v in variants)
                     if not hit:
                         is_all_passed = False
@@ -55,13 +56,13 @@ if tr_url and tr_user and tr_pw:
                     u_cfg = USER_CONFIG.get(c.get('created_by', 0), DEFAULT_CONFIG)
                     results.append((path, c, u_cfg))
 
-            st.success(f"找到 {len(results)} 筆精確匹配結果")
+            st.success(f"找到 {len(results)} 筆精確結果")
             for path, item, u in results:
                 st.markdown(f'<div style="color:gray; font-size:11px; margin-top:15px;">📁 {path}</div>', unsafe_allow_html=True)
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 tag = "status-active" if u["is_active"] else "status-inactive"
                 c1.markdown(f'<h4>{item["title"]} (#{item["id"]}) <span class="author-tag {tag}">{"🟢" if u["is_active"] else "🔴"} {u["name"]}</span></h4>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url}/index.php?/cases/view/{item["id"]}" target="_blank" class="view-btn">📖 Open</a></div>', unsafe_allow_html=True)
-                with st.expander("查看詳情"):
+                with st.expander("展開內容"):
                     st.text(smart_format(s_content))
-                st.divider()
+                st.markdown("---")
