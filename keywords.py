@@ -1,7 +1,5 @@
-# keywords.py
-
 # =============================================================
-# 🔍 TestRail 智能搜尋字典 (Search Dictionary)
+# 🔍 TestRail 智能搜尋字典 (Search Dictionary) - 穩定純淨版
 # 邏輯：[關鍵代碼, 繁體, 簡體, 英文, 其他關聯標籤/API Key...]
 # =============================================================
 
@@ -24,13 +22,15 @@ SEARCH_DICTIONARY = [
     ["network_fee", "網路手續費", "网络手续费", "Network fee", "network__fee", "digitalFee", "gasFee"],
     ["exchange", "閃兌", "闪兑", "Rapid Exchange", "conversion", "previewExchange", "transactionOrderNo"],
     ["trans_addr", "轉出地址", "转出地址", "Transfer address", "transAddress", "receiveAddress", "transHash"],
+    ["crypto", "虛擬幣", "虛擬貨幣", "加密貨幣", "數字貨幣", "Crypto", "digitalAsset"],
+    ["usdt", "泰達幣", "USDT", "usdt", "Tether", "tether_token"],
 
     # --- [auManage] 權限與成員管理 ---
     ["auManage", "權限管理", "权限管理", "Authority Management", "qx", "access", "authority"],
     ["addRole", "新增角色", "新增角色", "Add Role", "roleAdd", "enterName", "roleList"],
     ["addMem", "新增成員", "新增成員", "Add User", "create", "creater", "addMem"],
     ["adSuc", "新增成功", "添加成功", "Successfully Added", "accRoleAdd", "Successfully created", "roleSuc", "accSuc"],
-    ["accRoleAdd", "帳號角色添加成功", "账号角色添加成功！", "New Role Is Added", "accRoleAdd"],
+    ["accRoleAdd", "帳號角色添加成功", "帳號角色添加成功！", "New Role Is Added", "accRoleAdd"],
     ["beGroup", "所屬群組", "所属群组", "Group", "gName", "gList", "enterNameGroup"],
     ["changeSuc", "更新成功", "更新成功", "Update Successful", "editSuc", "accSourceSuc", "changeSuc"],
     ["resetPassword", "重置密碼", "重置密码", "Reset Password", "passwordSuc", "newPassword", "failedPassword"],
@@ -76,16 +76,6 @@ SEARCH_DICTIONARY = [
     ["report", "報表下載", "報表下載", "Report Download", "reportDownload", "playerPromotion", "vipPerformance", "dailyDataRecon"],
     ["update", "更新", "Update", "new_version_discovered", "update_immediately", "new_version"],
     ["maintenance", "維護中", "維護中", "service_maintain_text1", "game_main", "maintenance"],
-
-    # --- [Crypto] 虛擬幣與加密貨幣 ---
-    ["crypto", "虛擬幣", "虛擬貨幣", "加密貨幣", "數字貨幣", "Crypto", "digitalAsset"],
-    ["usdt", "泰達幣", "USDT", "usdt", "Tether", "tether_token"],
-    ["btc", "比特幣", "BTC", "Bitcoin", "btc_token"],
-    ["eth", "乙太幣", "以太坊", "ETH", "Ethereum", "eth_token"],
-    ["chain", "主網", "鏈條", "網路協議", "Network", "chainName", "protocol", "TRC20", "ERC20", "BEP20", "Polygon"],
-    ["wallet_addr", "錢包地址", "錢包地址", "Wallet Address", "address", "addr", "cryptoAddress", "destination_tag", "memo"],
-    ["gas_fee", "礦工費", "Gas 費", "Gas fee", "gasFee", "minerFee", "priorityFee"],
-    ["hash", "交易雜湊", "交易哈希", "TXID", "Hash", "transactionHash", "tx_hash"],
 
     # --- [Fiat] 法幣與傳統支付 ---
     ["fiat", "法幣", "法定貨幣", "法幣", "Fiat Currency", "fiat_money", "legalCurrency"],
