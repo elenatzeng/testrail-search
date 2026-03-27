@@ -71,4 +71,5 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
+    # 昨天原始版：完全不查字典，直接回傳原詞
     return [text.lower().strip()]
