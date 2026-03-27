@@ -9,10 +9,7 @@ from keywords import SEARCH_DICTIONARY
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪", initial_sidebar_state="expanded")
 apply_custom_style()
 
-# 設定錨點
-st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
-
-# 2. 獲取參數 (側邊欄)
+# 2. 獲取參數
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
@@ -33,13 +30,11 @@ if tr_url and tr_user and tr_pw:
     
     if all_cases:
         if "q_text" not in st.session_state: st.session_state.q_text = ""
-        
-        # 搜尋輸入框
-        q_input = st.text_input("● 搜尋內容 (多關鍵字請用空格):", value=st.session_state.q_text, placeholder="例如: 充值 CNY")
+        q_input = st.text_input("● 搜尋內容 (交集模式):", value=st.session_state.q_text, placeholder="例如: 充值 CNY")
         st.session_state.q_text = q_input
 
         if st.session_state.q_text:
-            # 拆分搜尋詞
+            # 拆分詞彙
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
 
@@ -50,59 +45,52 @@ if tr_url and tr_user and tr_pw:
                 steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or []
                 steps_text = str(steps_raw).lower()
 
-                # --- 🛡️ 核心：硬核交集過濾鎖 (Must Match ALL) ---
+                # --- ⚔️ 硬核交集核心 (AND Logic) ---
                 is_all_present = True 
-                total_weight = 0
+                score = 0
 
                 for t in terms:
-                    # 獲取搜尋詞及其同義詞
+                    # 調用隔離後的字典
                     exp_words = multi_lang_search(t, SEARCH_DICTIONARY)
                     
-                    # 檢查這一個關鍵字「清單」是否出現在標題、路徑或內容
-                    term_found = False
+                    # 檢查這一個關鍵字群組是否出現在 Case 裡
+                    found_this_term = False
                     for w in exp_words:
                         if w in title or w in path or w in steps_text or t == case_id:
-                            term_found = True
-                            if w in title: total_weight += 5000  # 標題命中加重分
+                            found_this_term = True
+                            if w in title: score += 10000 # 命中標題高分
                             break
                     
-                    # 🚨 只要其中一個關鍵字完全沒中，這筆資料直接「驅逐」
-                    if not term_found:
+                    # 🛡️ 關鍵：只要有一個搜尋詞「沒中」，這筆 Case 就「滾蛋」
+                    if not found_this_term:
                         is_all_present = False
                         break 
                 
-                # 只有通過「交集測試」的才准進入渲染清單
+                # 🛡️ 只有通過「全中測試」的才准進入清單
                 if is_all_present:
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    # 品質分：按步驟數加分，Katty 輕鬆壓死 Meh
+                    # 品質加權 (步數越多分數越高)
                     step_count = len(steps_raw) if isinstance(steps_raw, list) else 0
-                    final_score = total_weight + (step_count * 2000) + u.get("weight", 0)
+                    final_score = score + (step_count * 2000) + u.get("weight", 0)
                     results.append((final_score, path, c, u))
 
-            # 排序：高分在前
             results.sort(key=lambda x: (-x[0], x[1]))
             res_count = len(results)
 
-            # --- ✨ 筆數顯示區 ---
+            # --- ✨ 筆數統計 (我愛你版專屬樣式) ---
             st.markdown(f'''
-                <div style="background: rgba(46, 164, 79, 0.15); border-left: 5px solid #2ea44f; padding: 12px 20px; margin: 20px 0; border-radius: 4px;">
-                    找到了 <b style="color: #2ea44f; font-size: 18px;">{res_count}</b> 筆完全符合「交集條件」之案例
+                <div style="background: rgba(46, 164, 79, 0.1); border-left: 5px solid #2ea44f; padding: 12px 20px; margin: 20px 0;">
+                    搜尋結果： <b>{res_count}</b> 筆完全符合條件之案例
                 </div>
             ''', unsafe_allow_html=True)
 
-            if res_count == 0:
-                st.info("🚫 找不到同時符合所有關鍵字的案例。")
-            else:
-                for _, path, item, u in results:
-                    cid = str(item.get('id'))
-                    is_active = u.get("is_active", True)
-                    # 樣式顏色鎖死
-                    color = "#32CD32" if is_active else "#FF4B4B"
-                    bg = "rgba(50, 205, 50, 0.1)" if is_active else "rgba(255, 75, 75, 0.1)"
-                    tag = f'<span style="color:{color} !important; border:1px solid {color} !important; background:{bg} !important; padding:2px 12px; border-radius:20px; font-size:12px; font-weight:bold; margin-left:10px;">{"🟢" if is_active else "🔴"} {u["name"]}</span>'
-                    
-                    st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:15px;">📁 {path}</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div style="display:flex; align-items:center; margin-bottom:10px;"><h4>{item.get("title")} (#{cid})</h4>{tag}</div>', unsafe_allow_html=True)
-                    with st.expander("查看測試步驟"):
-                        st.write(item.get('custom_steps') or item.get('custom_steps_separated'))
-                    st.markdown("---")
+            for _, path, item, u in results:
+                cid = str(item.get('id'))
+                is_active = u.get("is_active", True)
+                color = "#32CD32" if is_active else "#FF4B4B"
+                tag = f'<span style="color:{color}; border:1px solid {color}; padding:2px 10px; border-radius:15px; font-size:12px; font-weight:bold; margin-left:10px;">{"🟢" if is_active else "🔴"} {u["name"]}</span>'
+                
+                st.markdown(f'<div style="font-size:12px; color:#8b949e; margin-top:15px;">📁 {path}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="display:flex; align-items:center; margin-bottom:10px;"><h4>{item.get("title")} (#{cid})</h4>{tag}</div>', unsafe_allow_html=True)
+                with st.expander("查看步驟"):
+                    st.write(item.get('custom_steps') or item.get('custom_steps_separated'))
