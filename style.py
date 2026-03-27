@@ -14,8 +14,10 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 主標題、作者標籤、黑盒子、按鈕樣式保留 */
+        /* 🚀 主標題縮放 (32px) */
         h1 { font-size: 32px !important; font-weight: 700 !important; color: white !important; padding-top: 10px !important; padding-bottom: 5px !important; }
+
+        /* 🚀 作者標籤、黑盒子、按鈕樣式 */
         .author-tag { font-size: 12px !important; border-radius: 20px !important; padding: 2px 12px !important; display: inline-flex !important; align-items: center; margin-left: 10px !important; font-weight: 600 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; color: white !important; }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 15px 20px; color: #c9d1d9 !important; font-size: 14px !important; font-weight: 400 !important; line-height: 1.6; }
@@ -29,7 +31,7 @@ def apply_custom_style():
             text-decoration: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
         }
 
-        /* 🚀 左側展開鈕：強制置頂且不受 Header 隱藏影響 */
+        /* 🚀 左側展開鈕：強制置頂 */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important; top: 50% !important; left: 0px !important; transform: translateY(-50%) !important;
             width: 40px !important; height: 65px !important; background-color: rgba(255,255,255,0.1) !important; 
@@ -38,24 +40,18 @@ def apply_custom_style():
         }
         [data-testid="stSidebarCollapsedControl"] svg { fill: white !important; color: white !important; width: 25px !important; height: 25px !important; }
 
-        /* 🛡️ 隱藏雜物與右上角所有按鈕 (Deploy, Share, 三條槓) */
+        /* 🛡️ 隱藏雜物 */
+        [data-testid="stHeader"] { background: transparent !important; }
+        footer { display: none !important; }
         
-        /* 徹底抹除 Header 右側所有元素 (Deploy, Share, 星號按鈕) */
-        [data-testid="stHeader"] {
-            background: transparent !important;
-        }
-
-        /* 針對右側工具欄進行強力屏蔽 */
+        /* 🎯 精準刺殺：只隱藏那隻貓 (Deploy 按鈕) */
         .stDeployButton, [data-testid="stDeployButton"] {
             display: none !important;
+            visibility: hidden !important;
         }
 
-        /* 針對舊版 ID 的選單和頁腳隱藏 */
-        #MainMenu { visibility: hidden !important; }
-        footer { display: none !important; }
-
-        /* 内容吸附 */
-        .block-container { padding-top: 2.5rem !important; }
+        /* 內容收合時吸附左側 */
         [data-testid="stAppViewContainer"][data-collapsed="true"] .main { padding-left: 0 !important; margin-left: 0 !important; }
+        .block-container { padding-top: 2.5rem !important; }
         </style>
     """, unsafe_allow_html=True)
