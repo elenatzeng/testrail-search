@@ -58,7 +58,7 @@ if tr_url and tr_user and tr_pw:
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
-            # 💡 修正：加了一个空格，防止网页崩溃
+            # 💡 修正：空标签改为一个空格 " "，视觉上无变化但能防止报错
             q_input = st.text_input(
                 " ", 
                 value=st.session_state.q_text, 
@@ -93,7 +93,7 @@ if tr_url and tr_user and tr_pw:
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
                     
-                    # 🔒 核心修正：如果是3码英文(币别)，使用正则匹配单字边界，防止抓到 currency
+                    # 🔒 核心修正：加入精度判断。如果是3码英文，使用正则边界 \b 锁定，防止 cny 匹配到 currency
                     if len(t) == 3 and t.isalpha():
                         title_match = any(re.search(rf'\b{re.escape(w)}\b', title.lower()) or w == cid for w in exp)
                         path_match = any(re.search(rf'\b{re.escape(w)}\b', f_path.lower()) for w in exp)
@@ -164,4 +164,4 @@ else:
     st.info("👈 请先在左侧完成连线设定。")
 
 # ✨ 【小火箭】：24px 比例刚好，提示文字也改为简体
-st
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
