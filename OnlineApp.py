@@ -1,18 +1,32 @@
 import streamlit as st
 from style import apply_custom_style
-from utils import smart_format, fetch_data_from_tr, multi_lang_search, match_strict
+from utils import smart_format, fetch_data_from_tr, multi_lang_search, match_strict_visual
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-st.set_page_config(page_title="TestRail Search", layout="wide", page_icon="🧪")
+st.set_page_config(page_title="TR Search Pro", layout="wide")
 apply_custom_style()
 
-# ... (側邊欄連線代碼) ...
+with st.sidebar:
+    st.header("🔐 連線設定")
+    tr_url = st.text_input("URL", value=st.query_params.get("url", ""))
+    tr_user = st.text_input("Email", value=st.query_params.get("user", ""))
+    tr_pw = st.text_input("API Key", type="password")
+    pid = st.number_input("Project ID", value=10)
+    sid = st.number_input("Suite ID", value=10)
+    
+    st.divider()
+    bad_id = st.text_input("🚫 排除特定 ID (逗號隔開)", value="")
+    blacklist = [i.strip() for i in bad_id.split(",") if i.strip()]
+
+    if st.button("🔄 刷新數據"): st.cache_data.clear(); st.rerun()
+
+st.title("🧪 TestRail 精確檢索中心")
 
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, _, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     if all_cases:
-        q_text = st.text_input("● 搜尋內容 (幣別鎖死模式):", placeholder="例如: 充值 CNY")
+        q_text = st.text_input("● 搜尋內容:", placeholder="例如: 充值 CNY")
         
         if q_text:
             terms = [t.lower() for t in q_text.strip().split() if t]
@@ -20,67 +34,46 @@ if tr_url and tr_user and tr_pw:
 
             for c in all_cases:
                 cid = str(c.get('id'))
+                if cid in blacklist: continue
+                
                 title = str(c.get('title', ''))
                 f_path = str(path_map.get(c.get('section_id'), ""))
                 steps = str(c.get('custom_steps') or c.get('custom_steps_separated') or "")
                 
-                # --- ⚔️ 搜尋邏輯：硬性交集 (AND) ---
+                # --- ⚔️ 鋼鐵交集 (AND) ---
                 is_match = True
-                case_score = 0
+                final_score = 0
                 
                 for t in terms:
-                    # 💡 這裡會根據「幣別鎖死」邏輯回傳結果
                     variants = multi_lang_search(t, SEARCH_DICTIONARY)
-                    
-                    # 檢查各個欄位 (只看剝離 HTML 後的純文字)
-                    hit_title = any(match_strict(title, v) for v in variants)
-                    hit_path  = any(match_strict(f_path, v) for v in variants)
-                    hit_steps = any(match_strict(steps, v) for v in variants)
-                    hit_id    = (t == cid)
+                    h_title = any(match_strict_visual(title, v) for v in variants)
+                    h_path  = any(match_strict_visual(f_path, v) for v in variants)
+                    h_steps = any(match_strict_visual(steps, v) for v in variants)
+                    h_id    = (t == cid)
 
-                    if hit_title or hit_path or hit_steps or hit_id:
-                        # --- 📈 排序權重：分層打分 ---
-                        if hit_title: case_score += 10000  # 標題命中最高權重
-                        if hit_path:  case_score += 1000   # 路徑其次
-                        if hit_steps: case_score += 100    # 內容再次之
-                        if hit_id:    case_score += 50000  # 直接搜 ID 必排第一
+                    if h_title or h_path or h_steps or h_id:
+                        # 分層權重
+                        if h_id:    final_score += 50000
+                        if h_title: final_score += 10000
+                        if h_path:  final_score += 1000
+                        if h_steps: final_score += 100
                     else:
-                        is_match = False
-                        break # 任何一組詞沒中，直接淘汰
+                        is_match = False # 一票否決
+                        break
                 
                 if is_match:
-                    # 取得作者配置
-                    user_id = c.get('created_by')
-                    u_cfg = USER_CONFIG.get(user_id, DEFAULT_CONFIG)
-                    
-                    # 最終得分 = 命中分數 + 作者權重 + 長度獎勵
-                    length_bonus = 50 if len(steps) > 50 else 0
-                    final_score = case_score + u_cfg['weight'] + length_bonus
-                    
-                    results.append((final_score, f_path, c, u_cfg))
+                    u_cfg = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
+                    score = final_score + u_cfg['weight']
+                    results.append((score, f_path, c, u_cfg))
 
-            # --- 🏆 執行排序 ---
             results.sort(key=lambda x: x[0], reverse=True)
-
-            # --- 渲染介面 ---
-            st.success(f"找到 {len(results)} 筆精確案例")
-            for score, path, item, u in results:
-                cid_str = str(item.get('id'))
-                st.markdown(f'<div style="color:#adb5bd; font-size:11px; margin-top:15px;">📁 {path}</div>', unsafe_allow_html=True)
-                
+            
+            st.success(f"找到 {len(results)} 筆精確符合案例")
+            for _, path, item, u in results:
+                st.markdown(f'<div style="color:#6e7681; font-size:12px; margin-top:15px;">📁 {path}</div>', unsafe_allow_html=True)
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 tag_class = "status-active" if u["is_active"] else "status-inactive"
-                icon = "🟢" if u["is_active"] else "🔴"
-                
-                c1.markdown(f'''
-                    <div style="display:flex; align-items:center;">
-                        <h4 style="margin:0;">{item["title"]} (#{cid_str})</h4>
-                        <span class="author-tag {tag_class}">{icon} {u["name"]}</span>
-                    </div>
-                ''', unsafe_allow_html=True)
-                
-                c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid_str}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
-                
-                with st.expander("查看內容預覽"):
-                    st.write(smart_format(steps))
+                c1.markdown(f'<h4>{item["title"]} (#{item["id"]}) <span class="author-tag {tag_class}">{"🟢" if u["is_active"] else "🔴"} {u["name"]}</span></h4>', unsafe_allow_html=True)
+                c2.markdown(f'<div style="text-align:right;"><a href="{tr_url}/index.php?/cases/view/{item["id"]}" target="_blank" class="view-btn">📖 Open</a></div>', unsafe_allow_html=True)
+                with st.expander("預覽內容"): st.write(smart_format(steps))
                 st.markdown("---")
