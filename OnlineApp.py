@@ -60,7 +60,7 @@ if tr_url and tr_user and tr_pw:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
             # 💡 透过 search_key 确保清除时重置
             q_input = st.text_input(
-                "", 
+                " ", 
                 value=st.session_state.q_text, 
                 placeholder="请输入关键字查询，多个关键字请以空格格开", 
                 label_visibility="collapsed",
@@ -90,14 +90,23 @@ if tr_url and tr_user and tr_pw:
                 # 权重计算
                 match_score = 0
                 is_match = True
+                
+                # 🔒 妳最看重的交集查詢 (AND 邏輯)
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
-                    path_match = any(w in f_path.lower() for w in exp)
+                    
+                    # 💡 精準鎖定判斷：如果是3碼英文(幣別)，使用正則邊界比對，防止 cny 匹配到 currency
+                    if len(t) == 3 and t.isalpha():
+                        title_match = any(re.search(rf'\b{re.escape(w)}\b', title.lower()) or w == cid for w in exp)
+                        path_match = any(re.search(rf'\b{re.escape(w)}\b', f_path.lower()) for w in exp)
+                    else:
+                        title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
+                        path_match = any(w in f_path.lower() for w in exp)
                     
                     if title_match: match_score += 10
                     elif path_match: match_score += 1
                     else:
+                        # 只要有一個關鍵字沒對上，就踢掉 (交集查詢的核心)
                         is_match = False; break
                 
                 if is_match:
@@ -154,6 +163,8 @@ if tr_url and tr_user and tr_pw:
                     st.markdown("---")
         else:
             st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
+    else:
+        st.error("❌ 获取数据失败，请检查连线设定。")
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
