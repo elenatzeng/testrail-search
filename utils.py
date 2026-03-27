@@ -71,15 +71,4 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
-    """
-    幣種隔離邏輯：搜尋 CNY (長度 3) 時絕對不關聯 Deposit
-    """
-    t_lower = text.lower().strip()
-    if len(t_lower) == 3 and t_lower.isalpha():
-        return [t_lower]
-    res = {t_lower}
-    for group in dictionary:
-        g_lower = [str(w).lower() for w in group]
-        if t_lower in g_lower: 
-            res.update(g_lower)
-    return list(res)
+    return [text.lower().strip()]
