@@ -1,4 +1,4 @@
-import streamlit st
+import streamlit as st
 import re
 from style import apply_custom_style
 from utils import clean_html, fetch_data_from_tr, multi_lang_search
@@ -74,7 +74,7 @@ if tr_url and tr_user and tr_pw:
                 st.rerun()
 
         if st.session_state.q_text:
-            # 拆分多個關鍵字
+            # 🛠️ 交集查詢核心：拆分多個關鍵字
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
             img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
@@ -86,15 +86,14 @@ if tr_url and tr_user and tr_pw:
                 match_score = 0
                 is_match = True
                 
-                # 🛠️ 交集查詢核心：對每個輸入的關鍵字進行檢查
+                # 🛠️ 交集檢查：每一個 term 都必須命中
                 for t in terms:
-                    # 取得聯想詞
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    
                     term_hit = False
+                    
                     for word in exp:
                         word = word.lower()
-                        # 🔒 幣別精準鎖定 (\b)
+                        # 🔒 幣別精準鎖定
                         if len(word) == 3 and word.isalpha():
                             if re.search(rf'\b{re.escape(word)}\b', title) or \
                                re.search(rf'\b{re.escape(word)}\b', f_path) or \
@@ -107,8 +106,7 @@ if tr_url and tr_user and tr_pw:
                     if term_hit:
                         match_score += 10
                     else:
-                        # 只要其中一個關鍵字（及其聯想詞）沒中，這個 Case 就淘汰
-                        is_match = False; break
+                        is_match = False; break # 只要一個關鍵字沒中就剔除
                 
                 if is_match:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
@@ -167,4 +165,5 @@ if tr_url and tr_user and tr_pw:
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
+# ✨ 【小火箭】
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
