@@ -91,7 +91,6 @@ SEARCH_DICTIONARY = [
     ["fiat", "法幣", "法定貨幣", "法幣", "Fiat Currency", "fiat_money", "legalCurrency"],
     ["bank_card", "銀行卡", "銀行卡", "金融卡", "Bank Card", "bankCard", "debitCard", "creditCard", "card_number"],
     ["bank_name", "銀行名稱", "開戶行", "Bank Name", "bankName", "branchName", "issuing_bank"],
-    ["currency", "幣別", "幣別", "Currency", "currencyCode", "TWD", "CNY", "USD", "MYR", "VND", "THB"],
     ["otc", "場外交易", "OTC", "otc_trade", "p2p_trading", "商家交易"],
     ["payment_gate", "支付通道", "三方支付", "Payment Gateway", "channelName", "merchantId", "payment_method"],
     ["offline_pay", "線下轉帳", "線下匯款", "Offline Transfer", "remittance", "receipt_upload", "上傳憑證"]
