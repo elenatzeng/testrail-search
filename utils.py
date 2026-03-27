@@ -19,12 +19,22 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         p_info = api.projects.get_project(project_id=pid)
         all_sects = api.sections.get_sections(project_id=pid)
         path_map = {s['id']: s['name'] for s in all_sects}
+        
+        # 抓取案例
         resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=1000)
         
-        # 🛡️ 這裡就是修復「紅字」的地方：自動辨識 TestRail 給的是 List 還是 Dict
-        cases_list = resp if isinstance(resp, list) else resp.get('cases', [])
+        # 🛡️ 消滅「string indices」錯誤的關鍵：
+        # 自動判定 API 給的是 List 還是 Dict
+        if isinstance(resp, list):
+            cases_list = resp
+        elif isinstance(resp, dict):
+            cases_list = resp.get('cases', [])
+        else:
+            cases_list = []
+            
         return cases_list, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e:
+        # 這裡會傳回真正的報錯原因
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
