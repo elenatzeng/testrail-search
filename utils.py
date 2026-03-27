@@ -3,17 +3,12 @@ from testrail_api import TestRailAPI
 
 def smart_format(text):
     if not text: return ""
-    # 清理 HTML
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
-    
-    # 動作關鍵字拆分
     keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
     for key in keys:
         t = re.sub(f'({key})', r'\n\1', t)
-    
-    # 補上 1. 2. 3.
     lines = [l.strip() for l in t.split('\n') if l.strip()]
     final_lines = []
     count = 1
@@ -44,7 +39,6 @@ def fetch_data_from_tr(url, user, key, pid, sid):
     try:
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
-        
         all_sects = []
         offset = 0
         while True:
@@ -54,10 +48,8 @@ def fetch_data_from_tr(url, user, key, pid, sid):
             all_sects.extend(sects)
             if len(sects) < 250: break
             offset += 250
-        
         id_to_name = {s['id']: s['name'] for s in all_sects}
         id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
-        
         path_map = {}
         for s_id in id_to_name:
             parts = []
@@ -66,7 +58,6 @@ def fetch_data_from_tr(url, user, key, pid, sid):
                 parts.insert(0, id_to_name[curr])
                 curr = id_to_parent.get(curr)
             path_map[s_id] = " › ".join(parts)
-            
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
@@ -81,11 +72,10 @@ def fetch_data_from_tr(url, user, key, pid, sid):
 
 def multi_lang_search(text, dictionary):
     """
-    【嚴格交集版】
-    如果是 3 個字母的幣種（CNY/THB/VND），絕對不查字典擴展，
-    避免搜尋 CNY 時因為「充值=Deposit」的關聯而匹配到不相干案例。
+    【我愛你版本修正】幣種隔離邏輯
     """
     t_lower = text.lower().strip()
+    # 🛡️ 只要是 3 碼幣種，不准查字典擴展
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
         
