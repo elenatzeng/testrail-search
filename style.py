@@ -14,26 +14,56 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 【核心新增：主标题缩放】 */
+        /* 🚀 主标题缩放 */
         h1 {
-            font-size: 32px !important;  /* 👈 从默认约 48px 缩小到 32px */
+            font-size: 32px !important;
             font-weight: 700 !important;
             color: white !important;
             padding-top: 10px !important;
             padding-bottom: 5px !important;
         }
 
-        /* 🚀 作者标签：2px 扎实边框 */
-        .author-tag { font-size: 12px !important; border-radius: 20px !important; padding: 2px 12px !important; display: inline-flex !important; align-items: center; margin-left: 10px !important; font-weight: 600 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; color: white !important; }
+        /* 🚀 作者标签 */
+        .author-tag { 
+            font-size: 12px !important; 
+            border-radius: 20px !important; 
+            padding: 2px 12px !important; 
+            display: inline-flex !important; 
+            align-items: center; 
+            margin-left: 10px !important; 
+            font-weight: 600 !important; 
+            border: 2px solid !important; 
+            background: rgba(0,0,0,0.5) !important; 
+            color: white !important; 
+        }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
 
-        /* 🚀 核心黑盒子：内文 14px 不粗体 */
-        .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 15px 20px; color: #c9d1d9 !important; font-size: 14px !important; font-weight: 400 !important; line-height: 1.6; }
+        /* 🚀 核心黑盒子 */
+        .content-box { 
+            background: #1c2128 !important; 
+            border: 1px solid #30363d !important; 
+            border-radius: 12px; 
+            padding: 15px 20px; 
+            color: #c9d1d9 !important; 
+            font-size: 14px !important; 
+            font-weight: 400 !important; 
+            line-height: 1.6; 
+        }
 
-        /* 🚀 Open Case 按钮：绿色无底线 */
-        .view-btn, .view-btn:link, .view-btn:visited { display: inline-block !important; padding: 6px 14px !important; background-color: #2ea44f !important; color: white !important; border-radius: 6px !important; text-decoration: none !important; font-size: 13px !important; font-weight: 600 !important; border: none !important; }
+        /* 🚀 Open Case 按钮 */
+        .view-btn, .view-btn:link, .view-btn:visited { 
+            display: inline-block !important; 
+            padding: 6px 14px !important; 
+            background-color: #2ea44f !important; 
+            color: white !important; 
+            border-radius: 6px !important; 
+            text-decoration: none !important; 
+            font-size: 13px !important; 
+            font-weight: 600 !important; 
+            border: none !important; 
+        }
 
-        /* 🚀 【精制圆火箭】 */
+        /* 🚀 精制圆火箭 */
         .scroll-to-top {
             position: fixed !important;
             top: 50% !important;
@@ -53,12 +83,8 @@ def apply_custom_style():
             transition: all 0.3s ease;
             cursor: pointer !important;
         }
-        .scroll-to-top:hover { 
-            background-color: #ff9f43 !important; 
-            transform: translateY(-50%) scale(1.1) !important;
-        }
 
-        /* 🚀 【左侧展开钮】 */
+        /* 🚀 左侧侧边栏按钮 (收合后的 >> 按钮) */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important;
             top: 50% !important;
@@ -75,11 +101,31 @@ def apply_custom_style():
         }
         [data-testid="stSidebarCollapsedControl"] svg { fill: white !important; color: white !important; width: 25px !important; height: 25px !important; }
 
-        /* 🛡️ 隐藏杂物与白线 */
-        [data-testid="stHeader"], header { background: transparent !important; }
-        footer { display: none !important; }
+        /* 🛡️ 彻底隐藏右侧菜单 & 模式切换，但确保 Header 不消失 */
+        header[data-testid="stHeader"] {
+            background: transparent !important;
+        }
+
+        /* 针对右侧工具栏（三条杠菜单）精准隐藏 */
+        header[data-testid="stHeader"] [data-testid="stToolbar"] {
+            display: none !important;
+        }
+
+        /* 强制确保左侧的收回/展开按钮可见 */
+        header[data-testid="stHeader"] button {
+            color: white !important;
+        }
+
+        /* 隐藏页脚 */
+        footer { visibility: hidden !important; }
+
+        /* 移除顶部多余白边 */
+        .block-container { padding-top: 2.5rem !important; }
         
         /* 内容收合时吸附左侧 */
-        [data-testid="stAppViewContainer"][data-collapsed="true"] .main { padding-left: 0 !important; margin-left: 0 !important; }
+        [data-testid="stAppViewContainer"][data-collapsed="true"] .main { 
+            padding-left: 0 !important; 
+            margin-left: 0 !important; 
+        }
         </style>
     """, unsafe_allow_html=True)
