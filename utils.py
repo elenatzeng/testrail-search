@@ -33,7 +33,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
 def multi_lang_search(text, dictionary):
     if not text: return []
     t_lower = text.lower().strip()
-    # 🌟 核心：初始集合包含原文，確保字典沒對到時也能搜原文
+    # 🌟 初始集合必須包含原文自己，這樣就算字典沒寫，至少能搜原文
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
