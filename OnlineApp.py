@@ -1,98 +1,64 @@
 import streamlit as st
-import re
 from style import apply_custom_style
-from utils import clean_html, fetch_data_from_tr, multi_lang_search, match_currency_only
+from utils import smart_format, fetch_data_from_tr, multi_lang_search, match_strict
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 初始化頁面
 st.set_page_config(page_title="TestRail Search", layout="wide", page_icon="🧪")
 apply_custom_style()
-st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
-def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
-
-# 2. 側邊欄
-with st.sidebar:
-    st.header("🔐 連線設定")
-    tr_url = st.text_input("URL", value=get_val("url"))
-    tr_user = st.text_input("Email", value=get_val("user"))
-    tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
-    pid = st.number_input("Project ID", value=int(get_val("pid") or 10))
-    sid = st.number_input("Suite ID", value=int(get_val("sid") or 10))
-    if st.button("🔄 強制刷新數據", use_container_width=True):
-        st.cache_data.clear(); st.rerun()
-
-st.title("🧪 TestRail 精確檢索中心")
+# ... (側邊欄連線代碼) ...
 
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, _, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
-    
     if all_cases:
-        st.markdown(f"📍 Project：{p_name} | Suite：#{sid}", unsafe_allow_html=True)
-        q_input = st.text_input("● 搜尋內容:", value=st.session_state.get("q_text", ""), placeholder="例如: 充值 CNY")
-        st.session_state.q_text = q_input
-
-        if st.session_state.q_text:
-            # 將搜尋字串拆解為關鍵字
-            terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
+        q_text = st.text_input("● 搜尋內容:", placeholder="例如: 充值 CNY")
+        
+        if q_text:
+            terms = [t.lower() for t in q_text.strip().split() if t]
             results = []
 
             for c in all_cases:
-                # 💡 只抓取妳要比對的欄位
-                cid = str(c.get('id'))
                 title = str(c.get('title', ''))
                 f_path = str(path_map.get(c.get('section_id'), ""))
-                steps_text = str(c.get('custom_steps') or c.get('custom_steps_separated') or "")
+                steps = str(c.get('custom_steps') or c.get('custom_steps_separated') or "")
                 
-                # --- ⚔️ 分組嚴格交集判定 ---
-                is_all_passed, score = True, 0
+                # --- ⚔️ 搜尋邏輯：硬性交集 (AND) ---
+                is_match = True
+                current_case_score = 0
+                
                 for t in terms:
                     variants = multi_lang_search(t, SEARCH_DICTIONARY)
-                    # 💡 重點：每一組詞都必須透過 match_currency_only 在純文字中命中
-                    hit = any(
-                        match_currency_only(title, v) or 
-                        match_currency_only(f_path, v) or 
-                        match_currency_only(steps_text, v)
-                    ) or (t == cid)
-                    
-                    if hit:
-                        # 權重計算
-                        if any(match_currency_only(title, v) for v in variants): score += 10
-                        elif any(match_currency_only(f_path, v) for v in variants): score += 1
+                    # 檢查這組詞是否有命中任何欄位 (剝離 HTML 後)
+                    hit_title = any(match_strict(title, v) for v in variants)
+                    hit_path = any(match_strict(f_path, v) for v in variants)
+                    hit_steps = any(match_strict(steps, v) for v in variants)
+                    hit_id = (t == str(c.get('id')))
+
+                    if hit_title or hit_path or hit_steps or hit_id:
+                        # --- 📈 排序邏輯：權重分配 ---
+                        if hit_title: current_case_score += 1000  # 標題命中最高分
+                        if hit_path:  current_case_score += 100   # 路徑命中次之
+                        if hit_steps: current_case_score += 10    # 內容命中加點分
                     else:
-                        is_all_passed = False # 一票否決
-                        break
+                        is_match = False
+                        break # 只要有一組詞沒中，直接淘汰
                 
-                if is_all_passed:
-                    u_info = USER_CONFIG.get(item.get('created_by', 0)) if 'item' in locals() else USER_CONFIG.get(c.get('created_by', 0), DEFAULT_CONFIG)
-                    # 依據權重與內容長度排序
-                    quality = 10000 if len(steps_text) > 20 else 0
-                    results.append((score + quality + u_info.get('weight', 0), f_path, c, u_info))
+                if is_match:
+                    user_id = c.get('created_by')
+                    u_cfg = USER_CONFIG.get(user_id, DEFAULT_CONFIG)
+                    
+                    # 最終分數 = 命中位置分 + 作者權重 + (內容長度獎勵)
+                    length_bonus = 50 if len(steps) > 20 else 0
+                    final_score = current_case_score + u_cfg['weight'] + length_bonus
+                    
+                    results.append((final_score, f_path, c, u_cfg))
 
-            results.sort(key=lambda x: (-x[0], x[1]))
+            # 根據 final_score 由高到低排序
+            results.sort(key=lambda x: x[0], reverse=True)
+
             st.success(f"找到 {len(results)} 筆精確符合案例")
-            
-            for _, path, item, u in results:
-                cid_str = str(item.get('id'))
-                tag_class = "status-active" if u.get("is_active") else "status-inactive"
-                status_icon = "🟢" if u.get("is_active") else "🔴"
-                
+            for score, path, item, u in results:
+                # ... (渲染介面，保持妳提供的 CSS 佈局) ...
                 st.markdown(f'<div style="color:#adb5bd; font-size:12px; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
-                
-                c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                c1.markdown(f'''
-                    <div style="display:flex; align-items:center;">
-                        <span style="font-size:18px; font-weight:bold;">{item.get("title")} (#{cid_str})</span>
-                        <span class="author-tag {tag_class}">{status_icon} {u["name"]}</span>
-                    </div>
-                ''', unsafe_allow_html=True)
-                
-                c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid_str}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
-                
-                with st.expander("查看步驟內容"):
-                    # 顯示時美化內容
-                    st.write(clean_html(item.get('custom_steps') or item.get('custom_steps_separated')))
-                st.markdown("---")
-
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端">🚀</a>', unsafe_allow_html=True)
+                # (後面渲染代碼略，請套用妳原有的呈現方式)
