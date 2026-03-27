@@ -14,7 +14,7 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【停机坪】在最顶端放置锚点，火箭点击后才能精准飞回顶部
+# ✨ 【停机坪】
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
@@ -41,24 +41,19 @@ st.title("🧪 TestRail 智能检索中心")
 
 # 3. 核心数据逻辑
 if tr_url and tr_user and tr_pw:
-    # 這裡會回傳資料，或是錯誤訊息
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases is not None:
         # ✨ 显示 Project 资讯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜寻列布局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
-        if "q_text" not in st.session_state:
-            st.session_state.q_text = ""
-        if "search_key" not in st.session_state:
-            st.session_state.search_key = 0
+        if "q_text" not in st.session_state: st.session_state.q_text = ""
+        if "search_key" not in st.session_state: st.session_state.search_key = 0
 
         with col_s:
             st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
-            # 🛡️ 加一個空格防止報錯
             q_input = st.text_input(
                 " ", 
                 value=st.session_state.q_text, 
@@ -70,28 +65,21 @@ if tr_url and tr_user and tr_pw:
             
         with col_c:
             if st.button("🗑️ 清除条件", use_container_width=True): 
-                st.session_state.q_text = "" 
-                st.session_state.search_key += 1 
-                st.rerun() 
+                st.session_state.q_text = ""; st.session_state.search_key += 1; st.rerun() 
         with col_r:
-            if st.button("🔎 查询", use_container_width=True): 
-                st.rerun()
+            if st.button("🔎 查询", use_container_width=True): st.rerun()
 
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
-            img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
-
             for c in all_cases:
                 title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "").lower()
                 
-                match_score = 0
                 is_match = True
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    
-                    # 🔒 精度鎖死：搜尋 cny 不會搜到 currency
+                    # 🔒 鎖死精度判斷：搜尋 cny 不會搜到 currency
                     if len(t) == 3 and t.isalpha():
                         t_hit = any(re.search(rf'\b{re.escape(w)}\b', title) or w == cid for w in exp)
                         p_hit = any(re.search(rf'\b{re.escape(w)}\b', f_path) for w in exp)
@@ -99,14 +87,12 @@ if tr_url and tr_user and tr_pw:
                         t_hit = any(w in title or w == cid for w in exp)
                         p_hit = any(w in f_path for w in exp)
                     
-                    if t_hit: match_score += 10
-                    elif p_hit: match_score += 1
-                    else:
+                    if not (t_hit or p_hit):
                         is_match = False; break
                 
                 if is_match:
-                    user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((f_path, c, user_info))
+                    u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    results.append((path_map.get(c.get('section_id'), ""), c, u))
 
             if results:
                 for path, item, u in results:
@@ -120,13 +106,10 @@ if tr_url and tr_user and tr_pw:
                     st.markdown("---")
             else:
                 st.warning("🚫 找不到符合的案例。")
-        else:
-            st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
     else:
-        # 🔥 如果抓取失敗，這裡會顯示原因（紅字就是在這被抓掉的）
+        # 🔥 如果資料報錯，這裡會清楚顯示原因
         st.error(f"❌ 抓取失敗：{sync_time}")
 else:
     st.info("👈 请先在左侧完成连线设定。")
 
-# ✨ 【小火箭】
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
