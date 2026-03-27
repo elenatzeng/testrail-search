@@ -1,14 +1,14 @@
-import re, time, streamlit as st, ast
+import re, time, streamlit as st
 from testrail_api import TestRailAPI
 from html import unescape
 
 def match_visual_only(text, keyword):
     if not text or not keyword: return False
-    # 物理剥皮：只看純文字，不看 HTML 標籤
+    # 徹底剝皮：還原轉義字元 -> 殺掉所有標籤 -> 規格化
     clean = unescape(str(text))
     clean = re.sub(r'<[^>]*>', ' ', clean) 
     clean = " ".join(clean.split()).lower()
-    # \b 鎖死：搜尋 "cny" 時，前後必須是邊界
+    # \b 鎖死
     return re.search(rf'\b{re.escape(str(keyword).lower())}\b', clean)
 
 def smart_format(text):
@@ -20,8 +20,7 @@ def smart_format(text):
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 🛡️ 幣別鎖死：3 碼不擴展，斷絕聯想 (這關過了才去比對)
-    if len(t_lower) == 3 and t_lower.isalpha():
+    if len(t_lower) == 3 and t_lower.isalpha(): # 幣別鎖死
         return [t_lower]
     res = {t_lower}
     for group in dictionary:
@@ -30,38 +29,3 @@ def multi_lang_search(text, dictionary):
             res.update(g_lower)
             break
     return list(res)
-
-@st.cache_data(show_spinner=False, ttl=600)
-def fetch_data_from_tr(url, user, key, pid, sid):
-    try:
-        api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
-        p_info = api.projects.get_project(project_id=pid)
-        # 獲取路徑地圖
-        all_sects = []
-        offset = 0
-        while True:
-            sects = api.sections.get_sections(project_id=pid, offset=offset)
-            if not sects: break
-            all_sects.extend(sects)
-            if len(sects) < 250: break
-            offset += 250
-        id_to_name = {s['id']: s['name'] for s in all_sects}
-        id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
-        path_map = {}
-        for s_id in id_to_name:
-            parts, curr = [], s_id
-            while curr in id_to_name:
-                parts.insert(0, id_to_name[curr])
-                curr = id_to_parent.get(curr)
-            path_map[s_id] = " › ".join(parts)
-        # 獲取案例
-        all_cases = []
-        offset = 0
-        while True:
-            resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
-            if not resp['cases']: break
-            all_cases.extend(resp['cases'])
-            if len(resp['cases']) < 250: break
-            offset += 250
-        return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
-    except Exception as e: return None, None, str(e), None
