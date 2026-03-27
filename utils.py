@@ -19,12 +19,11 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         p_info = api.projects.get_project(project_id=pid)
         p_name = p_info.get('name', 'Project')
 
-        # 抓取目錄
         sect_resp = api.sections.get_sections(project_id=pid)
         sects_list = sect_resp.get('sections', []) if isinstance(sect_resp, dict) else sect_resp
         path_map = {s['id']: s['name'] for s in sects_list}
         
-        # 抓取案例 (限制 250)
+        # 🛡️ 核心修正：limit 改為 250
         case_resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250)
         cases_list = case_resp.get('cases', []) if isinstance(case_resp, dict) else case_resp
         
