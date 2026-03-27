@@ -14,7 +14,7 @@ try:
     from users import USER_CONFIG, DEFAULT_CONFIG
     from keywords import SEARCH_DICTIONARY
 except Exception as e:
-    st.error(f"導入失敗: {e}"); st.stop()
+    st.error(f"⚠️ 導入失敗: {e}"); st.stop()
 
 # 🛡️ 3. 頁面配置
 st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪", initial_sidebar_state="expanded")
@@ -45,7 +45,7 @@ if tr_url and tr_user and tr_pw:
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        st.markdown(f"📍 Project：{p_name} | Suite：#{sid}")
+        st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
         if "q_text" not in st.session_state: st.session_state.q_text = ""
         if "search_key" not in st.session_state: st.session_state.search_key = 0
@@ -60,7 +60,7 @@ if tr_url and tr_user and tr_pw:
         with col_r:
             if st.button("🔎 查詢", use_container_width=True): st.rerun()
 
-        # --- 🏆 核心排序引擎 (標題 > 內容 > 權重) ---
+        # --- 🏆 核心排序引擎 (鎖死順序：標題 > 內容 > 權重) ---
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
@@ -71,20 +71,23 @@ if tr_url and tr_user and tr_pw:
                 steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or []
                 steps_str = str(steps_raw).lower()
                 
-                # 得分初始化
-                title_s, content_s, path_s, exact_id_m = 0, 0, 0, 0
-                is_match = True
+                # 初始化得分 (Boolean 化，防止重複字眼轟炸)
+                has_title_match = 0
+                has_content_match = 0
+                has_path_match = 0
+                exact_id_m = 0
                 
+                is_match = True
                 for t in terms:
                     exp = multi_lang_search(t, SEARCH_DICTIONARY)
-                    t_m = any(w in title for w in exp) # 💡 包含字典命中
+                    t_m = any(w in title for w in exp)
                     c_m = any(w in steps_str for w in exp)
                     p_m = any(w in f_path for w in exp)
                     id_m = (t == cid)
                     
-                    if t_m: title_s += 1
-                    if c_m: content_s += 1
-                    if p_m: path_s += 1
+                    if t_m: has_title_match = 1  # 💡 標題出現兩次 deposit 也只算 1 分
+                    if c_m: has_content_match = 1
+                    if p_m: has_path_match = 1
                     if id_m: exact_id_m = 1
                     
                     if not (id_m or t_m or c_m or p_m):
@@ -95,14 +98,15 @@ if tr_url and tr_user and tr_pw:
                     u_weight = u.get("weight", 0)
                     step_count = len(steps_raw) if isinstance(steps_raw, list) else 0
 
-                    # ✨✨✨ 終極排序元組 (由小到大排序，所以數值越高者加負號) ✨✨✨
+                    # ✨✨✨ 終極排序元組 (由小到大排序) ✨✨✨
                     sort_key = (
-                        -title_s,     # 1. 標題命中 (最優先)
-                        -step_count,  # 2. 步驟豐富度 (多者在前)
-                        -u_weight,    # 3. 人員權重 (70分插隊)
-                        -exact_id_m,  # 4. ID 匹配
-                        -content_s,   # 5. 內容命中
-                        f_path        # 6. 路徑 A-Z
+                        -has_title_match,   # 1. 標題中了就優先 (充值/存款)
+                        -step_count,        # 2. 步驟多的排前面 (內容完整度)
+                        -u_weight,          # 3. 大神權重 (70分插隊)
+                        -exact_id_m,        # 4. ID 匹配
+                        -has_content_match, # 5. 內容命中
+                        -has_path_match,    # 6. 路徑命中
+                        f_path              # 7. A-Z
                     )
                     results.append((sort_key, path_map.get(c.get('section_id'), ""), c, u))
 
@@ -111,16 +115,22 @@ if tr_url and tr_user and tr_pw:
             # --- 渲染區 ---
             for _, path, item, u in results:
                 cid = str(item.get('id'))
-                st_class = "active" if u.get("is_active") else "inactive"
-                st_icon = "🟢" if u.get("is_active") else "🔴"
+                is_on_job = u.get("is_active", True)
+                st_class = "active" if is_on_job else "inactive"
+                st_icon = "🟢" if is_on_job else "🔴"
+                
+                # 💡 確保傳入正確的 status-inactive class
                 tag = f'<span class="author-tag status-{st_class}">{st_icon} {u["name"]}</span>'
                 
                 st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 c1.markdown(f'<div><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
-                c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
+                c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
                 
                 with st.expander("查閱測試步驟"):
                     st.write(item.get('custom_steps') or item.get('custom_steps_separated'))
+                st.markdown("---")
+else:
+    st.info("👈 請先完成連線設定。")
 
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端">🚀</a>', unsafe_allow_html=True)
