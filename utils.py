@@ -5,7 +5,7 @@ from testrail_api import TestRailAPI
 from html import unescape
 
 def clean_html(text):
-    """主程式指定要這個名字，我們就給它這個名字"""
+    """清理 HTML 標籤，保留換行"""
     if not text: return ""
     t = unescape(str(text))
     t = t.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
@@ -14,9 +14,8 @@ def clean_html(text):
 
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
-    """資料抓取邏輯"""
+    """資料抓取邏輯：修正 List 索引錯誤"""
     try:
-        # 自動處理網址結尾斜線
         base_url = url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, user, key)
         
@@ -25,11 +24,14 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         all_sects = api.sections.get_sections(project_id=pid)
         path_map = {s['id']: s['name'] for s in all_sects}
         
-        # 抓取案例
+        # 🛡️ 修正重點：testrail_api 抓回來的直接就是 list，不需要加 ['cases']
         resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=1000)
-        return resp['cases'], path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
+        
+        # 如果 resp 是 list，直接回傳；如果是 dict 且有 cases，則取 cases
+        cases_list = resp if isinstance(resp, list) else resp.get('cases', [])
+        
+        return cases_list, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e:
-        # 這裡回傳錯誤訊息，方便除錯
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
