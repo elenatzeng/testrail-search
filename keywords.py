@@ -15,8 +15,8 @@ SEARCH_DICTIONARY = [
 
     # --- [Financial] 財務核心 (存提轉) ---
     ["account", "帳戶", "账户", "帳號", "账号", "acct", "accountName", "memberId"],
-    ["deposit", "存款", "充值", "Deposit", "deposit", "储值", "儲值"],
-    ["withdraw", "提款", "提現", "提现", "Withdrawal", "取款"],
+    ["deposit", "存款", "充值", "储值", "儲值"],
+    ["Withdrawal", "提款", "提現", "提现", "取款"],
     ["transfer", "轉帳", "转账", "Transfer", "劃轉", "划转", "transferRecord", "transferTime"],
     ["Wallet", "錢包", "钱包"],
     ["network_fee", "網路手續費", "网络手续费", "Network fee", "network__fee", "digitalFee", "gasFee"],
@@ -54,7 +54,6 @@ SEARCH_DICTIONARY = [
     ["Telegram", "TG", "電報", "飛機"],
     ["微信", "WeChat", "WX", "Weixin"],
     ["微博", "Weibo", "WB"],
-    ["Line", "連我", "連賴", "LNE"],
     ["ebpay", "EBPay", "EBPay", "ebpay_ad", "eb_pay", "eb_complete"],
 
     # --- [KYC & Risk] 認證與風控 ---
