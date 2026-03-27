@@ -1,17 +1,21 @@
 import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
 
-# 💡 核心修正：精確單字邊界匹配，搜尋 CNY 不會抓到 currency
-def match_keyword(text, keyword):
+# 💡 妳圖中建議的核心函數：三碼幣種直接鎖死邊界
+def match_currency_only(text, keyword):
     if not text or not keyword: return False
-    # \b 確保 keyword 是一個完整的單字，前後不能接英文字母
+    # 如果搜尋詞是三碼英文 (幣別)，強迫使用 \b 鎖定
+    if len(str(keyword)) == 3 and str(keyword).isalpha():
+        return re.search(rf'\b{re.escape(str(keyword).lower())}\b', str(text).lower())
+    # 否則使用一般精確匹配
     return re.search(rf'\b{re.escape(str(keyword).lower())}\b', str(text).lower())
 
 def smart_format(text):
     if not text: return ""
-    t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
+    # 確保 HTML 標籤被換成空格，避免 \b 邊界失效
+    t = text.replace('<br />', ' ').replace('<br>', ' ').replace('</div>', ' ').replace('<div>', ' ')
     t = t.replace('&nbsp;', ' ')
-    t = re.sub(r'<.*?>', '', t)
+    t = re.sub(r'<.*?>', ' ', t) # 全部換成空格
     return t
 
 def clean_html(raw_html):
@@ -61,18 +65,15 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e: return None, None, str(e), None
 
-# 💡 妳提供的優化版字典搜尋邏輯
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 幣種特殊處理：如果是 3 碼英文，不進行字典擴展
+    # 🛡️ 妳建議的：搜尋單個幣種時直接 bypass dictionary
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
-
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
-        # 嚴格匹配完整詞，而不是部分匹配
-        if t_lower in g_lower:
+        if t_lower in g_lower: 
             res.update(g_lower)
             break
     return list(res)
