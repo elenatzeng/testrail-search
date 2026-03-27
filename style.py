@@ -25,7 +25,7 @@ def apply_custom_style():
             pointer-events: none !important;
         }
 
-        /* 🛡️ 【守護左側箭頭 > 】 */
+        /* 🛡️ 【守護左側箭頭 > 】 (維持原樣) */
         [data-testid="stSidebarCollapsedControl"] {
             visibility: visible !important;
             display: flex !important;
@@ -33,13 +33,13 @@ def apply_custom_style():
             z-index: 999999 !important;
         }
 
-        /* 🚀 【火箭座標修正】維持在「左側中間」 */
+        /* 🚀 【火箭座標修正】維持在「右側中間」 */
         .scroll-to-top {
             position: fixed !important;
             
-            /* 🎯 關鍵修正：將火箭移到「左側中間」 */
+            /* 🎯 關鍵修正：將火箭移到「右側中間」 */
             top: 50% !important;        /* 螢幕高度的 50% */
-            left: 5px !important;       /* 距離左邊 5 像素 */
+            right: 10px !important;     /* 距離右邊 10 像素 */
             transform: translateY(-50%) !important; /* 向上平移 50%，達到真正的垂直置中 */
             
             width: 45px !important;
@@ -57,7 +57,7 @@ def apply_custom_style():
         }
         
         .scroll-to-top:hover {
-            transform: translateY(-50%) scale(1.1) !important;
+            transform: translateY(-50%) scale(1.1) !important; /* 保持垂直置中並放大 */
             box-shadow: 0 6px 20px rgba(0,0,0,0.8) !important;
         }
 
