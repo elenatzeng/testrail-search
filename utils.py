@@ -6,24 +6,25 @@ from html import unescape
 
 def match_visual_only(text, keyword):
     """
-    🔒 單字邊界鎖死：使用 \b 確保 CNY 不會匹配到 currency。
+    🔒 單字邊界鎖死邏輯：
+    使用 \b 確保搜尋 "cny" 時，不會匹配到 "currency"。
     """
     if not text or not keyword: return False
     
-    # 徹底清除標籤，只留肉眼看到的文字
+    # 1. 徹底清除 HTML 標籤
     clean = unescape(str(text))
     clean = re.sub(r'<[^>]*>', ' ', clean)
     clean = " ".join(clean.split()).lower()
     
     kw = str(keyword).lower().strip()
     
-    # 🛡️ 核心：如果是英文/數字，強迫「全字匹配」
+    # 2. 🛡️ 核心：英文/數字強迫全字匹配
     if kw.isalnum() and not re.search(r'[\u4e00-\u9fff]', kw):
-        # \b 代表邊界。cny 絕對不會匹配到 currency
+        # \b 確保關鍵字前後不能連著英文字母
         pattern = rf'\b{re.escape(kw)}\b'
         return re.search(pattern, clean) is not None
     else:
-        # 中文維持包含匹配
+        # 中文维持包含匹配
         return kw in clean
 
 def smart_format(text):
