@@ -17,11 +17,15 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         base_url = url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, user, key)
         p_info = api.projects.get_project(project_id=pid)
+        
         sect_resp = api.sections.get_sections(project_id=pid)
         sects_list = sect_resp.get('sections', []) if isinstance(sect_resp, dict) else sect_resp
         path_map = {s['id']: s['name'] for s in sects_list}
+        
+        # 🛡️ 維持 250 筆上限，防止 API 400 報錯
         case_resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250)
         cases_list = case_resp.get('cases', []) if isinstance(case_resp, dict) else case_resp
+        
         return cases_list, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e:
         return None, None, str(e), None
@@ -29,7 +33,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
 def multi_lang_search(text, dictionary):
     if not text: return []
     t_lower = text.lower().strip()
-    # 🌟 重點：如果字典沒找到，就回傳 [原文]
+    # 🌟 核心保底：字典沒中也搜原文
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
