@@ -36,12 +36,12 @@ SEARCH_DICTIONARY = [
     ["accManage", "帳號管理", "账号管理", "Account Management", "accList", "accountManagement", "sys_acc"],
 
     # --- [Bonus & VIP] 紅利、活動與流水 ---
-    ["bonus_wallet", "獎金錢包", "奖金钱包", "Bonus wallet", "bonusWalletEvent", "bonusWalletAcc"],
+    ["Bonus wallet", "獎金錢包", "奖金钱包"],
     ["Fragment", "網址片段", "錨點", "锚点"],
     ["Routing", "路由", "跳轉", "跳转", "導航", "Navigation"],
-    ["deposit_bonus", "存款紅利", "存款红利", "Deposit Bonus", "depositBonusEvent", "extraDepositBonus"],
-    ["bonus_fs", "免費旋轉", "免费旋转", "Free Spin", "fs", "bonus_fs_tag", "bonus_fs_count", "numberOfSpins", "spin_value", "freeSpinPrize"],
-    ["bonus_fc", "免費籌碼", "免费筹码", "Free Chip", "fc", "bonus_fc_tag", "bonus_fc_worth", "numberOfChips", "freeChipPrize"],
+    ["Deposit Bonus", "存款紅利", "存款红利"],
+    ["bonus_fs", "免費旋轉", "免费旋转", "Free Spin", "fs"],
+    ["bonus_fc", "免費籌碼", "免费筹码", "Free Chip", "fc"],
     ["turnover", "提款流水要求", "提款流水要求", "Withdrawal To Requirements", "depositLimit", "turnoverMultiple", "wagerRequirement", "bet_process"],
     ["reward_status", "待領取", "待認領", "Wait to be claimed", "left_claim", "wait_claimed", "remaining_reward_amount", "left_to_claim"],
     ["vip_bene", "保級福利", "保級福利", "Maintenance Bonus", "rege_bene", "retentionBonus", "birthdayBonus", "upgradeLedPackage"],
@@ -76,7 +76,7 @@ SEARCH_DICTIONARY = [
     ["maintenance", "維護中", "維護中", "service_maintain_text1", "game_main", "maintenance"],
 
     # --- [Fiat] 法幣與傳統支付 ---
-    ["fiat", "法幣", "法定貨幣", "法幣"],
+    ["fiat", "法幣", "法幣"],
     ["bank_card", "銀行卡", "銀行卡", "金融卡", "Bank Card", "bankCard", "debitCard", "creditCard", "card_number"],
     ["bank_name", "銀行名稱", "開戶行", "Bank Name", "bankName", "branchName", "issuing_bank"],
     ["otc", "場外交易", "OTC", "otc_trade", "p2p_trading", "商家交易"],
