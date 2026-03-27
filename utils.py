@@ -1,24 +1,20 @@
 import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
 
+# 💡 核心修正：實裝妳要求的 match_keyword，確保搜尋的是「獨立單字」
+def match_keyword(text, keyword):
+    if not text or not keyword:
+        return False
+    # \b 確保 keyword 是一個完整的單字，前後不能接英文字母
+    # 使用 re.IGNORECASE 確保搜尋時不分大小寫
+    return re.search(rf'\b{re.escape(str(keyword).lower())}\b', str(text).lower())
+
 def smart_format(text):
     if not text: return ""
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
     t = re.sub(r'<.*?>', '', t)
-    keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
-    for key in keys:
-        t = re.sub(f'({key})', r'\n\1', t)
-    lines = [l.strip() for l in t.split('\n') if l.strip()]
-    final_lines = []
-    count = 1
-    for line in lines:
-        if not re.match(r'^\d+[\.\s]', line):
-            final_lines.append(f"{count}. {line}")
-            count += 1
-        else:
-            final_lines.append(line)
-    return "\n".join(final_lines)
+    return t
 
 def clean_html(raw_html):
     if not raw_html: return ""
@@ -70,16 +66,13 @@ def fetch_data_from_tr(url, user, key, pid, sid):
 
 def multi_lang_search(text, dictionary):
     """
-    字典通用：如果是 3 碼幣種則不擴展；
-    其餘若在字典中則提供同義詞。
+    根據關鍵字找出字典中的同義詞。
     """
     t_lower = text.lower().strip()
-    if len(t_lower) == 3 and t_lower.isalpha():
-        return [t_lower]
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
-        if t_lower in g_lower:
+        if t_lower in g_lower: 
             res.update(g_lower)
             break
     return list(res)
