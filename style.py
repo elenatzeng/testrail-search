@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 靈魂星空背景 (維持原樣) */
+        /* 🌌 靈魂星空背景 */
         .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
             background-color: #0b0e14 !important;
             background-image: 
@@ -14,7 +14,7 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🎯 【精準殺貓】針對妳提供的那顆 Button ID */
+        /* 🎯 【精準絕殺貓咪】 */
         button[data-testid="stBaseButton-header"], 
         button[kind="header"],
         [data-testid="stToolbarActionButtonIcon"],
@@ -25,7 +25,7 @@ def apply_custom_style():
             pointer-events: none !important;
         }
 
-        /* 🛡️ 【守護左側箭頭 > 】 (維持原樣) */
+        /* 🛡️ 【守護左側箭頭 > 】 */
         [data-testid="stSidebarCollapsedControl"] {
             visibility: visible !important;
             display: flex !important;
@@ -33,37 +33,12 @@ def apply_custom_style():
             z-index: 999999 !important;
         }
 
-        /* 🚀 【火箭座標修正】維持在「右側中間」 */
+        /* 🚀 【火箭座標修正】固定在「右側中間」 */
         .scroll-to-top {
             position: fixed !important;
-            
-            /* 🎯 關鍵修正：將火箭移到「右側中間」 */
-            top: 50% !important;        /* 螢幕高度的 50% */
-            right: 10px !important;     /* 距離右邊 10 像素 */
-            transform: translateY(-50%) !important; /* 向上平移 50%，達到真正的垂直置中 */
-            
+            top: 50% !important;
+            right: 15px !important;
+            transform: translateY(-50%) !important;
             width: 45px !important;
             height: 45px !important;
-            background-color: #f77f00 !important; /* 橘色，方便辨識 */
-            color: white !important; 
-            border-radius: 50% !important;
-            z-index: 10000000 !important; /* 超高層級，保證浮在最上面 */
-            display: flex !important; 
-            align-items: center !important; 
-            justify-content: center !important;
-            text-decoration: none !important; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6) !important;
-            transition: transform 0.2s, box-shadow 0.2s !important;
-        }
-        
-        .scroll-to-top:hover {
-            transform: translateY(-50%) scale(1.1) !important; /* 保持垂直置中並放大 */
-            box-shadow: 0 6px 20px rgba(0,0,0,0.8) !important;
-        }
-
-        /* 移除頂部白線與多餘間距 */
-        header[data-testid="stHeader"] { background: transparent !important; }
-        .block-container { padding-top: 1.5rem !important; }
-        footer { display: none !important; }
-        </style>
-    """, unsafe_allow_html=True)
+            background
