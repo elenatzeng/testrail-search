@@ -14,7 +14,7 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 頂部工具欄玻璃效果 */
+        /* 🚀 頂部工具欄固定 (毛玻璃效果) */
         [data-testid="stHeader"] {
             position: fixed !important;
             top: 0 !important;
@@ -24,23 +24,29 @@ def apply_custom_style():
             border-bottom: 1px solid rgba(255,255,255,0.1) !important;
         }
 
-        /* 🎯 隱藏 Deploy 按鈕 */
+        /* 🎯 隱藏右上角 Deploy 按鈕 */
         .stDeployButton { display: none !important; }
 
         /* 🚀 作者標籤基礎樣式 */
         .author-tag { 
-            font-size: 12px !important; border-radius: 20px !important; padding: 2px 12px !important; 
-            display: inline-flex !important; align-items: center; margin-left: 10px !important; 
-            font-weight: 600 !important; border: 2px solid !important; 
+            font-size: 12px !important; 
+            border-radius: 20px !important; 
+            padding: 2px 12px !important; 
+            display: inline-flex !important; 
+            align-items: center; 
+            margin-left: 10px !important; 
+            font-weight: 600 !important; 
+            border: 2px solid !important; 
+            background: rgba(0,0,0,0.5) !important;
         }
 
         /* 🟢 在職 (Active)：綠字綠框 */
         .status-active { 
-            color: #32CD32 !important; border-color: #32CD32 !important; 
-            background: rgba(0,0,0,0.5) !important;
+            color: #32CD32 !important; 
+            border-color: #32CD32 !important; 
         }
 
-        /* 🔴 離職 (Inactive)：物理鎖死紅區 (解決白框問題) */
+        /* 🔴 離職 (Inactive)：昨天最後確認的紅區鎖死樣式 */
         span.author-tag.status-inactive { 
             color: #FF4B4B !important; 
             border-color: #FF4B4B !important; 
@@ -48,11 +54,57 @@ def apply_custom_style():
             box-shadow: 0 0 8px rgba(255, 75, 75, 0.4) !important;
         }
 
-        /* 🚀 內容盒與火箭 */
-        .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 15px 20px; color: #c9d1d9 !important; }
-        .view-btn { display: inline-block; padding: 6px 14px; background-color: #2ea44f; color: white; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; }
-        .scroll-to-top { position: fixed; top: 50%; right: 15px; transform: translateY(-50%); width: 42px; height: 42px; background-color: #f77f00; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; z-index: 10000000; }
-        
+        /* 📖 Open Case 按鈕樣式 */
+        .view-btn { 
+            display: inline-block !important; 
+            padding: 6px 14px !important; 
+            background-color: #2ea44f !important; 
+            color: white !important; 
+            border-radius: 6px !important; 
+            text-decoration: none !important; 
+            font-size: 13px !important; 
+            font-weight: 600 !important; 
+        }
+
+        /* 🚀 步驟內容盒 */
+        .content-box { 
+            background: #1c2128 !important; 
+            border: 1px solid #30363d !important; 
+            border-radius: 12px; 
+            padding: 15px 20px; 
+            color: #c9d1d9 !important; 
+        }
+
+        /* 🚀 火箭回到頂端 */
+        .scroll-to-top {
+            position: fixed !important;
+            top: 50% !important;
+            right: 15px !important;
+            transform: translateY(-50%) !important;
+            width: 42px !important;
+            height: 42px !important;
+            background-color: #f77f00 !important; 
+            color: white !important; 
+            border-radius: 50% !important;
+            z-index: 10000000 !important;
+            display: flex !important; 
+            align-items: center !important; 
+            justify-content: center !important;
+            text-decoration: none !important;
+        }
+
+        /* 🚀 側邊欄拉環樣式 */
+        [data-testid="stSidebarCollapsedControl"] {
+            position: fixed !important;
+            top: 50% !important;
+            left: 0px !important;
+            transform: translateY(-50%) !important;
+            background-color: rgba(255,255,255,0.1) !important; 
+            border-radius: 0 35px 35px 0 !important;
+            width: 40px !important;
+            height: 60px !important;
+        }
+
         footer, #MainMenu { visibility: hidden !important; }
         .block-container { padding-top: 4rem !important; }
         </style>
