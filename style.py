@@ -19,8 +19,9 @@ def apply_custom_style():
             position: fixed !important;
             top: 0 !important;
             z-index: 1000001 !important;
-            background: rgba(11, 14, 20, 0.6) !important;
-            backdrop-filter: blur(10px) !important; /* 毛玻璃質感 */
+            background: rgba(11, 14, 20, 0.8) !important; /* 稍微加深透明度，遮擋效果更好 */
+            backdrop-filter: blur(12px) !important; /* 加強毛玻璃質感 */
+            border-bottom: 1px solid rgba(255,255,255,0.1) !important;
         }
 
         /* 🎯 精準刺殺：隱藏 Deploy 按鈕 (GitHub 貓咪) */
@@ -89,7 +90,7 @@ def apply_custom_style():
 
         /* 內容區塊間距補償 (防止被固定 Header 擋住) */
         .block-container { 
-            padding-top: 3.5rem !important; 
+            padding-top: 4rem !important; 
         }
 
         /* 收合吸附 */
