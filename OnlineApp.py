@@ -1,122 +1,161 @@
 import streamlit as st
-import os
-import sys
+import re
+from style import apply_custom_style
+from utils import clean_html, fetch_data_from_tr, multi_lang_search
+from users import USER_CONFIG, DEFAULT_CONFIG
+from keywords import SEARCH_DICTIONARY
 
-# 🛡️ 1. 環境路徑保險 (解決 KeyError: 'style' 報錯)
-# 強制將當前目錄加入 Python 搜尋路徑，確保雲端能讀到 style.py
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
-
-# 嘗試匯入自定義樣式
-try:
-    from style import apply_custom_style
-except ImportError:
-    # 備用方案：若讀取失敗，定義空函數避免程式崩潰
-    def apply_custom_style():
-        pass
-
-# 🛡️ 2. 匯入妳的工具函式與設定 (請確保檔名正確)
-try:
-    from utils import fetch_data_from_tr, multi_lang_search
-    # 如果妳有這些設定檔，請取消註解；若無，請確認妳的邏輯
-    # from users import USER_CONFIG, DEFAULT_CONFIG
-    # from keywords import SEARCH_DICTIONARY
-except ImportError as e:
-    st.error(f"缺少必要組件: {e}")
-
-# --- 🛠️ 頁面基本配置 ---
+# 1. 页面初始化
 st.set_page_config(
-    page_title="TestRail AI Search Center", 
+    page_title="TestRail AI Search", 
     layout="wide", 
     page_icon="🧪", 
     initial_sidebar_state="expanded"
 )
-
-# 執行 CSS 樣式 (隱藏貓咪、設定星空、保留左側拉環)
 apply_custom_style()
 
-# --- 🚀 自動記憶與 URL 參數邏輯 ---
-# 這些 Key 用於在換螢幕或重整時保住數據
-keys_to_store = ["url", "user", "pw", "pid", "sid"]
-for k in keys_to_store:
-    store_key = f"store_{k}"
-    if store_key not in st.session_state:
-        st.session_state[store_key] = ""
+# ✨ 【停机坪】在最顶端放置锚点，火箭点击后才能精准飞回顶部
+st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
-    # 先看網址參數有沒有，沒有再看 Session 暫存
-    val = st.query_params.get(key)
-    if val is not None:
-        return val
-    return st.session_state.get(f"store_{key}", "")
+    return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# --- 🔐 側邊欄設定 ---
+# 2. 侧边栏守护 (连线设定)
 with st.sidebar:
-    st.header("🔐 連線設定")
+    st.header("🔐 连线设定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
-    tr_user = st.text_input("帳號 Email", value=get_val("user"))
+    tr_user = st.text_input("账号 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
-    
-    # 讀取 PID / SID
-    pid_v = get_val("pid")
-    sid_v = get_val("sid")
+    pid_v, sid_v = get_val("pid"), get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
-    if st.button("💾 儲存並記住我", use_container_width=True):
-        # 將設定寫入網址參數，這樣重整就不會丟失
+    if st.button("💾 储存资讯至网址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-        st.session_state.store_url = tr_url
-        st.session_state.store_user = tr_user
-        st.session_state.store_pw = tr_pw
-        st.session_state.store_pid = str(pid)
-        st.session_state.store_sid = str(sid)
-        st.success("✅ 已儲存連線資訊")
+        st.success("✅ 已储存")
+    if st.button("🔄 强制刷新数据", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
-# --- 🧪 主畫面邏輯 ---
-st.title("🧪 TestRail 智能邏輯檢索")
-st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+st.title("🧪 TestRail 智能检索中心")
 
+# 3. 核心数据逻辑
 if tr_url and tr_user and tr_pw:
-    # 獲取數據 (這部分通常在 utils.py)
     all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        st.markdown(f"📍 Project: **{p_name}** | Suite: **#{sid}**", unsafe_allow_html=True)
+        # ✨ 显示 Project 资讯
+        st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
-        # 搜尋框邏輯
+        # 搜寻列布局
+        col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
+        
+        # ✨ 初始化控制变数 (确保清除功能运作)
         if "q_text" not in st.session_state:
             st.session_state.q_text = ""
-            
-        q_input = st.text_input(
-            "多維精準檢索 :", 
-            value=st.session_state.q_text, 
-            placeholder="支援多關鍵字交集過濾，兼容繁/簡/英關鍵字或 #ID",
-            key="search_input_box"
-        )
-        st.session_state.q_text = q_input
+        if "search_key" not in st.session_state:
+            st.session_state.search_key = 0
 
-        # 執行搜尋與排序
+        with col_s:
+            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
+            # 💡 透过 search_key 确保清除时重置
+            q_input = st.text_input(
+                "", 
+                value=st.session_state.q_text, 
+                placeholder="请输入关键字查询，多个关键字请以空格格开", 
+                label_visibility="collapsed",
+                key=f"search_input_{st.session_state.search_key}"
+            )
+            st.session_state.q_text = q_input
+            
+        with col_c:
+            if st.button("🗑️ 清除条件", use_container_width=True): 
+                st.session_state.q_text = "" 
+                st.session_state.search_key += 1 
+                st.rerun() 
+        with col_r:
+            # ✨ 改成「查询」
+            if st.button("🔎 查询", use_container_width=True): 
+                st.rerun()
+
         if st.session_state.q_text:
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
-            
-            for c in all_cases:
-                # 這裡放妳的排序權重算法...
-                # (這部分依據妳之前的邏輯：標題匹配度 + 步驟完整度權重)
-                # results.append((score, path, case_data, user_info))
-                pass
-            
-            # 排序：權重由高到低
-            # results.sort(key=lambda x: (-x[0], x[1]))
-            
-            # 渲染結果...
-            st.info(f"🔍 找到符合的測試用例...")
-        else:
-            st.info("💡 請在上方輸入關鍵字開始檢索")
-else:
-    st.warning("👈 請先在側邊欄輸入連線資訊")
+            img_kill_pattern = r'(!\[.*?\]\(.*?\))|(<img.*?>)'
 
-# --- 🚀 回頂端火箭 (配合 style.py) ---
-st.markdown('<a href="#top-anchor" class="scroll-to-top" style="color:white;text-decoration:none;">🚀</a>', unsafe_allow_html=True)
+            for c in all_cases:
+                title, cid = str(c.get('title', '')), str(c.get('id'))
+                f_path = path_map.get(c.get('section_id'), "")
+                
+                # 权重计算
+                match_score = 0
+                is_match = True
+                for t in terms:
+                    exp = multi_lang_search(t, SEARCH_DICTIONARY)
+                    title_match = any(w in title.lower() for w in exp) or any(w == cid for w in exp)
+                    path_match = any(w in f_path.lower() for w in exp)
+                    
+                    if title_match: match_score += 10
+                    elif path_match: match_score += 1
+                    else:
+                        is_match = False; break
+                
+                if is_match:
+                    user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
+                    # 🤫 内容品质权重
+                    quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
+                    results.append((match_score + quality_weight, f_path, c, user_info))
+
+            # ✨ 排序逻辑：匹配度优先，其次路径 A-Z
+            results.sort(key=lambda x: (-x[0], x[1]))
+
+            if not results:
+                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的测试案例。</div>', unsafe_allow_html=True)
+            else:
+                for _, path, item, u in results:
+                    cid = str(item.get('id'))
+                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
+                    tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
+                    
+                    c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
+                    c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
+                    c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
+                    
+                    with st.expander("查阅测试步骤", expanded=False):
+                        steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
+                        def final_render(text):
+                            if not text: return "(无内容)"
+                            text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
+                            lines = text.splitlines()
+                            html_out = '<div class="inner-text" style="font-weight: 400;">' 
+                            for line in lines:
+                                s = line.strip()
+                                if not s: continue
+                                is_list = re.match(r'^([•\-\*]|\d+\.)', s)
+                                style = "margin-bottom:4px; display:block; font-size:14px;"
+                                if is_list: style += "padding-left:18px;"
+                                html_out += f'<div style="{style}">{s}</div>'
+                            html_out += '</div>'
+                            return html_out
+
+                        if isinstance(steps_data, list) and len(steps_data) > 0:
+                            for s_idx, s in enumerate(steps_data, 1):
+                                c_html = final_render(s.get('content', ''))
+                                e_html = final_render(s.get('expected', ''))
+                                st.markdown(f'''
+                                    <div style="border-left:4px solid #2ea44f; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
+                                        <div style="color:#8b949e; font-weight:500; margin-bottom:10px; font-size:13px;">Step {s_idx}:</div>
+                                        <div class="content-box">{c_html}</div>
+                                        <div style="color:#8b949e; font-weight:500; margin-top:20px; margin-bottom:10px; font-size:13px;">Expected:</div>
+                                        <div class="content-box">{e_html}</div>
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                    st.markdown("---")
+        else:
+            st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
+else:
+    st.info("👈 请先在左侧完成连线设定。")
+
+# ✨ 【小火箭】：24px 比例刚好，提示文字也改为简体
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
