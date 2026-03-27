@@ -63,7 +63,7 @@ def apply_custom_style():
             border: none !important; 
         }
 
-        /* 🚀 精制圆火箭 */
+        /* 🚀 精制圆火箭 (右侧垂直居中) */
         .scroll-to-top {
             position: fixed !important;
             top: 50% !important;
@@ -84,7 +84,7 @@ def apply_custom_style():
             cursor: pointer !important;
         }
 
-        /* 🚀 左侧侧边栏按钮 (收合后的半圆拉环) */
+        /* 🚀 左侧半圆拉环 (收合按钮 >>) */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important;
             top: 50% !important;
@@ -92,35 +92,35 @@ def apply_custom_style():
             transform: translateY(-50%) !important;
             width: 40px !important;
             height: 65px !important;
-            background-color: rgba(255,255,255,0.15) !important; 
+            background-color: rgba(255,255,255,0.2) !important; 
             border-radius: 0 35px 35px 0 !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
-            z-index: 10000001 !important;
+            z-index: 10000005 !important; /* 提到最高层 */
             visibility: visible !important;
         }
         [data-testid="stSidebarCollapsedControl"] svg { 
             fill: white !important; 
             color: white !important; 
-            width: 25px !important; 
-            height: 25px !important; 
         }
 
-        /* 🛡️ 强制隐藏右侧 Toolbar 所有元素，但不影响 Header 布局 */
+        /* 🛡️ 彻底移除右上角所有菜单/模式切换那一行 */
+        [data-testid="stHeader"] {
+            background: transparent !important;
+            color: transparent !important;
+        }
+        
+        /* 精准爆破右上角工具栏：直接踢出屏幕外 */
         [data-testid="stHeader"] [data-testid="stToolbar"] {
+            position: absolute !important;
+            right: -1000px !important; /* 踢到右边看不到的地方 */
             display: none !important;
-            visibility: hidden !important;
         }
 
-        /* 隐藏旧版菜单与页脚 */
-        #MainMenu { visibility: hidden !important; }
-        footer { visibility: hidden !important; }
-
-        /* 强制确保左侧 Header 区域的按钮颜色 */
-        [data-testid="stHeader"] button {
-            color: white !important;
-        }
+        /* 隐藏旧版 ID 和 页脚 */
+        #MainMenu { display: none !important; }
+        footer { display: none !important; }
 
         /* 移除顶部多余白边 */
         .block-container { padding-top: 2.5rem !important; }
