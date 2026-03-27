@@ -1,28 +1,29 @@
 import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
+from html import unescape
 
-# 💡 核心：先剝皮 HTML，再用 \b 鎖死搜尋
-def match_strict(text, keyword):
+def match_strict_visual(text, keyword):
     if not text or not keyword: return False
-    # 1. 殺掉所有 HTML 標籤 (確保不被 class="cny" 影響)
-    clean_text = re.sub(r'<.*?>', ' ', str(text))
-    # 2. 移除多餘空白、換行
-    clean_text = " ".join(clean_text.split()).lower()
-    # 3. \b 鎖死單字邊界
-    return re.search(rf'\b{re.escape(str(keyword).lower())}\b', clean_text)
+    # 1. 物理剝離：先把 HTML Entity 轉回文字 (例如 &nbsp; 轉成空格)
+    clean = unescape(str(text))
+    # 2. 物理移除：移除所有 <...> 標籤 (包含裡面的屬性如 class="cny")
+    clean = re.sub(r'<[^>]*>', ' ', clean)
+    # 3. 規格化：只留純文字，轉小寫並處理邊界
+    clean = " ".join(clean.split()).lower()
+    # 4. \b 鎖死：搜尋 "cny" 前後必須是邊界，不准連在其他字裡面
+    return re.search(rf'\b{re.escape(str(keyword).lower())}\b', clean)
 
 def smart_format(text):
     if not text: return ""
-    t = str(text).replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
-    return re.sub(r'<.*?>', '', t).strip()
+    t = unescape(str(text))
+    t = t.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
+    return re.sub(r'<[^>]*>', '', t).strip()
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 🛡️ 幣別鎖死：搜尋 3 碼英文時，回傳列表只有它自己，不准聯想！
+    # 🛡️ 幣別鎖死：3 碼不擴展，避免聯想 USDT
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
-    
-    # 非幣別詞才走字典
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
@@ -33,7 +34,6 @@ def multi_lang_search(text, dictionary):
 
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
-    # ... (此處保留妳原本的 TestRail 連線代碼，包含 path_map 的生成) ...
     try:
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
