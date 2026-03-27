@@ -71,16 +71,12 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
-    """
-    【字典通用版】
-    搜尋「存款」，會回傳「['存款', '充值', 'deposit', ...]」。
-    搜尋「CNY」，因為字典沒寫，會回傳「['cny']」。
-    """
+    """回傳輸入詞及其在字典中的所有同義詞"""
     t_lower = text.lower().strip()
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
-        if t_lower in g_lower: 
+        if t_lower in g_lower:
             res.update(g_lower)
-            break 
+            break
     return list(res)
