@@ -5,84 +5,68 @@ from utils import smart_format, fetch_data_from_tr, multi_lang_search, match_vis
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 頁面基本設定
-st.set_page_config(page_title="TestRail 精確檢索", layout="wide", page_icon="🧪")
+st.set_page_config(page_title="TestRail Search Pro", layout="wide")
 apply_custom_style()
 
-# 🛡️ 版本檢測標誌
-st.markdown('<div style="background-color:#ff4b4b; color:white; padding:10px; border-radius:5px; text-align:center; font-weight:bold;">🚀 目前運行：【2026 最終鋼鐵鎖死版】</div>', unsafe_allow_html=True)
+# 版本確認橫幅 (Demo 完可以自行刪除這行)
+st.success("✅ 系統已更新：已啟動單字邊界鎖死邏輯 (CNY / VND 精度修復)")
 
-# 側邊欄：連線資訊
 with st.sidebar:
-    st.header("🔐 TestRail 連線")
+    st.header("🔐 連線設定")
     tr_url = st.text_input("URL", value="https://gorun.testrail.io/")
     tr_user = st.text_input("Email", value="ela@intellianalyze.com")
     tr_pw = st.text_input("API Key", type="password")
     pid = st.number_input("Project ID", value=10)
     sid = st.number_input("Suite ID", value=10)
-    st.divider()
-    if st.button("🔄 強制刷新所有數據", use_container_width=True):
+    if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
-# 主程式邏輯
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, last_up, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
-        st.info(f"📍 專案：{p_name} | 最後更新：{last_up}")
-        q_text = st.text_input("● 搜尋關鍵字 (支援多詞搜尋，例如: 充值 CNY):", placeholder="在此輸入...")
+        st.info(f"📍 當前專案：{p_name} | 資料更新時間：{last_up}")
+        q_text = st.text_input("🔍 請輸入搜尋詞 (支援多詞搜尋):", placeholder="例如: 充值 CNY")
         
         if q_text:
             terms = [t.lower() for t in q_text.strip().split() if t]
             results = []
 
             for c in all_cases:
-                # 💡 數據隔離：只提煉標題與步驟，不准搜尋原始 JSON
-                t_content = str(c.get('title', ''))
-                s_content = str(c.get('custom_steps') or c.get('custom_steps_separated') or "")
+                # 提取純文字內容
+                title_txt = str(c.get('title', ''))
+                steps_txt = str(c.get('custom_steps') or c.get('custom_steps_separated') or "")
                 cid = str(c.get('id'))
                 
-                # --- ⚔️ 嚴格 AND 邏輯 ---
                 is_all_passed = True
-                case_score = 0
                 
                 for t in terms:
-                    variants = multi_lang_search(t, SEARCH_DICTIONARY)
+                    # 判斷是否為 3 碼英文幣別，是的話鎖死不聯想
+                    variants = [t] if (len(t) == 3 and t.isalpha()) else multi_lang_search(t, SEARCH_DICTIONARY)
                     
-                    # 🔍 搜尋判定：標題、步驟內容、ID 必須有一個中
-                    hit_t = any(match_visual_only(t_content, v) for v in variants)
-                    hit_s = any(match_visual_only(s_content, v) for v in variants)
-                    hit_i = (t == cid)
-
-                    if hit_t or hit_s or hit_i:
-                        # 計算權重排序
-                        if hit_i: case_score += 50000
-                        if hit_t: case_score += 10000
-                        if hit_s: case_score += 100
-                    else:
-                        # 只要有一個詞沒中，整筆 Case 出局
+                    # 搜尋標題、步驟內容或 ID
+                    hit = any(match_visual_only(title_txt, v) or match_visual_only(steps_txt, v) or t == cid for v in variants)
+                    
+                    if not hit:
                         is_all_passed = False
                         break
                 
                 if is_all_passed:
-                    f_path = str(path_map.get(c.get('section_id'), "Unknown"))
-                    u_cfg = USER_CONFIG.get(c.get('created_by'), DEFAULT_CONFIG)
-                    results.append((case_score + u_cfg['weight'], f_path, c, u_cfg))
+                    path = path_map.get(c.get('section_id'), "Unknown")
+                    u_cfg = USER_CONFIG.get(c.get('created_by', 0), DEFAULT_CONFIG)
+                    results.append((path, c, u_cfg))
 
-            # 顯示結果排序
-            results.sort(key=lambda x: x[0], reverse=True)
-            st.success(f"找到 {len(results)} 筆完全匹配的案例")
-            
-            for _, path, item, u in results:
-                st.markdown(f'<div style="color:#8b949e; font-size:11px; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
+            st.success(f"找到 {len(results)} 筆完全匹配結果")
+            for path, item, u in results:
+                st.markdown(f'<div style="color:gray; font-size:11px; margin-top:15px;">📁 {path}</div>', unsafe_allow_html=True)
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 
-                tag_class = "status-active" if u["is_active"] else "status-inactive"
-                c1.markdown(f'<h4>{item["title"]} (#{item["id"]}) <span class="author-tag {tag_class}">{"🟢" if u["is_active"] else "🔴"} {u["name"]}</span></h4>', unsafe_allow_html=True)
+                tag = "status-active" if u["is_active"] else "status-inactive"
+                c1.markdown(f'<h4>{item["title"]} (#{item["id"]}) <span class="author-tag {tag}">{"🟢" if u["is_active"] else "🔴"} {u["name"]}</span></h4>', unsafe_allow_html=True)
                 
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url}/index.php?/cases/view/{item["id"]}" target="_blank" class="view-btn">📖 Open</a></div>', unsafe_allow_html=True)
                 
-                with st.expander("查看步驟內容"):
-                    st.text(smart_format(str(item.get('custom_steps') or item.get('custom_steps_separated'))))
+                with st.expander("查看步驟詳情"):
+                    st.text(smart_format(steps_txt))
                 st.markdown("---")
