@@ -15,7 +15,7 @@ def apply_custom_style():
         }
 
         /* 🚀 主標題縮放 (32px) */
-        h1 { font-size: 32px !important; font-weight: 700 !important; color: white !important; padding-top: 10px !important; padding-bottom: 5px !important; }
+        h1 { font-size: 32px !important; font-weight: 700 !important; color: white !important; }
 
         /* 🚀 作者標籤、黑盒子、按鈕樣式 */
         .author-tag { font-size: 12px !important; border-radius: 20px !important; padding: 2px 12px !important; display: inline-flex !important; align-items: center; margin-left: 10px !important; font-weight: 600 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; color: white !important; }
@@ -23,7 +23,7 @@ def apply_custom_style():
         .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 15px 20px; color: #c9d1d9 !important; font-size: 14px !important; font-weight: 400 !important; line-height: 1.6; }
         .view-btn, .view-btn:link, .view-btn:visited { display: inline-block !important; padding: 6px 14px !important; background-color: #2ea44f !important; color: white !important; border-radius: 6px !important; text-decoration: none !important; font-size: 13px !important; font-weight: 600 !important; border: none !important; }
 
-        /* 🚀 精制圓火箭 */
+        /* 🚀 精制圓火箭 - 右側置中 */
         .scroll-to-top {
             position: fixed !important; top: 50% !important; right: 15px !important; transform: translateY(-50%) !important;
             width: 42px !important; height: 42px !important; background-color: #f77f00 !important; color: white !important; 
@@ -38,16 +38,19 @@ def apply_custom_style():
             border-radius: 0 35px 35px 0 !important; display: flex !important; justify-content: center !important; align-items: center !important;
             z-index: 10000001 !important; visibility: visible !important; 
         }
-        [data-testid="stSidebarCollapsedControl"] svg { fill: white !important; color: white !important; width: 25px !important; height: 25px !important; }
 
-        /* 🛡️ 隱藏雜物 */
+        /* 🛡️ 隱藏雜物與封鎖貓咪 */
         [data-testid="stHeader"] { background: transparent !important; }
         footer { display: none !important; }
         
-        /* 🎯 精準刺殺：只隱藏那隻貓 (Deploy 按鈕) */
-        .stDeployButton, [data-testid="stDeployButton"] {
+        /* 🎯 終極精準刺殺：貓咪 (Deploy 按鈕) 消失且點不到 */
+        .stDeployButton, [data-testid="stDeployButton"], .stAppDeployButton {
             display: none !important;
             visibility: hidden !important;
+            pointer-events: none !important; /* 👈 這是關鍵：讓滑鼠點擊直接穿透，按不到 */
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
         }
 
         /* 內容收合時吸附左側 */
