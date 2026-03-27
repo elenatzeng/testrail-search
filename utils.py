@@ -1,79 +1,79 @@
-import re, time, streamlit as st, ast
-from testrail_api import TestRailAPI
+import streamlit as st
+import re
+from style import apply_custom_style
+from utils import clean_html, fetch_data_from_tr, multi_lang_search, match_keyword
+from users import USER_CONFIG, DEFAULT_CONFIG
+from keywords import SEARCH_DICTIONARY
 
-# 💡 妳圖中建議的核心函數：三碼幣種直接鎖死邊界
-def match_currency_only(text, keyword):
-    if not text or not keyword: return False
-    # 如果搜尋詞是三碼英文 (幣別)，強迫使用 \b 鎖定
-    if len(str(keyword)) == 3 and str(keyword).isalpha():
-        return re.search(rf'\b{re.escape(str(keyword).lower())}\b', str(text).lower())
-    # 否則使用一般精確匹配
-    return re.search(rf'\b{re.escape(str(keyword).lower())}\b', str(text).lower())
+# 1. 初始化
+st.set_page_config(page_title="TestRail Search", layout="wide", page_icon="🧪")
+apply_custom_style()
+st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
-def smart_format(text):
-    if not text: return ""
-    # 確保 HTML 標籤被換成空格，避免 \b 邊界失效
-    t = text.replace('<br />', ' ').replace('<br>', ' ').replace('</div>', ' ').replace('<div>', ' ')
-    t = t.replace('&nbsp;', ' ')
-    t = re.sub(r'<.*?>', ' ', t) # 全部換成空格
-    return t
+def get_val(key): return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-def clean_html(raw_html):
-    if not raw_html: return ""
-    text = str(raw_html).strip()
-    if text.startswith('[') and ('content' in text or 'expected' in text):
-        try:
-            parsed_data = ast.literal_eval(text)
-            if isinstance(parsed_data, list):
-                for item in parsed_data:
-                    item['content'] = smart_format(item.get('content', ''))
-                    item['expected'] = smart_format(item.get('expected', ''))
-                return parsed_data 
-        except: pass
-    return smart_format(text)
+# 2. 側邊欄
+with st.sidebar:
+    st.header("🔐 連線設定")
+    tr_url, tr_user, tr_pw = st.text_input("URL", value=get_val("url")), st.text_input("Email", value=get_val("user")), st.text_input("API Key", type="password", value=get_val("pw"))
+    pid, sid = st.number_input("Project ID", value=int(get_val("pid") or 10)), st.number_input("Suite ID", value=int(get_val("sid") or 10))
+    if st.button("🔄 強制刷新數據", use_container_width=True):
+        st.cache_data.clear(); st.rerun()
 
-@st.cache_data(show_spinner=False, ttl=600)
-def fetch_data_from_tr(url, user, key, pid, sid):
-    try:
-        api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
-        p_info = api.projects.get_project(project_id=pid)
-        all_sects, offset = [], 0
-        while True:
-            sect_resp = api.sections.get_sections(project_id=pid, offset=offset)
-            sects = sect_resp['sections'] if isinstance(sect_resp, dict) else sect_resp
-            if not sects: break
-            all_sects.extend(sects)
-            if len(sects) < 250: break
-            offset += 250
-        id_to_name = {s['id']: s['name'] for s in all_sects}
-        id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
-        path_map = {}
-        for s_id in id_to_name:
-            parts, curr = [], s_id
-            while curr in id_to_name:
-                parts.insert(0, id_to_name[curr])
-                curr = id_to_parent.get(curr)
-            path_map[s_id] = " › ".join(parts)
-        all_cases, offset = [], 0
-        while True:
-            resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
-            cases = resp['cases']
-            if not cases: break
-            all_cases.extend(cases)
-            if len(cases) < 250: break
-            offset += 250
-        return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
-    except Exception as e: return None, None, str(e), None
+st.title("🧪 TestRail 純淨檢索中心")
 
-def multi_lang_search(text, dictionary):
-    t_lower = text.lower().strip()
-    # 🛡️ 妳建議的：搜尋單個幣種時直接 bypass dictionary
-    if len(t_lower) == 3 and t_lower.isalpha():
-        return [t_lower]
-    res = {t_lower}
-    for group in dictionary:
-        g_lower = [str(w).lower() for w in group]
-        if t_lower in g_lower: 
-            res.update(g_lower)
-            break
-    return list(res)
+if tr_url and tr_user and tr_pw:
+    all_cases, path_map, _, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
+    if all_cases:
+        st.markdown(f"📍 Project：{p_name} | Suite：#{sid}", unsafe_allow_html=True)
+        q_input = st.text_input("● 搜尋內容:", value=st.session_state.get("q_text", ""), placeholder="例如: 充值 CNY")
+        st.session_state.q_text = q_input
+
+        if st.session_state.q_text:
+            terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
+            results = []
+
+            for c in all_cases:
+                # 💡 這裡就是妳要的：只抓「純文字」欄位
+                cid = str(c.get('id'))
+                title = str(c.get('title', ''))
+                f_path = str(path_map.get(c.get('section_id'), ""))
+                # 內容處理
+                steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
+                steps_text = str(steps_raw)
+                
+                # --- ⚔️ 硬核交集判定 ---
+                is_all_passed, score = True, 0
+                for t in terms:
+                    variants = multi_lang_search(t, SEARCH_DICTIONARY)
+                    # 每一組詞都必須在「純文字」的標題、路徑或內容中「精確命中」
+                    hit = any(match_keyword(title, v) or match_keyword(f_path, v) or match_keyword(steps_text, v) for v in variants) or (t == cid)
+                    
+                    if hit:
+                        if any(match_keyword(title, v) for v in variants): score += 10
+                        elif any(match_keyword(f_path, v) for v in variants): score += 1
+                    else:
+                        is_all_passed = False
+                        break
+                
+                if is_all_passed:
+                    u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
+                    quality = 10000 if len(steps_text) > 20 else 0
+                    results.append((score + quality, f_path, c, u))
+
+            results.sort(key=lambda x: (-x[0], x[1]))
+            st.success(f"找到 {len(results)} 筆精確符合案例 (已排除 HTML)")
+            
+            for _, path, item, u in results:
+                cid_str = str(item.get('id'))
+                tag = f'<span class="author-tag status-{"active" if u.get("is_active", True) else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
+                st.markdown(f'<div style="color:#adb5bd; font-size:12px; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
+                c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
+                c1.markdown(f'<div style="display:flex; align-items:center;"><h4>{item.get("title")} (#{cid_str})</h4>{tag}</div>', unsafe_allow_html=True)
+                c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid_str}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
+                with st.expander("查看步驟"):
+                    # 顯示時使用美化後的文字
+                    st.write(smart_format(str(item.get('custom_steps') or item.get('custom_steps_separated'))))
+                st.markdown("---")
+
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端">🚀</a>', unsafe_allow_html=True)
