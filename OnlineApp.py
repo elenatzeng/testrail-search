@@ -14,13 +14,13 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# ✨ 【停机坪】
+# ✨ 【顶端锚点】
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 侧边栏守护 (连线设定)
+# 2. 侧边栏守护 (保持妳的連線設定)
 with st.sidebar:
     st.header("🔐 连线设定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -51,6 +51,7 @@ if tr_url and tr_user and tr_pw:
         if "search_key" not in st.session_state:
             st.session_state.search_key = 0
 
+        # 搜寻列布局
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
         with col_s:
@@ -58,7 +59,7 @@ if tr_url and tr_user and tr_pw:
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
-                placeholder="请输入关键字查询，多个关键字请以空格格开", 
+                placeholder="请输入多个关键字 (例如: 充值 CNY)", 
                 label_visibility="collapsed",
                 key=f"search_input_{st.session_state.search_key}"
             )
@@ -89,7 +90,7 @@ if tr_url and tr_user and tr_pw:
                 match_score = 0
                 
                 for t in terms:
-                    # 💡 幣種保護：長度小於 4 的關鍵字不進同義詞典，精確匹配
+                    # 💡 幣種保護：長度 <= 4 (CNY) 不進字典，避免抓到 THB
                     exp = [t] if len(t) <= 4 else multi_lang_search(t, SEARCH_DICTIONARY)
                     
                     t_m = any(w in title for w in exp) or (t == cid)
@@ -101,69 +102,12 @@ if tr_url and tr_user and tr_pw:
                         if t_m: match_score += 10
                         elif p_m: match_score += 1
 
-                # 🛡️ 物理鎖死：必須同時命中所有關鍵字 (AND)
+                # 🛡️ 物理鎖死：所有關鍵字都必須同時命中
                 if match_count == len(terms):
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
                     
-                    # 💡 內容品質權重：以「步驟數量」為基準 (每步 1000 分)
+                    # 💡 內容豐富度：每一步加 1000 分，確保 Katty 壓過 Meh
                     step_count = len(steps_raw) if isinstance(steps_raw, list) else 0
-                    quality_weight = step_count * 1000
+                    quality_bonus = step_count * 1000
                     
-                    # 權重包含：標題/路徑分 + 品質分 + 人員權重
-                    final_score = match_score + quality_weight + user_info.get("weight", 0)
-                    results.append((final_score, f_path, c, user_info))
-
-            # ✨ 排序邏輯：總分優先，其次路徑
-            results.sort(key=lambda x: (-x[0], x[1]))
-
-            # ✨ 新增：搜尋筆數顯示
-            st.markdown(f'<div style="color:#2ea44f; font-weight:bold; margin: 10px 0 20px 5px;">找到 {len(results)} 筆符合條件的測試案例</div>', unsafe_allow_html=True)
-
-            if not results:
-                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的测试案例。</div>', unsafe_allow_html=True)
-            else:
-                for _, path, item, u in results:
-                    cid = str(item.get('id'))
-                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px; margin-bottom:5px;">📁 {path}</div>', unsafe_allow_html=True)
-                    tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
-                    
-                    c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                    c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
-                    c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
-                    
-                    with st.expander("查阅测试步骤", expanded=False):
-                        steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
-                        def final_render(text):
-                            if not text: return "(无内容)"
-                            text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
-                            lines = text.splitlines()
-                            html_out = '<div class="inner-text" style="font-weight: 400;">' 
-                            for line in lines:
-                                s = line.strip()
-                                if not s: continue
-                                is_list = re.match(r'^([•\-\*]|\d+\.)', s)
-                                style = "margin-bottom:4px; display:block; font-size:14px;"
-                                if is_list: style += "padding-left:18px;"
-                                html_out += f'<div style="{style}">{s}</div>'
-                            html_out += '</div>'
-                            return html_out
-
-                        if isinstance(steps_data, list) and len(steps_data) > 0:
-                            for s_idx, s in enumerate(steps_data, 1):
-                                c_html = final_render(s.get('content', ''))
-                                e_html = final_render(s.get('expected', ''))
-                                st.markdown(f'''
-                                    <div style="border-left:4px solid #2ea44f; padding-left:20px; margin-left:5px; margin-bottom:30px; display:block;">
-                                        <div style="color:#8b949e; font-weight:500; margin-bottom:10px; font-size:13px;">Step {s_idx}:</div>
-                                        <div class="content-box">{c_html}</div>
-                                        <div style="color:#8b949e; font-weight:500; margin-top:20px; margin-bottom:10px; font-size:13px;">Expected:</div>
-                                        <div class="content-box">{e_html}</div>
-                                    </div>
-                                ''', unsafe_allow_html=True)
-                    st.markdown("---")
-        else:
-            st.markdown('<div style="color:#DDDDDD; margin-top:50px; text-align:center; font-style: italic;">请输入关键字开始检索...</div>', unsafe_allow_html=True)
-else:
-    st.info("👈 请先在左侧完成连线设定。")
-
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
+                    final_score = match_score + quality_bonus + user_info.get("
