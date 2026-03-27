@@ -3,9 +3,10 @@ import re
 from style import apply_custom_style
 from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
+from keywords import SEARCH_DICTIONARY
 
-# 1. 初始化
-st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪", initial_sidebar_state="expanded")
+# 1. 頁面初始化
+st.set_page_config(page_title="TestRail AI Search", layout="wide", page_icon="🧪")
 apply_custom_style()
 
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
@@ -23,9 +24,6 @@ with st.sidebar:
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
-    if st.button("💾 储存资讯至网址", use_container_width=True):
-        st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-        st.success("✅ 已储存")
     if st.button("🔄 强制刷新数据", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
@@ -33,27 +31,16 @@ with st.sidebar:
 st.title("🧪 TestRail 智能检索中心")
 
 if tr_url and tr_user and tr_pw:
-    all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
+    all_cases, path_map, _, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
     if all_cases:
         st.markdown(f"📍 Project：{p_name} | Suite：#{sid}", unsafe_allow_html=True)
-        col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         
         if "q_text" not in st.session_state: st.session_state.q_text = ""
-        if "search_key" not in st.session_state: st.session_state.search_key = 0
-
-        with col_s:
-            q_input = st.text_input("", value=st.session_state.q_text, placeholder="请输入关键字，例如: 充值 CNY", label_visibility="collapsed", key=f"s_i_{st.session_state.search_key}")
-            st.session_state.q_text = q_input
-            
-        with col_c:
-            if st.button("🗑️ 清除条件", use_container_width=True): 
-                st.session_state.q_text = ""; st.session_state.search_key += 1; st.rerun() 
-        with col_r:
-            if st.button("🔎 查询", use_container_width=True): st.rerun()
+        q_input = st.text_input("● 搜寻内容 (字典通用+交集):", value=st.session_state.q_text, placeholder="例如: 充值 CNY")
+        st.session_state.q_text = q_input
 
         if st.session_state.q_text:
-            # 昨天最穩定的「純淨關鍵字切分」
             terms = [t.lower() for t in st.session_state.q_text.strip().split() if t]
             results = []
 
@@ -64,46 +51,47 @@ if tr_url and tr_user and tr_pw:
                 steps_raw = c.get('custom_steps') or c.get('custom_steps_separated') or ""
                 steps_text = str(steps_raw).lower()
                 
-                # --- ⚔️ 交集判定 (AND Logic) ---
-                is_match = True
-                score = 0
+                # --- ⚔️ 硬核交集判定 (Must Match EVERY Term) ---
+                is_all_terms_matched = True
+                total_score = 0
+
                 for t in terms:
-                    # 檢查原詞是否在標題、路徑或內容中
-                    if (t in title) or (t in f_path) or (t in steps_text) or (t == cid):
-                        if t in title: score += 10
-                        elif t in f_path: score += 1
-                    else:
-                        is_match = False
-                        break
+                    # 1. 拿到這個詞的所有同義詞 (如果是 CNY, 就只有 ['cny'])
+                    synonyms = multi_lang_search(t, SEARCH_DICTIONARY)
+                    
+                    # 2. 檢查這一組同義詞中，是否有任何一個出現在 Case 裡
+                    found_any_synonym = False
+                    for s in synonyms:
+                        if (s in title) or (s in f_path) or (s in steps_text) or (t == cid):
+                            found_any_synonym = True
+                            # 分數加權 (標題命中給高分)
+                            if s in title: total_score += 10
+                            elif s in f_path: total_score += 1
+                            break # 只要這組同義詞有一個中了，這個關鍵字就算過關
+                    
+                    # 3. 🚨 如果這一組同義詞「完全沒人命中」，代表這個關鍵字斷了
+                    if not found_any_synonym:
+                        is_all_terms_matched = False
+                        break # 直接淘汰這筆 Case
                 
-                if is_match:
+                # 只有每個關鍵字都過關的才顯示
+                if is_all_terms_matched:
                     user_info = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    # 品質權重 (Katty 護航版)
                     quality_weight = 10000 if len(str(steps_raw)) > 10 else 0
-                    results.append((score + quality_weight, f_path, c, user_info))
+                    results.append((total_score + quality_weight, f_path, c, user_info))
 
             results.sort(key=lambda x: (-x[0], x[1]))
-            res_count = len(results)
-
-            st.markdown(f'<div style="background:rgba(46,164,79,0.1); border-left:4px solid #2ea44f; padding:10px 15px; margin:20px 0;">找到 {res_count} 笔符合条件的案例</div>', unsafe_allow_html=True)
+            
+            st.markdown(f'<div style="background:rgba(46,164,79,0.1); border-left:4px solid #2ea44f; padding:10px 15px; margin:20px 0;">找到 {len(results)} 筆完全符合條件之案例</div>', unsafe_allow_html=True)
 
             if not results:
-                st.markdown('<div style="color:#8b949e; margin-top:20px;">🚫 找不到符合的案例。</div>', unsafe_allow_html=True)
+                st.info("🚫 找不到同時符合所有關鍵字(含同義詞)的案例。")
             else:
                 for _, path, item, u in results:
                     cid = str(item.get('id'))
-                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
-                    tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
-                    
-                    c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                    c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
-                    c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
-                    
-                    with st.expander("查阅测试步骤"):
-                        steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
-                        if isinstance(steps_data, list):
-                            for s_idx, s in enumerate(steps_data, 1):
-                                st.markdown(f'**Step {s_idx}:**\n{s.get("content")}\n**Expected:**\n{s.get("expected")}')
+                    st.markdown(f'<div style="font-size:12px; color:#adb5bd; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
+                    tag = f'<span class="author-tag status-{"active" if u.get("is_active", True) else "inactive"}">{"🟢" if u.get("is_active", True) else "🔴"} {u["name"]}</span>'
+                    st.markdown(f'<div style="display:flex; align-items:center;"><h4>{item.get("title")} (#{cid})</h4>{tag}</div>', unsafe_allow_html=True)
+                    with st.expander("查閱步驟"):
+                        st.write(item.get('custom_steps') or item.get('custom_steps_separated'))
                     st.markdown("---")
-
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
