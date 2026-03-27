@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 灵魂星空背景 */
+        /* 🌌 靈魂星空背景 */
         .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
             background-color: #0b0e14 !important;
             background-image: 
@@ -14,7 +14,7 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🚀 主标题缩放 (32px) */
+        /* 🚀 主標題縮放 (32px) - 讓介面更精緻 */
         h1 {
             font-size: 32px !important;
             font-weight: 700 !important;
@@ -23,13 +23,13 @@ def apply_custom_style():
             padding-bottom: 5px !important;
         }
 
-        /* 🚀 作者标签、黑盒子、按钮样式保留 */
+        /* 🚀 作者標籤、黑盒子、按鈕樣式 */
         .author-tag { font-size: 12px !important; border-radius: 20px !important; padding: 2px 12px !important; display: inline-flex !important; align-items: center; margin-left: 10px !important; font-weight: 600 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; color: white !important; }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 15px 20px; color: #c9d1d9 !important; font-size: 14px !important; font-weight: 400 !important; line-height: 1.6; }
         .view-btn, .view-btn:link, .view-btn:visited { display: inline-block !important; padding: 6px 14px !important; background-color: #2ea44f !important; color: white !important; border-radius: 6px !important; text-decoration: none !important; font-size: 13px !important; font-weight: 600 !important; border: none !important; }
 
-        /* 🚀 精制圆火箭 */
+        /* 🚀 精制圓火箭 - 右側置中回頂端 */
         .scroll-to-top {
             position: fixed !important;
             top: 50% !important;
@@ -48,7 +48,7 @@ def apply_custom_style():
             box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
         }
 
-        /* 🚀 【核心修正：左侧展开钮】 */
+        /* 🚀 【左側展開鈕】 - 即使隱藏 Header 也強制保留 */
         [data-testid="stSidebarCollapsedControl"] {
             position: fixed !important;
             top: 50% !important;
@@ -62,34 +62,30 @@ def apply_custom_style():
             justify-content: center !important;
             align-items: center !important;
             z-index: 10000001 !important;
-            visibility: visible !important; /* 强制显示 */
+            visibility: visible !important; 
         }
         [data-testid="stSidebarCollapsedControl"] svg { fill: white !important; color: white !important; width: 25px !important; height: 25px !important; }
 
-        /* 🛡️ 隐藏杂物但不破坏 Header 逻辑 */
+        /* 🛡️ 隱藏雜物與白線 */
         [data-testid="stHeader"] { background: transparent !important; }
         footer { display: none !important; }
         
-        /* ✨ 精准刺杀區塊 */
-        
-        /* 1. 徹底幹掉那隻 Github 貓咪 (Deploy 狀態圖標) */
+        /* ✨ 精準刺殺區：徹底移除右上角所有干擾項 */
+
+        /* 1. 徹底隱藏 Deploy (部署) 按鈕與 GitHub 貓咪 */
         .stDeployButton, [data-testid="stDeployButton"] {
             display: none !important;
             visibility: hidden !important;
-            width: 0 !important;
-            height: 0 !important;
         }
 
-        /* 2. 隐藏通知 */
-        iframe[title="notification"] { display: none !important; }
-        
-        /* 3. 彻底干掉右上角那个“三条杠” (MainMenu) */
+        /* 2. 隱藏通知與三條杠選單 (MainMenu) */
+        iframe[title="notification"] { display: none !important; } 
         #MainMenu { visibility: hidden !important; } 
 
-        /* 内容收合时吸附左侧 */
+        /* 內容收合時吸附左側 */
         [data-testid="stAppViewContainer"][data-collapsed="true"] .main { padding-left: 0 !important; margin-left: 0 !important; }
         
-        /* 移除顶部白边 */
+        /* 移除頂部多餘間距 */
         .block-container { padding-top: 2rem !important; }
         </style>
     """, unsafe_allow_html=True)
