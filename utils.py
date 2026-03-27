@@ -5,27 +5,20 @@ from testrail_api import TestRailAPI
 from html import unescape
 
 def match_visual_only(text, keyword):
-    """
-    🔒 單字邊界鎖死邏輯：
-    使用 \b 確保搜尋 "cny" 時，不會匹配到 "currency"。
-    """
+    """鎖死單字邊界，確保 cny 不會抓到 currency"""
     if not text or not keyword: return False
     
-    # 1. 徹底清除 HTML 標籤
+    # 清理 HTML 並轉小寫
     clean = unescape(str(text))
     clean = re.sub(r'<[^>]*>', ' ', clean)
     clean = " ".join(clean.split()).lower()
-    
     kw = str(keyword).lower().strip()
     
-    # 2. 🛡️ 核心：英文/數字強迫全字匹配
+    # 🛡️ 核心：如果是英文/數字，強迫全字匹配 (\b 代表邊界)
     if kw.isalnum() and not re.search(r'[\u4e00-\u9fff]', kw):
-        # \b 確保關鍵字前後不能連著英文字母
         pattern = rf'\b{re.escape(kw)}\b'
         return re.search(pattern, clean) is not None
-    else:
-        # 中文维持包含匹配
-        return kw in clean
+    return kw in clean
 
 def smart_format(text):
     if not text: return ""
@@ -36,9 +29,7 @@ def smart_format(text):
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 幣別鎖定：3碼英文不查字典
-    if len(t_lower) == 3 and t_lower.isalpha():
-        return [t_lower]
+    if len(t_lower) == 3 and t_lower.isalpha(): return [t_lower]
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
@@ -64,5 +55,5 @@ def fetch_data_from_tr(url, user, key, pid, sid):
             path_map[s_id] = " › ".join(parts)
         resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=1000)
         return resp['cases'], path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
-    except:
-        return None, None, None, None
+    except Exception as e:
+        return None, None, str(e), None
