@@ -1,12 +1,11 @@
 import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
 
-# 💡 核心修正：實裝妳要求的 match_keyword，確保搜尋的是「獨立單字」
+# 💡 核心鎖死邏輯：使用 \b 確保單字邊界
 def match_keyword(text, keyword):
-    if not text or not keyword:
-        return False
-    # \b 確保 keyword 是一個完整的單字，前後不能接英文字母
-    # 使用 re.IGNORECASE 確保搜尋時不分大小寫
+    if not text or not keyword: return False
+    # 如果關鍵字是幣別 (3碼英文)，強迫鎖死邊界
+    # 搜尋 "CNY" 不會抓到 "Currency"
     return re.search(rf'\b{re.escape(str(keyword).lower())}\b', str(text).lower())
 
 def smart_format(text):
@@ -61,14 +60,13 @@ def fetch_data_from_tr(url, user, key, pid, sid):
             if len(cases) < 250: break
             offset += 250
         return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
-    except Exception as e:
-        return None, None, str(e), None
+    except Exception as e: return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
-    """
-    根據關鍵字找出字典中的同義詞。
-    """
     t_lower = text.lower().strip()
+    # 🛡️ 幣種特殊處理：如果是 3 碼英文，不進行字典擴展，防止聯想到不相干的東西
+    if len(t_lower) == 3 and t_lower.isalpha():
+        return [t_lower]
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
