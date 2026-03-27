@@ -5,7 +5,7 @@ from testrail_api import TestRailAPI
 from html import unescape
 
 def clean_html(text):
-    """清理 HTML 標籤，保留換行 (昨天版本使用的名稱)"""
+    """清理 HTML 標籤，保留換行"""
     if not text: return ""
     t = unescape(str(text))
     t = t.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
@@ -14,7 +14,7 @@ def clean_html(text):
 
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
-    """資料抓取邏輯：自動適應 List 或 Dict 格式"""
+    """資料抓取邏輯：徹底解決 string indices 錯誤"""
     try:
         base_url = url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, user, key)
@@ -27,12 +27,16 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         # 抓取案例資料
         resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=1000)
         
-        # 🛡️ 核心修正：自動判斷回傳格式，防止 string indices 錯誤
-        cases_list = resp if isinstance(resp, list) else resp.get('cases', [])
+        # 🛡️ 核心修正：如果 resp 直接是個清單，就不去要 ['cases']
+        if isinstance(resp, list):
+            cases_list = resp
+        elif isinstance(resp, dict):
+            cases_list = resp.get('cases', [])
+        else:
+            cases_list = []
         
         return cases_list, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e:
-        # 失敗時回傳錯誤訊息
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
