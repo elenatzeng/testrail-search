@@ -25,6 +25,7 @@ st.title("🧪 TestRail 智能檢索中心")
 if tr_url and tr_user and tr_pw:
     all_cases, path_map, _, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     if all_cases:
+        st.markdown(f"📍 Project：{p_name} | Suite：#{sid}", unsafe_allow_html=True)
         q_input = st.text_input("● 搜尋內容:", value=st.session_state.get("q_text", ""), placeholder="例如: 充值 CNY")
         st.session_state.q_text = q_input
 
@@ -42,11 +43,11 @@ if tr_url and tr_user and tr_pw:
                 for t in terms:
                     variants = multi_lang_search(t, SEARCH_DICTIONARY)
                     
-                    # 💡 妳圖中建議的匹配方式：使用 match_currency_only
+                    # 💡 修正點：全部欄位統一使用 match_currency_only，保證先拔 HTML 再搜
                     hit = any(
                         match_currency_only(title, v) or 
                         match_currency_only(f_path, v) or 
-                        match_keyword(steps_text, v) # steps_text 也使用邊界匹配
+                        match_currency_only(steps_text, v)
                         for v in variants
                     ) or (t == cid)
                     
@@ -69,10 +70,14 @@ if tr_url and tr_user and tr_pw:
                 cid_str = str(item.get('id'))
                 tag = f'<span class="author-tag status-{"active" if u.get("is_active", True) else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
                 st.markdown(f'<div style="color:#adb5bd; font-size:12px; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
+                
                 c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
                 c1.markdown(f'<div style="display:flex; align-items:center;"><h4>{item.get("title")} (#{cid_str})</h4>{tag}</div>', unsafe_allow_html=True)
                 c2.markdown(f'<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid_str}" target="_blank" class="view-btn">📖 Open Case</a></div>', unsafe_allow_html=True)
-                with st.expander("查看步驟內容"): st.write(item.get('custom_steps') or item.get('custom_steps_separated'))
+                
+                with st.expander("查看步驟內容"):
+                    # 💡 這裡也用 smart_format 確保顯示出來沒 HTML
+                    st.write(clean_html(item.get('custom_steps') or item.get('custom_steps_separated')))
                 st.markdown("---")
 
 st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端">🚀</a>', unsafe_allow_html=True)
