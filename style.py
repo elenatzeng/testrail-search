@@ -23,7 +23,7 @@ def apply_custom_style():
             padding-bottom: 5px !important;
         }
 
-        /* 🚀 作者标签、黑盒子、按钮样式 */
+        /* 🚀 作者标签、黑盒子、按钮样式保留 */
         .author-tag { font-size: 12px !important; border-radius: 20px !important; padding: 2px 12px !important; display: inline-flex !important; align-items: center; margin-left: 10px !important; font-weight: 600 !important; border: 2px solid !important; background: rgba(0,0,0,0.5) !important; color: white !important; }
         .status-active { color: #32CD32 !important; border-color: #32CD32 !important; }
         .content-box { background: #1c2128 !important; border: 1px solid #30363d !important; border-radius: 12px; padding: 15px 20px; color: #c9d1d9 !important; font-size: 14px !important; font-weight: 400 !important; line-height: 1.6; }
@@ -70,17 +70,26 @@ def apply_custom_style():
         [data-testid="stHeader"] { background: transparent !important; }
         footer { display: none !important; }
         
-        /* ✨ 精准刺杀：隐藏菜单里的“Settings”和“主题切换”相关选项 */
-        /* 虽然不能直接禁掉按钮，但我们可以让菜单点开后里面是空的或者隐藏特定行 */
-        iframe[title="notification"] { display: none !important; } /* 隐藏通知 */
+        /* ✨ 精准刺杀區塊 */
         
-        /* 彻底干掉右上角那个“三条杠”里的特定内容 (利用 CSS 屏蔽) */
+        /* 1. 徹底幹掉那隻 Github 貓咪 (Deploy 狀態圖標) */
+        .stDeployButton, [data-testid="stDeployButton"] {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
+        /* 2. 隐藏通知 */
+        iframe[title="notification"] { display: none !important; }
+        
+        /* 3. 彻底干掉右上角那个“三条杠” (MainMenu) */
         #MainMenu { visibility: hidden !important; } 
 
         /* 内容收合时吸附左侧 */
         [data-testid="stAppViewContainer"][data-collapsed="true"] .main { padding-left: 0 !important; margin-left: 0 !important; }
         
-        /* 移除顶部白线 */
+        /* 移除顶部白边 */
         .block-container { padding-top: 2rem !important; }
         </style>
     """, unsafe_allow_html=True)
