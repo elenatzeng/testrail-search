@@ -3,7 +3,7 @@ import streamlit as st
 def apply_custom_style():
     st.markdown("""
         <style>
-        /* 🌌 灵魂星空背景 (保持妳的原樣) */
+        /* 🌌 灵魂星空背景 */
         .stApp, [data-testid="stSidebar"], [data-testid="stAppViewContainer"] {
             background-color: #0b0e14 !important;
             background-image: 
@@ -14,35 +14,32 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
-        /* 🎯 【核心修正：不給點、不給看】 */
+        /* 🎯 【禁區設定】徹底禁止右側所有點擊 */
         
-        /* 針對妳提供的貓咪圖標容器：禁止點擊並隱藏 */
-        [data-testid="stToolbarActionButtonIcon"], 
-        .st-emotion-cache-q16mip {
-            display: none !important;      /* 先嘗試隱藏 */
-            pointer-events: none !important; /* 萬一冒出來也點不到 */
-            cursor: default !important;
-        }
-
-        /* 針對整個右側工具欄按鈕 (GitHub 連結) */
-        [data-testid="stHeader"] a {
-            pointer-events: none !important; /* 徹底禁止點擊跳轉 */
-            visibility: hidden !important;   /* 隱藏但保留空間（防止 UI 移位） */
-        }
-
-        /* 隱藏右側三條線選單，且不給點 */
-        #MainMenu {
+        /* 1. 抓取整個頂部工具欄容器，直接禁止所有滑鼠事件 */
+        [data-testid="stHeader"] {
             pointer-events: none !important;
+            background: rgba(0,0,0,0) !important; /* 保持透明 */
+        }
+
+        /* 2. 針對貓咪、選單、Deploy 按鈕全部隱形化 */
+        [data-testid="stToolbar"], 
+        #MainMenu, 
+        .stDeployButton, 
+        .stGithubIcon,
+        a[href*="github.com"] {
+            display: none !important;
             visibility: hidden !important;
         }
 
-        /* 🛡️ 確保左側側邊欄控制鈕（>）「可以點」 */
-        /* 因為上面禁用了 Header 裡的 a，我們要確保 button 類型的展開鈕是正常的 */
+        /* 3. 🛡️ 【唯一活口】強行開啟左側展開鈕的點擊權限 */
+        /* 因為 Header 禁用了點擊，我們要單獨幫側邊欄按鈕開路 */
         [data-testid="stSidebarCollapsedControl"] {
-            pointer-events: auto !important;
+            pointer-events: auto !important; /* 恢復點擊 */
+            cursor: pointer !important;
             visibility: visible !important;
             display: flex !important;
-            z-index: 10000001 !important;
+            z-index: 99999999 !important; /* 確保它在最上層 */
         }
 
         /* 🚀 主标题 (保持妳的原樣) */
