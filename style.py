@@ -14,6 +14,20 @@ def apply_custom_style():
             background-position: 0 0, 40px 60px, 130px 270px !important;
         }
 
+        /* 🚀 徹底隱藏頂部所有東西 (包含貓咪 GitHub、選單按鈕、Deploy 按鈕) */
+        header[data-testid="stHeader"] {
+            display: none !important;
+        }
+        #MainMenu {
+            visibility: hidden !important;
+        }
+        .stDeployButton {
+            display: none !important;
+        }
+        footer {
+            display: none !important;
+        }
+
         /* 🚀 主标题缩放 (32px) */
         h1 {
             font-size: 32px !important;
@@ -104,19 +118,7 @@ def apply_custom_style():
             height: 25px !important; 
         }
 
-        /* 🛡️ 隐藏杂物 */
-        [data-testid="stHeader"] { background: transparent !important; }
-        footer { display: none !important; }
-        #MainMenu { visibility: hidden !important; } 
-        iframe[title="notification"] { display: none !important; }
-
-        /* 内容收合时吸附左侧 */
-        [data-testid="stAppViewContainer"][data-collapsed="true"] .main { 
-            padding-left: 0 !important; 
-            margin-left: 0 !important; 
-        }
-        
-        /* 移除顶部白线 */
-        .block-container { padding-top: 2rem !important; }
+        /* 移除顶部多余白线 */
+        .block-container { padding-top: 1rem !important; }
         </style>
     """, unsafe_allow_html=True)
