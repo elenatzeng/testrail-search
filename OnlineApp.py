@@ -3,7 +3,7 @@ import re
 from style import apply_custom_style
 from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
-from keywords import SEARCH_DICTIONARY # 🔒 確保這裡有抓到字典
+from keywords import SEARCH_DICTIONARY
 
 # 1. 页面初始化
 st.set_page_config(
@@ -68,56 +68,36 @@ if tr_url and tr_user and tr_pw:
             if st.button("🔎 查询", use_container_width=True): st.rerun()
 
         if st.session_state.q_text:
-            # 🎯 拆分關鍵字 (交集查詢的核心)
-            terms = [t.lower().strip() for t in st.session_state.q_text.strip().split() if t]
+            input_terms = [t.lower().strip() for t in st.session_state.q_text.strip().split() if t]
             results = []
 
             for c in all_cases:
-                title, cid = str(c.get('title', '')).lower(), str(c.get('id'))
+                title = str(c.get('title', '')).lower()
+                cid = str(c.get('id'))
                 f_path = path_map.get(c.get('section_id'), "").lower()
                 
                 is_match = True
-                # 🛠️ AND 邏輯：檢查輸入的每一個詞
-                for t in terms:
-                    # 📖 這裡就是去字典抓聯想詞的地方！
-                    exp = multi_lang_search(t, SEARCH_DICTIONARY)
+                for t in input_terms:
+                    # 📖 這裡就是邏輯關鍵：
+                    # multi_lang_search 裡面如果字典沒對到，會回傳 [t] (原文本身)
+                    expanded_words = multi_lang_search(t, SEARCH_DICTIONARY)
                     
                     term_hit = False
-                    for word in exp:
+                    for word in expanded_words:
                         word = word.lower()
-                        # 🔒 針對 CNY 等 3 碼幣別進行精準邊界鎖定
+                        # 🔒 幣別鎖死
                         if len(word) == 3 and word.isalpha():
                             if re.search(rf'\b{re.escape(word)}\b', title) or \
                                re.search(rf'\b{re.escape(word)}\b', f_path) or \
                                word == cid:
                                 term_hit = True; break
                         else:
-                            # 一般關鍵字包含比對
                             if word in title or word in f_path or word == cid:
                                 term_hit = True; break
                     
                     if not term_hit:
-                        is_match = False; break # 只要其中一個詞沒中，就不顯示
+                        is_match = False; break
                 
                 if is_match:
                     u = USER_CONFIG.get(int(c.get('created_by', 0)), DEFAULT_CONFIG)
-                    results.append((f_path, c, u))
-
-            if results:
-                for path, item, u in results:
-                    st.markdown(f'<div style="font-size:13px; color:#adb5bd; margin-top:20px;">📁 {path}</div>', unsafe_allow_html=True)
-                    tag = f'<span class="author-tag status-{"active" if u.get("is_active") else "inactive"}">{"🟢" if u.get("is_active") else "🔴"} {u["name"]}</span>'
-                    c1, c2 = st.columns([8, 1.5], vertical_alignment="center")
-                    c1.markdown(f'<div style="display:flex; align-items:center; color:white; font-size:20px; font-weight:bold;">{item.get("title")} (#{item.get("id")}){tag}</div>', unsafe_allow_html=True)
-                    c2.markdown(f'<a href="{tr_url.strip("/")}/index.php?/cases/view/{item.get("id")}" target="_blank" class="view-btn">📖 Open Case</a>', unsafe_allow_html=True)
-                    with st.expander("查阅测试步骤"):
-                        st.text(clean_html(item.get('custom_steps') or ""))
-                    st.markdown("---")
-            else:
-                st.markdown('<div style="color:#8b949e; margin-top:20px; padding-left:5px;">🚫 找不到符合的案例。</div>', unsafe_allow_html=True)
-    else:
-        st.error(f"❌ 抓取失败：{sync_time}")
-else:
-    st.info("👈 请先在左侧完成连线设定。")
-
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
+                    results.append((f_path, c, u
