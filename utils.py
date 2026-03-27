@@ -4,16 +4,16 @@ from testrail_api import TestRailAPI
 # 💡 終極守門員：先把 HTML 標籤拔掉，再用 \b 搜尋
 def match_currency_only(text, keyword):
     if not text or not keyword: return False
-    # 1. 物理移除所有 HTML 標籤 (比如把 <div>CNY</div> 變成 " CNY ")
+    # 1. 物理移除所有 HTML 標籤，避免搜尋到標籤內的屬性 (如 class="cny")
     clean_text = re.sub(r'<.*?>', ' ', str(text))
     # 2. 移除多餘空白並轉小寫
     clean_text = " ".join(clean_text.split()).lower()
-    # 3. 執行 \b 鎖死匹配：搜尋 CNY 絕對不會抓到 Currency 或連結裡的網址
+    # 3. 執行 \b 鎖死匹配：確保 CNY 不會抓到 Currency
     return re.search(rf'\b{re.escape(str(keyword).lower())}\b', clean_text)
 
 def smart_format(text):
     if not text: return ""
-    # 讓顯示出來的文字也是乾淨的
+    # 讓顯示出來的文字也是乾淨的，將標籤替換為換行符號
     t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
     t = re.sub(r'<.*?>', '', t)
     t = t.replace('&nbsp;', ' ')
@@ -68,7 +68,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 🛡️ 幣種鎖死：3 碼不擴展，避免 USDT 聯想到 CNY
+    # 🛡️ 幣種鎖死：3 碼英文字不走字典聯想
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
     res = {t_lower}
