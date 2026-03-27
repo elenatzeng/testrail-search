@@ -14,30 +14,33 @@ def clean_html(text):
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
     try:
-        # 🛡️ 自動修復網址，確保結尾乾淨
+        # 自動修正網址
         base_url = url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, user, key)
         
-        # 🛡️ 檢查點 1：抓取專案
+        # 1. 抓取專案
         p_info = api.projects.get_project(project_id=pid)
-        if isinstance(p_info, str): raise ValueError(f"專案連線失敗: {p_info}")
         p_name = p_info.get('name', 'Project')
 
-        # 🛡️ 檢查點 2：抓取目錄 (這裡就是妳紅字噴出的地方)
-        all_sects = api.sections.get_sections(project_id=pid)
-        if not isinstance(all_sects, list): raise ValueError(f"目錄抓取失敗: {all_sects}")
-        path_map = {s['id']: s['name'] for s in all_sects}
+        # 🛡️ 2. 抓取目錄 (修正點：處理分頁包裹)
+        sect_resp = api.sections.get_sections(project_id=pid)
+        # 如果回傳是包裹(dict)，就拿裡面的 'sections'；否則就當它是清單
+        sects_list = sect_resp.get('sections', []) if isinstance(sect_resp, dict) else sect_resp
         
-        # 🛡️ 檢查點 3：抓取案例
-        resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=1000)
-        if isinstance(resp, str): raise ValueError(f"案例抓取失敗: {resp}")
+        if not isinstance(sects_list, list):
+            raise ValueError("無法解析目錄列表格式")
+            
+        path_map = {s['id']: s['name'] for s in sects_list}
         
-        cases_list = resp if isinstance(resp, list) else resp.get('cases', [])
+        # 🛡️ 3. 抓取案例 (同樣處理分頁包裹)
+        case_resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=1000)
+        cases_list = case_resp.get('cases', []) if isinstance(case_resp, dict) else case_resp
+        
         return cases_list, path_map, time.strftime("%H:%M:%S"), p_name
 
     except Exception as e:
-        # 如果出錯，回傳具體的錯誤訊息，不要讓它噴紅字當機
-        return None, None, f"連線異常: {str(e)}", None
+        # 發生異常時回傳具體訊息
+        return None, None, f"連連異常: {str(e)}", None
 
 def multi_lang_search(text, dictionary):
     if not text: return []
