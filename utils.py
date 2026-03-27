@@ -1,40 +1,26 @@
 import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
 
-# 💡 終極守門員：先把 HTML 標籤拔掉，再用 \b 搜尋
-def match_currency_only(text, keyword):
+# 💡 核心搜尋邏輯：先剝除 HTML 標籤，再執行邊界鎖死匹配
+def match_strict(text, keyword):
     if not text or not keyword: return False
-    # 1. 物理移除所有 HTML 標籤，避免搜尋到標籤內的屬性 (如 class="cny")
+    # 1. 物理移除所有 HTML 標籤 (確保 <div class="cny"> 不會被當成 cny)
+    # 把 <...> 換成空格，避免文字黏在一起
     clean_text = re.sub(r'<.*?>', ' ', str(text))
-    # 2. 移除多餘空白並轉小寫
+    # 2. 移除多餘空白、換行，統一轉小寫
     clean_text = " ".join(clean_text.split()).lower()
-    # 3. 執行 \b 鎖死匹配：確保 CNY 不會抓到 Currency
+    # 3. \b 鎖死：搜尋 "cny" 時，前後不能接字母
     return re.search(rf'\b{re.escape(str(keyword).lower())}\b', clean_text)
 
 def smart_format(text):
     if not text: return ""
-    # 讓顯示出來的文字也是乾淨的，將標籤替換為換行符號
-    t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
+    t = str(text).replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n')
     t = re.sub(r'<.*?>', '', t)
-    t = t.replace('&nbsp;', ' ')
     return t.strip()
-
-def clean_html(raw_html):
-    if not raw_html: return ""
-    text = str(raw_html).strip()
-    if text.startswith('[') and ('content' in text or 'expected' in text):
-        try:
-            parsed_data = ast.literal_eval(text)
-            if isinstance(parsed_data, list):
-                for item in parsed_data:
-                    item['content'] = smart_format(item.get('content', ''))
-                    item['expected'] = smart_format(item.get('expected', ''))
-                return parsed_data 
-        except: pass
-    return smart_format(text)
 
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
+    # ... (此處保持原有的 TestRail API 連線邏輯) ...
     try:
         api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
@@ -68,7 +54,7 @@ def fetch_data_from_tr(url, user, key, pid, sid):
 
 def multi_lang_search(text, dictionary):
     t_lower = text.lower().strip()
-    # 🛡️ 幣種鎖死：3 碼英文字不走字典聯想
+    # 🛡️ 幣別鎖死：3 碼英文不走字典聯想
     if len(t_lower) == 3 and t_lower.isalpha():
         return [t_lower]
     res = {t_lower}
