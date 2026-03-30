@@ -63,7 +63,7 @@ if tr_url and tr_user and tr_pw:
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
-                placeholder="请输入关键字查詢 (例如: CNY 充值)", 
+                placeholder="请输入关键字查询，若多个关键字请以空格格开", 
                 label_visibility="collapsed",
                 key=f"search_input_{st.session_state.search_key}"
             )
