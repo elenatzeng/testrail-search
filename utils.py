@@ -3,39 +3,40 @@ from testrail_api import TestRailAPI
 
 def smart_format(text):
     """
-    精準還原版：
-    1. 只有真正的 Unordered List (ul) 才補實心點。
-    2. Ordered List (ol) 只換行，不補點，確保 1.2.3.4 原樣呈現。
-    3. 保留所有斷行，不吃掉空格。
+    最純粹的還原邏輯：
+    1. 只有偵測到 <ul> (實心點清單) 才補 ●。
+    2. 偵測到 <ol> (序號清單) 只換行，不補任何符號，尊重原稿內容。
+    3. 不自動補 1234，TestRail 內容是什麼就顯示什麼。
     """
     if not text: return ""
     
     t = str(text)
 
-    # 🎯 處理「實心點清單」(Unordered List)
-    # 這裡只針對被 <ul> 包起來的項目補上 ●
+    # 🎯 處理「實心點清單」(Unordered List, 如圖 21)
+    # 只針對被 <ul> 包裹的內容補上點點
     def replace_ul(match):
         content = match.group(1)
+        # 把每個清單項目轉化為點點開頭並換行
         return content.replace('<li>', '\n ● ').replace('</li>', '')
     t = re.sub(r'<ul>(.*?)</ul>', replace_ul, t, flags=re.DOTALL)
 
-    # 🎯 處理「序號清單」(Ordered List)
-    # 這裡只換行，不補任何點，讓內容原本的 1. 2. 3. 自己排隊
+    # 🎯 處理「序號清單」(Ordered List, 如圖 20)
+    # 只換行，不加點，讓文字原本的 1. 2. 3. 4. 排隊顯示
     def replace_ol(match):
         content = match.group(1)
         return content.replace('<li>', '\n ').replace('</li>', '')
     t = re.sub(r'<ol>(.*?)</ol>', replace_ol, t, flags=re.DOTALL)
 
-    # 🎯 處理一般 HTML 換行，確保像圖 11 那種擠在一起的情況不會發生
+    # 🎯 處理一般 HTML 換行與間距
     t = t.replace('<br />', '\n').replace('<br>', '\n')
     t = t.replace('</div>', '\n').replace('<div>', '')
     t = t.replace('</p>', '\n').replace('<p>', '\n')
     t = t.replace('&nbsp;', ' ')
     
-    # 🎯 移除其餘殘留 HTML 標籤 (如 <span>)
+    # 🎯 移除其餘殘留 HTML 標籤
     t = re.sub(r'<.*?>', '', t)
     
-    # 🎯 整理格式：移除每行末尾空白，保留結構
+    # 🎯 整理格式：移除每行末尾空白，保留原本的條列結構
     lines = [l.rstrip() for l in t.split('\n')]
     
     return "\n".join(lines).strip()
@@ -44,7 +45,7 @@ def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 處理分步步驟 (JSON 格式)
+    # 判斷是否為「分步步驟」JSON 格式
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
@@ -57,13 +58,14 @@ def clean_html(raw_html):
     
     return smart_format(text)
 
+# --- 以下 fetch_data_from_tr 和 multi_lang_search 維持穩定版內容 ---
+
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
     try:
         base_url = url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, user, key)
         p_info = api.projects.get_project(project_id=pid)
-        
         all_sects = []
         offset = 0
         while True:
@@ -73,10 +75,8 @@ def fetch_data_from_tr(url, user, key, pid, sid):
             all_sects.extend(sects)
             if len(sects) < 250: break
             offset += 250
-        
         id_to_name = {s['id']: s['name'] for s in all_sects}
         id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
-        
         path_map = {}
         for s_id in id_to_name:
             parts, curr = [], s_id
@@ -84,7 +84,6 @@ def fetch_data_from_tr(url, user, key, pid, sid):
                 parts.insert(0, id_to_name[curr])
                 curr = id_to_parent.get(curr)
             path_map[s_id] = " › ".join(parts)
-            
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
@@ -93,7 +92,6 @@ def fetch_data_from_tr(url, user, key, pid, sid):
             all_cases.extend(cases)
             if len(cases) < 250: break
             offset += 250
-            
         return all_cases, path_map, time.strftime("%H:%M:%S"), p_info.get('name', 'Project')
     except Exception as e:
         return None, None, str(e), None
