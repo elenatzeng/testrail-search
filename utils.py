@@ -3,59 +3,48 @@ from testrail_api import TestRailAPI
 
 def smart_format(text):
     """
-    精準還原格式：
-    - Unordered List (ul): 轉化為 ●
-    - Ordered List (ol): 保持純文字換行 (不加點，保留原始 1. 2. 3.)
-    - 確保斷行與 TestRail 一致
+    精準還原版：
+    1. 只有真正的 Unordered List (ul) 才補實心點。
+    2. Ordered List (ol) 只換行，不補點，確保 1.2.3.4 原樣呈現。
+    3. 保留所有斷行，不吃掉空格。
     """
     if not text: return ""
     
     t = str(text)
 
-    # 1. 處理 Unordered List (實心點清單)
-    # 只有被 <ul> 包起來的 <li> 才會被補上「●」
-    def replace_ul_dots(match):
+    # 🎯 處理「實心點清單」(Unordered List)
+    # 這裡只針對被 <ul> 包起來的項目補上 ●
+    def replace_ul(match):
         content = match.group(1)
-        # 在每個項目處換行並補點
-        items = content.replace('<li>', '\n ● ').replace('</li>', '')
-        return items
-    
-    t = re.sub(r'<ul>(.*?)</ul>', replace_ul_dots, t, flags=re.DOTALL)
+        return content.replace('<li>', '\n ● ').replace('</li>', '')
+    t = re.sub(r'<ul>(.*?)</ul>', replace_ul, t, flags=re.DOTALL)
 
-    # 2. 處理 Ordered List (數字序號清單)
-    # <ol> 內部的 <li> 只換行，不補點，這樣文字裡的 1. 2. 3. 就不會被干擾
-    def replace_ol_lines(match):
+    # 🎯 處理「序號清單」(Ordered List)
+    # 這裡只換行，不補任何點，讓內容原本的 1. 2. 3. 自己排隊
+    def replace_ol(match):
         content = match.group(1)
-        # 只換行，不加任何符號
-        items = content.replace('<li>', '\n ').replace('</li>', '')
-        return items
-    
-    t = re.sub(r'<ol>(.*?)</ol>', replace_ol_lines, t, flags=re.DOTALL)
+        return content.replace('<li>', '\n ').replace('</li>', '')
+    t = re.sub(r'<ol>(.*?)</ol>', replace_ol, t, flags=re.DOTALL)
 
-    # 3. 處理一般的換行標籤
+    # 🎯 處理一般 HTML 換行，確保像圖 11 那種擠在一起的情況不會發生
     t = t.replace('<br />', '\n').replace('<br>', '\n')
     t = t.replace('</div>', '\n').replace('<div>', '')
     t = t.replace('</p>', '\n').replace('<p>', '\n')
     t = t.replace('&nbsp;', ' ')
     
-    # 4. 移除殘留的所有 HTML 標籤
+    # 🎯 移除其餘殘留 HTML 標籤 (如 <span>)
     t = re.sub(r'<.*?>', '', t)
     
-    # 5. 清理每行末尾空白，並過濾掉因為標籤替換產生的過多空行
-    lines = []
-    for line in t.split('\n'):
-        s = line.rstrip()
-        if s:
-            lines.append(s)
-            
+    # 🎯 整理格式：移除每行末尾空白，保留結構
+    lines = [l.rstrip() for l in t.split('\n')]
+    
     return "\n".join(lines).strip()
 
 def clean_html(raw_html):
-    """判斷內容格式，處理分步步驟或純文字內容"""
     if not raw_html: return ""
     text = str(raw_html).strip()
     
-    # 如果是分步步驟 (JSON 格式)
+    # 處理分步步驟 (JSON 格式)
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
@@ -70,13 +59,11 @@ def clean_html(raw_html):
 
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
-    """從 TestRail 抓取全量目錄與案例"""
     try:
         base_url = url.split('/index.php')[0].strip('/')
         api = TestRailAPI(base_url, user, key)
         p_info = api.projects.get_project(project_id=pid)
         
-        # 抓取目錄
         all_sects = []
         offset = 0
         while True:
@@ -98,7 +85,6 @@ def fetch_data_from_tr(url, user, key, pid, sid):
                 curr = id_to_parent.get(curr)
             path_map[s_id] = " › ".join(parts)
             
-        # 抓取案例
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
@@ -113,7 +99,6 @@ def fetch_data_from_tr(url, user, key, pid, sid):
         return None, None, str(e), None
 
 def multi_lang_search(text, dictionary):
-    """聯想詞搜尋 (CNY, 充值等)"""
     t_lower = text.lower().strip()
     res = {t_lower}
     for group in dictionary:
