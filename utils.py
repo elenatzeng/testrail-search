@@ -2,50 +2,32 @@ import re, time, streamlit as st, ast
 from testrail_api import TestRailAPI
 
 def smart_format(text):
-    """
-    最純粹的還原邏輯：
-    1. 只有偵測到 <ul> (實心點清單) 才補 ●。
-    2. 偵測到 <ol> (序號清單) 只換行，不補任何符號，尊重原稿內容。
-    3. 不自動補 1234，TestRail 內容是什麼就顯示什麼。
-    """
     if not text: return ""
-    
-    t = str(text)
-
-    # 🎯 處理「實心點清單」(Unordered List, 如圖 21)
-    # 只針對被 <ul> 包裹的內容補上點點
-    def replace_ul(match):
-        content = match.group(1)
-        # 把每個清單項目轉化為點點開頭並換行
-        return content.replace('<li>', '\n ● ').replace('</li>', '')
-    t = re.sub(r'<ul>(.*?)</ul>', replace_ul, t, flags=re.DOTALL)
-
-    # 🎯 處理「序號清單」(Ordered List, 如圖 20)
-    # 只換行，不加點，讓文字原本的 1. 2. 3. 4. 排隊顯示
-    def replace_ol(match):
-        content = match.group(1)
-        return content.replace('<li>', '\n ').replace('</li>', '')
-    t = re.sub(r'<ol>(.*?)</ol>', replace_ol, t, flags=re.DOTALL)
-
-    # 🎯 處理一般 HTML 換行與間距
-    t = t.replace('<br />', '\n').replace('<br>', '\n')
-    t = t.replace('</div>', '\n').replace('<div>', '')
-    t = t.replace('</p>', '\n').replace('<p>', '\n')
+    # 清理 HTML
+    t = text.replace('<br />', '\n').replace('<br>', '\n').replace('</div>', '\n').replace('<div>', '')
     t = t.replace('&nbsp;', ' ')
-    
-    # 🎯 移除其餘殘留 HTML 標籤
     t = re.sub(r'<.*?>', '', t)
     
-    # 🎯 整理格式：移除每行末尾空白，保留原本的條列結構
-    lines = [l.rstrip() for l in t.split('\n')]
+    # 動作關鍵字拆分
+    keys = ["路徑", "內容管理", "選擇", "URL", "點擊", "点击", "登入", "進入", "查看", "確認", "正確"]
+    for key in keys:
+        t = re.sub(f'({key})', r'\n\1', t)
     
-    return "\n".join(lines).strip()
+    # 補上 1. 2. 3.
+    lines = [l.strip() for l in t.split('\n') if l.strip()]
+    final_lines = []
+    count = 1
+    for line in lines:
+        if not re.match(r'^\d+[\.\s]', line):
+            final_lines.append(f"{count}. {line}")
+            count += 1
+        else:
+            final_lines.append(line)
+    return "\n".join(final_lines)
 
 def clean_html(raw_html):
     if not raw_html: return ""
     text = str(raw_html).strip()
-    
-    # 判斷是否為「分步步驟」JSON 格式
     if text.startswith('[') and ('content' in text or 'expected' in text):
         try:
             parsed_data = ast.literal_eval(text)
@@ -55,39 +37,41 @@ def clean_html(raw_html):
                     item['expected'] = smart_format(item.get('expected', ''))
                 return parsed_data 
         except: pass
-    
     return smart_format(text)
-
-# --- 以下 fetch_data_from_tr 和 multi_lang_search 維持穩定版內容 ---
 
 @st.cache_data(show_spinner=False, ttl=600)
 def fetch_data_from_tr(url, user, key, pid, sid):
     try:
-        base_url = url.split('/index.php')[0].strip('/')
-        api = TestRailAPI(base_url, user, key)
+        api = TestRailAPI(url.split('/index.php')[0].strip('/'), user, key)
         p_info = api.projects.get_project(project_id=pid)
+        
+        # 🚀 抓取全量目錄（解決 GoGaming 問題）
         all_sects = []
         offset = 0
         while True:
-            sect_resp = api.sections.get_sections(project_id=pid, suite_id=sid, offset=offset)
+            sect_resp = api.sections.get_sections(project_id=pid, offset=offset)
             sects = sect_resp['sections'] if isinstance(sect_resp, dict) else sect_resp
             if not sects: break
             all_sects.extend(sects)
             if len(sects) < 250: break
             offset += 250
+        
         id_to_name = {s['id']: s['name'] for s in all_sects}
         id_to_parent = {s['id']: s.get('parent_id') for s in all_sects}
+        
         path_map = {}
         for s_id in id_to_name:
-            parts, curr = [], s_id
+            parts = []
+            curr = s_id
             while curr in id_to_name:
                 parts.insert(0, id_to_name[curr])
                 curr = id_to_parent.get(curr)
             path_map[s_id] = " › ".join(parts)
+            
         all_cases, offset = [], 0
         while True:
             resp = api.cases.get_cases(project_id=pid, suite_id=sid, limit=250, offset=offset)
-            cases = resp['cases'] if isinstance(resp, dict) and 'cases' in resp else resp
+            cases = resp['cases']
             if not cases: break
             all_cases.extend(cases)
             if len(cases) < 250: break
@@ -101,6 +85,5 @@ def multi_lang_search(text, dictionary):
     res = {t_lower}
     for group in dictionary:
         g_lower = [str(w).lower() for w in group]
-        if t_lower in g_lower: 
-            res.update(g_lower)
+        if t_lower in g_lower: res.update(g_lower)
     return list(res)
