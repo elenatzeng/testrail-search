@@ -14,23 +14,25 @@ st.set_page_config(
 )
 apply_custom_style()
 
-# 🖼️ 【更換連結預覽圖 - 強力抓取版】
-# 確保這個連結直接打開就是一張圖片，沒有任何 GitHub 的選單
+# 🖼️ 【更換連結預覽圖 - Slack 最終優化版】
 PREVIEW_IMAGE_URL = "https://raw.githubusercontent.com/elenatzeng/testrail-search/main/CoverPic.jpg"
 
+# 這裡加入一個隱形的 HTML 區塊，讓爬蟲更早抓到
 st.markdown(f"""
-    <head>
-        <meta property="og:title" content="TestRail AI Search" />
-        <meta property="og:description" content="🧪 智能檢索測試案例中心 - 快速查找您的 TestRail Cases" />
-        <meta property="og:image" content="{PREVIEW_IMAGE_URL}" />
-        <meta property="og:image:secure_url" content="{PREVIEW_IMAGE_URL}" />
-        <meta property="og:image:type" content="image/jpeg" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:type" content="website" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="{PREVIEW_IMAGE_URL}" />
-    </head>
+    <div style="display:none;">
+        <head>
+            <title>TestRail AI Search</title>
+            <meta name="description" content="🧪 智能檢索測試案例中心" />
+            <meta property="og:title" content="TestRail AI Search" />
+            <meta property="og:description" content="智能檢索中心 - 快速查找您的 TestRail Cases" />
+            <meta property="og:image" content="{PREVIEW_IMAGE_URL}" />
+            <meta property="og:image:secure_url" content="{PREVIEW_IMAGE_URL}" />
+            <meta property="og:image:type" content="image/jpeg" />
+            <meta property="og:type" content="website" />
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:image" content="{PREVIEW_IMAGE_URL}" />
+        </head>
+    </div>
 """, unsafe_allow_html=True)
 
 # ✨ 【停機坪】
@@ -68,6 +70,7 @@ if tr_url and tr_user and tr_pw:
     elif not all_cases:
         st.warning(f"⚠️ 在 Suite #{sid} 中找不到任何測試案例。")
     else:
+        # ✨ 以下維持妳最整齊的渲染邏輯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
         if "q_text" not in st.session_state: st.session_state.q_text = ""
