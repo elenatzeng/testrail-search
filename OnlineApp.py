@@ -5,7 +5,7 @@ from utils import clean_html, fetch_data_from_tr, multi_lang_search
 from users import USER_CONFIG, DEFAULT_CONFIG
 from keywords import SEARCH_DICTIONARY
 
-# 1. 页面初始化
+# 1. 頁面初始化
 st.set_page_config(
     page_title="TestRail AI Search", 
     layout="wide", 
@@ -15,46 +15,48 @@ st.set_page_config(
 apply_custom_style()
 
 # 🖼️ 【更換連結預覽圖】
-# 已幫妳替換為 GitHub 上的 CoverPic.jpg 正確原始連結
+# 使用妳提供的 GitHub 封面圖原始連結
 PREVIEW_IMAGE_URL = "https://raw.githubusercontent.com/elenatzeng/testrail-search/main/CoverPic.jpg"
 
 st.markdown(f"""
     <head>
         <meta property="og:title" content="TestRail AI Search" />
-        <meta property="og:description" content="智能檢索測試案例中心 - 🧪 快速查找您的 TestRail Cases" />
+        <meta property="og:description" content="🧪 智能檢索測試案例中心 - 快速查找您的 TestRail Cases" />
         <meta property="og:image" content="{PREVIEW_IMAGE_URL}" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content="{PREVIEW_IMAGE_URL}" />
     </head>
 """, unsafe_allow_html=True)
 
-# ✨ 【停机坪】
+# ✨ 【停機坪】
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
 def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
-# 2. 侧边栏守护 (连线设定)
+# 2. 側邊欄守護 (連線設定)
 with st.sidebar:
-    st.header("🔐 连线设定")
+    st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
-    tr_user = st.text_input("账号 Email", value=get_val("user"))
+    tr_user = st.text_input("帳號 Email", value=get_val("user"))
     tr_pw = st.text_input("API Key", type="password", value=get_val("pw"))
     pid_v, sid_v = get_val("pid"), get_val("sid")
     pid = st.number_input("Project ID", value=int(pid_v) if pid_v else 10)
     sid = st.number_input("Suite ID", value=int(sid_v) if sid_v else 10)
     
-    if st.button("💾 储存资讯至网址", use_container_width=True):
+    if st.button("💾 儲存資訊至網址", use_container_width=True):
         st.query_params.update(url=tr_url, user=tr_user, pw=tr_pw, pid=pid, sid=sid)
-        st.success("✅ 已储存")
-    if st.button("🔄 强制刷新数据", use_container_width=True):
+        st.success("✅ 已儲存")
+    if st.button("🔄 強制刷新數據", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
-st.title("🧪 TestRail 智能检索中心")
+st.title("🧪 TestRail 智能檢索中心")
 
-# 3. 核心数据 logic
+# 3. 核心數據邏輯
 if tr_url and tr_user and tr_pw:
     # 增加讀取動畫
     with st.spinner("🚀 正在從 TestRail 同步數據..."):
@@ -67,6 +69,7 @@ if tr_url and tr_user and tr_pw:
     elif not all_cases:
         st.warning(f"⚠️ 在 Suite #{sid} 中找不到任何測試案例。")
     else:
+        # 🟢 以下完全還原妳提供的邏輯
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
@@ -77,23 +80,23 @@ if tr_url and tr_user and tr_pw:
             st.session_state.search_key = 0
 
         with col_s:
-            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜寻内容:</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:13px; color:#8b949e; margin-bottom:5px;">● 搜尋內容:</div>', unsafe_allow_html=True)
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
-                placeholder="请输入关键字查询，若多个关键字请以空格格開", 
+                placeholder="請輸入關鍵字查詢，若多個關鍵字請以空格格開", 
                 label_visibility="collapsed",
                 key=f"search_input_{st.session_state.search_key}"
             )
             st.session_state.q_text = q_input
             
         with col_c:
-            if st.button("🗑️ 清除条件", use_container_width=True): 
+            if st.button("🗑️ 清除條件", use_container_width=True): 
                 st.session_state.q_text = "" 
                 st.session_state.search_key += 1 
                 st.rerun() 
         with col_r:
-            if st.button("🔎 查询", use_container_width=True): 
+            if st.button("🔎 查詢", use_container_width=True): 
                 st.rerun()
 
         if st.session_state.q_text:
@@ -126,7 +129,7 @@ if tr_url and tr_user and tr_pw:
             results.sort(key=lambda x: (-x[0], x[1]))
 
             if not results:
-                st.markdown('🚫 找不到符合的测试案例。')
+                st.markdown('🚫 找不到符合的測試案例。')
             else:
                 for _, path, item, u in results:
                     cid = str(item.get('id'))
@@ -137,11 +140,11 @@ if tr_url and tr_user and tr_pw:
                     c1.markdown(f'<div style="display:flex; align-items:center; margin-bottom:15px;"><span style="font-size:20px; font-weight:bold; color:white;">{item.get("title")} (#{cid})</span>{tag}</div>', unsafe_allow_html=True)
                     c2.markdown(f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''', unsafe_allow_html=True)
                     
-                    with st.expander("查阅测试步骤", expanded=False):
+                    with st.expander("查閱測試步驟", expanded=False):
                         steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
                         
                         def final_render(text):
-                            if not text: return "(无内容)"
+                            if not text: return "(無內容)"
                             text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
                             lines = text.splitlines()
                             html_out = '<div class="inner-text" style="font-weight: 400;">' 
@@ -171,6 +174,7 @@ if tr_url and tr_user and tr_pw:
                             st.markdown(f'<div class="content-box">{final_render(steps_data)}</div>', unsafe_allow_html=True)
                     st.markdown("---")
 else:
-    st.info("👈 请先在左侧完成连线设定。")
+    st.info("👈 請先在左側完成連線設定。")
 
-st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到顶端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
+# ✨ 【小火箭】
+st.markdown('<a href="#top-anchor" class="scroll-to-top" title="回到頂端"><span style="font-size: 24px;">🚀</span></a>', unsafe_allow_html=True)
