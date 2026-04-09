@@ -14,6 +14,21 @@ st.set_page_config(
 )
 apply_custom_style()
 
+# 🖼️ 【更換連結預覽圖】
+# 已幫妳替換為 GitHub 上的 CoverPic.jpg 正確原始連結
+PREVIEW_IMAGE_URL = "https://raw.githubusercontent.com/elenatzeng/testrail-search/main/CoverPic.jpg"
+
+st.markdown(f"""
+    <head>
+        <meta property="og:title" content="TestRail AI Search" />
+        <meta property="og:description" content="智能檢索測試案例中心 - 🧪 快速查找您的 TestRail Cases" />
+        <meta property="og:image" content="{PREVIEW_IMAGE_URL}" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="{PREVIEW_IMAGE_URL}" />
+    </head>
+""", unsafe_allow_html=True)
+
 # ✨ 【停机坪】
 st.markdown('<div id="top-anchor" style="position:absolute; top:0;"></div>', unsafe_allow_html=True)
 
@@ -39,20 +54,19 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能检索中心")
 
-# 3. 核心数据逻辑
+# 3. 核心数据 logic
 if tr_url and tr_user and tr_pw:
     # 增加讀取動畫
     with st.spinner("🚀 正在從 TestRail 同步數據..."):
         all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
     
-    # 🛡️ 【這是我幫妳加的唯一防呆，僅此而已】
+    # 🛡️ 防呆診斷
     if all_cases is None:
         st.error(f"❌ 無法連線至 TestRail。原因：{sync_time}")
         st.info("💡 請檢查側邊欄的連線資訊是否正確。")
     elif not all_cases:
         st.warning(f"⚠️ 在 Suite #{sid} 中找不到任何測試案例。")
     else:
-        # 🟢 【以下完全還原妳提供的邏輯，包含那個 final_render】
         st.markdown(f"📍 Project：<span style='color:white; font-weight:bold;'>{p_name}</span> | Suite：<span style='color:white; font-weight:bold;'>#{sid}</span>", unsafe_allow_html=True)
         
         col_s, col_c, col_r = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
@@ -67,7 +81,7 @@ if tr_url and tr_user and tr_pw:
             q_input = st.text_input(
                 "", 
                 value=st.session_state.q_text, 
-                placeholder="请输入关键字查询，若多个关键字请以空格格开", 
+                placeholder="请输入关键字查询，若多个关键字请以空格格開", 
                 label_visibility="collapsed",
                 key=f"search_input_{st.session_state.search_key}"
             )
@@ -126,7 +140,6 @@ if tr_url and tr_user and tr_pw:
                     with st.expander("查阅测试步骤", expanded=False):
                         steps_data = item.get('custom_steps') or item.get('custom_steps_separated')
                         
-                        # 🎯 妳原本寫得最整齊的渲染邏輯 (一字不差搬回來)
                         def final_render(text):
                             if not text: return "(无内容)"
                             text = re.sub(img_kill_pattern, '', str(text), flags=re.IGNORECASE).strip()
