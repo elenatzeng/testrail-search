@@ -23,7 +23,7 @@ SEARCH_DICTIONARY = [
     ["exchange", "閃兌", "閃兌"],
     ["crypto", "虛擬幣", "虛擬貨幣", "加密貨幣", "數字貨幣", "Crypto"],
 
-    # --- [Transaction / Backoffice] 交易日誌與後台操作 (新增自圖 28, 29) ---
+    # --- [Transaction / Backoffice] 交易日誌與後台操作 ---
     ["trans_log", "交易日誌", "交易日志", "View Transaction Log"],
     ["edit_amount", "編輯到帳金額", "编辑到账金额", "Edit Credited Amount"],
     ["status_check", "狀態查詢和更新", "状态查询和更新", "Status Check"],
