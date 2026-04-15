@@ -32,6 +32,8 @@ SEARCH_DICTIONARY = [
     ["attachments", "附件", "附件", "Check Attachements"],
     ["channel_alloc", "指定渠道", "指定渠道", "Channel Allocation"],
     ["cancel_withdraw", "取消出款", "取消出款", "Withdrawal Cancellation"],
+    ["allocated", "更改為已分配", "更改为已分配", "Update to Allocated"],
+    ["pending_alloc", "為待分配", "为待分配", "Update to Pending Allocation"],
 
     # --- [auManage] 權限與成員管理 ---
     ["auManage", "權限管理", "權限管理", "Authority Management", "access", "authority"],
