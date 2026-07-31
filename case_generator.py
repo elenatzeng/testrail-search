@@ -1,6 +1,6 @@
 # case_generator.py
 """
-呼叫 Claude API，把 Jira 需求單轉成：
+把 Jira 需求單轉成：
   1) 測試大綱 (給 PM/QA 確認用的重點清單)
   2) 完整測試案例 (title / preconditions / steps+expected)
 
@@ -8,9 +8,18 @@
 剛好對應 TestRail 的 custom_steps_separated 格式，可直接餵給
 testrail_write.create_test_case()。
 
-需要一組 ANTHROPIC_API_KEY，建議放在 .streamlit/secrets.toml：
-    ANTHROPIC_API_KEY = "sk-ant-..."
-或環境變數 ANTHROPIC_API_KEY，程式不會把 key 印出或存進案例內容。
+支援兩種 AI 供應商，用 GEN_PROVIDER 切換：
+  - "gemini"    (預設，先用 Google 的免費額度測試)：需要 GEMINI_API_KEY
+  - "anthropic" (之後想換回 Claude 再切)：需要 ANTHROPIC_API_KEY
+
+設定方式 (.streamlit/secrets.toml)：
+    GEN_PROVIDER = "gemini"
+    GEMINI_API_KEY = "AIza..."
+    # 之後想換回 Claude，改成：
+    # GEN_PROVIDER = "anthropic"
+    # ANTHROPIC_API_KEY = "sk-ant-..."
+
+也可以用環境變數設定同名的值，效果一樣。
 """
 
 import json
@@ -21,37 +30,86 @@ from typing import Any, Dict, List, Optional
 import requests
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
-MODEL = "claude-sonnet-5"  # 依你的 API 方案調整,例如 claude-opus-4-8
+ANTHROPIC_MODEL = "claude-sonnet-5"  # 依你的 API 方案調整，例如 claude-opus-4-8
+
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+GEMINI_MODEL = "gemini-2.5-flash"  # 免費額度目前涵蓋 Flash 系列；Google 偶爾會調整免費模型清單，
+                                    # 若這個模型不再免費，去 https://ai.google.dev 查目前的免費模型名稱替換即可
 
 
 class CaseGenError(Exception):
     pass
 
 
-def _get_api_key(explicit_key: Optional[str] = None) -> str:
-    key = explicit_key or os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key:
-        try:
-            import streamlit as st
-            key = st.secrets.get("ANTHROPIC_API_KEY", "")
-        except Exception:
-            pass
+def _get_setting(name: str, explicit: Optional[str] = None) -> str:
+    """依序從：明確傳入 > 環境變數 > st.secrets 取值。"""
+    if explicit:
+        return explicit
+    value = os.environ.get(name, "")
+    if value:
+        return value
+    try:
+        import streamlit as st
+        value = st.secrets.get(name, "")
+    except Exception:
+        pass
+    return value or ""
+
+
+def _get_provider(explicit: Optional[str] = None) -> str:
+    provider = _get_setting("GEN_PROVIDER", explicit).strip().lower()
+    return provider or "gemini"  # 預設用 Gemini，方便先用免費額度測試
+
+
+def _get_api_key(provider: str, explicit_key: Optional[str] = None) -> str:
+    key_name = "GEMINI_API_KEY" if provider == "gemini" else "ANTHROPIC_API_KEY"
+    key = _get_setting(key_name, explicit_key)
     if not key:
         raise CaseGenError(
-            "找不到 ANTHROPIC_API_KEY，請在 .streamlit/secrets.toml 或環境變數中設定。"
+            f"找不到 {key_name}，請在 .streamlit/secrets.toml 或環境變數中設定。"
         )
     return key
 
 
-def _call_claude(prompt: str, api_key: Optional[str] = None, max_tokens: int = 4000) -> str:
-    key = _get_api_key(api_key)
+def _call_gemini(prompt: str, api_key: str, max_tokens: int) -> str:
+    url = GEMINI_API_URL.format(model=GEMINI_MODEL)
+    headers = {"Content-Type": "application/json"}
+    params = {"key": api_key}
+    body = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"maxOutputTokens": max_tokens},
+    }
+    try:
+        resp = requests.post(url, headers=headers, params=params, json=body, timeout=60)
+    except requests.RequestException as e:
+        raise CaseGenError(f"呼叫 Gemini API 失敗：{e}") from e
+
+    if resp.status_code == 429:
+        raise CaseGenError("Gemini 免費額度的速率限制被打到了（429），請稍等一下再試一次。")
+    if not resp.ok:
+        raise CaseGenError(f"Gemini API 回傳錯誤 ({resp.status_code})：{resp.text[:300]}")
+
+    data = resp.json()
+    candidates = data.get("candidates", [])
+    if not candidates:
+        finish_reason = data.get("promptFeedback", {})
+        raise CaseGenError(f"Gemini 沒有回傳任何內容，可能被安全過濾擋下：{finish_reason}")
+
+    parts = candidates[0].get("content", {}).get("parts", [])
+    text = "\n".join(p.get("text", "") for p in parts).strip()
+    if not text:
+        raise CaseGenError("Gemini 回傳了空白內容，請重新產生一次。")
+    return text
+
+
+def _call_claude(prompt: str, api_key: str, max_tokens: int) -> str:
     headers = {
-        "x-api-key": key,
+        "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
     body = {
-        "model": MODEL,
+        "model": ANTHROPIC_MODEL,
         "max_tokens": max_tokens,
         "messages": [{"role": "user", "content": prompt}],
     }
@@ -68,8 +126,25 @@ def _call_claude(prompt: str, api_key: Optional[str] = None, max_tokens: int = 4
     return "\n".join(text_parts).strip()
 
 
+def _call_llm(
+    prompt: str,
+    max_tokens: int = 4000,
+    api_key: Optional[str] = None,
+    provider: Optional[str] = None,
+) -> str:
+    resolved_provider = _get_provider(provider)
+    key = _get_api_key(resolved_provider, api_key)
+
+    if resolved_provider == "gemini":
+        return _call_gemini(prompt, key, max_tokens)
+    elif resolved_provider == "anthropic":
+        return _call_claude(prompt, key, max_tokens)
+    else:
+        raise CaseGenError(f"不支援的 GEN_PROVIDER：{resolved_provider}（請用 'gemini' 或 'anthropic'）")
+
+
 def _extract_json(raw_text: str) -> Any:
-    """去除 Claude 有時會加的 ```json 包裝，再解析。"""
+    """去除模型有時會加的 ```json 包裝，再解析。"""
     cleaned = re.sub(r"^```(json)?", "", raw_text.strip())
     cleaned = re.sub(r"```$", "", cleaned.strip())
     try:
@@ -78,7 +153,12 @@ def _extract_json(raw_text: str) -> Any:
         raise CaseGenError(f"AI 回傳格式無法解析為 JSON：{e}\n原始內容：{raw_text[:500]}") from e
 
 
-def generate_test_outline(summary: str, description: str, api_key: Optional[str] = None) -> str:
+def generate_test_outline(
+    summary: str,
+    description: str,
+    api_key: Optional[str] = None,
+    provider: Optional[str] = None,
+) -> str:
     """
     第一步：只產生「測試重點大綱」給人工確認，不直接生完整案例。
     回傳純文字（條列式），方便在 st.text_area 中編輯。
@@ -98,7 +178,7 @@ def generate_test_outline(summary: str, description: str, api_key: Optional[str]
 
 只輸出條列大綱本身，不要加任何前言或結語。"""
 
-    return _call_claude(prompt, api_key=api_key, max_tokens=1500)
+    return _call_llm(prompt, max_tokens=1500, api_key=api_key, provider=provider)
 
 
 def generate_test_cases(
@@ -108,6 +188,7 @@ def generate_test_cases(
     path_hint: Optional[str] = None,
     format_example: Optional[str] = None,
     api_key: Optional[str] = None,
+    provider: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     第二步：依據「已確認的大綱」產生完整測試案例，格式對齊 TestRail 欄位。
@@ -167,7 +248,7 @@ expected: "1. 顯示[檢查更改 / Review Changes] 彈窗\\n2. 標題：檢查�
 - 用詞盡量對齊金融/後台管理系統情境（帳號、角色、商戶、權限等）。
 - 只輸出 JSON，不要加前言、註解或 markdown 符號。"""
 
-    raw = _call_claude(prompt, api_key=api_key, max_tokens=4000)
+    raw = _call_llm(prompt, max_tokens=4000, api_key=api_key, provider=provider)
     parsed = _extract_json(raw)
 
     if isinstance(parsed, dict):
