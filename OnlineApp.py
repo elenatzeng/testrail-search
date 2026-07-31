@@ -235,10 +235,14 @@ with tab2:
                 placeholder="https://yourteam.atlassian.net"
             )
             jira_email = st.text_input("Jira 帳號 Email", value=get_val("jira_email") or user_email)
+            
+            # 自動優先套用 Secrets 中的共享 Key
+            default_token = st.secrets.get("JIRA_API_TOKEN", "") if hasattr(st, "secrets") else ""
             jira_token = st.text_input(
                 "Jira API Token",
                 type="password",
-                value=st.secrets.get("JIRA_API_TOKEN", "") if hasattr(st, "secrets") else ""
+                value=default_token or get_val("jira_token"),
+                help="🔒 系統已預設讀取 Secrets 設定，若需更換可直接修改"
             )
             issue_key = st.text_input("需求單編號", placeholder="例如：PROJ-123")
 
@@ -284,6 +288,14 @@ with tab2:
             st.session_state["test_outline"] = outline_text
 
             st.markdown("---")
+            st.markdown("### 🌐 前後台與系統模組提示")
+            system_scope_hint = st.text_input(
+                "請說明當前測試目標屬於前台還是後台？（例：後台管理系統 / 前台會員中心 / API 接口）",
+                placeholder="例如：後台管理系統 > 營銷推廣 > 優惠券管理",
+                help="協助 AI 判斷步驟內容屬於管理員操作還是前台玩家操作"
+            )
+
+            st.markdown("---")
             st.markdown("### 📄 大綱分頁生成設定（防止 Token 截斷）")
 
             outline_lines = [line.strip() for line in outline_text.splitlines() if line.strip()]
@@ -307,7 +319,6 @@ with tab2:
                     end_i = min((p + 1) * batch_size, total_items)
                     page_options.append(f"第 {p+1} 頁 (處理第 {start_i} ~ {end_i} 條大綱，共 {total_items} 條)")
 
-            # 保持分頁 index 紀錄
             if "current_page_idx" not in st.session_state:
                 st.session_state["current_page_idx"] = 1 if len(page_options) > 1 else 0
 
@@ -412,9 +423,7 @@ with tab2:
 
             st.markdown("---")
             
-            # 🚀 增加快速切換分頁按鈕（上一頁/下一頁）
             col_prev, col_main_btn, col_next = st.columns([1.5, 7, 1.5], vertical_alignment="center")
-            
             curr_idx = st.session_state.get("current_page_idx", 0)
             
             with col_prev:
@@ -432,16 +441,23 @@ with tab2:
                     try:
                         with st.spinner("AI 正在產生測試案例..."):
                             s = st.session_state["jira_summary"]
+                            
+                            combined_outline = active_outline
+                            if system_scope_hint:
+                                combined_outline = f"【系統與前後台範圍：{system_scope_hint}】\n" + active_outline
+
                             cases = generate_test_cases(
                                 s['summary'],
                                 s['description'],
-                                active_outline,
+                                combined_outline,
                                 path_hint=selected_path_hint,
                             )
                             st.session_state["generated_cases"] = cases
                             st.session_state["target_pid_final"] = target_pid
                             st.session_state["target_sid_final"] = target_sid
                             st.session_state["selected_path_hint"] = selected_path_hint
+                            # 重置全選狀態
+                            st.session_state["select_all_cases"] = False
                     except CaseGenError as e:
                         st.error(str(e))
 
@@ -453,9 +469,20 @@ with tab2:
             target_sid = st.session_state.get("target_sid_final", target_sid)
             override_path = st.session_state.get("selected_path_hint")
 
+            # 🛠️ 回調函式：當全選狀態改變時，強制更新每一個案例的勾選狀態
+            def toggle_all_cases():
+                new_status = st.session_state.get("select_all_cases", False)
+                for idx in range(len(cases)):
+                    st.session_state[f"case_select_{idx}"] = new_status
+
             col_sel_all, col_batch_btn = st.columns([2, 3], vertical_alignment="center")
             with col_sel_all:
-                select_all = st.checkbox("全選所有案例", value=False, key="select_all_cases")
+                st.checkbox(
+                    "全選所有案例",
+                    value=st.session_state.get("select_all_cases", False),
+                    key="select_all_cases",
+                    on_change=toggle_all_cases  # 觸發全選連動
+                )
 
             def push_case_to_tr(case_item, path_to_use):
                 cache_key = f"push_path_map_{target_pid}_{target_sid}"
@@ -493,13 +520,17 @@ with tab2:
             for idx, case in enumerate(cases):
                 final_push_path = override_path or case.get("path") or "未分類"
 
+                # 確保案例勾選開關的初始 Session State
+                case_key = f"case_select_{idx}"
+                if case_key not in st.session_state:
+                    st.session_state[case_key] = st.session_state.get("select_all_cases", False)
+
                 with st.container(border=True):
                     head_col1, head_col2 = st.columns([0.5, 9.5])
                     with head_col1:
                         is_selected = st.checkbox(
                             "",
-                            value=select_all,
-                            key=f"case_select_{idx}",
+                            key=case_key,
                             label_visibility="collapsed"
                         )
                         if is_selected:
