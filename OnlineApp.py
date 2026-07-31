@@ -281,9 +281,10 @@ with tab2:
                 path_mode = st.radio("測試案例路徑", ["自動判斷", "手動指定"], horizontal=True)
             with col_b:
                 manual_path = st.text_input(
-                    "路徑（格式：父層 > 子層）",
+                    "路徑（格式：父層 > 子層，例如「行銷推廣 > 優惠券管理」）",
                     disabled=(path_mode == "自動判斷"),
-                    placeholder="例如：權限管理 > 系統帳號管理"
+                    placeholder="行銷推廣 > 優惠券管理",
+                    help="請填 TestRail 分類的路徑名稱，不要貼網址（例如不要貼 https://.../suites/view/6 這種連結）。"
                 )
 
             if st.button("✅ 確認大綱，產生完整測試案例"):
