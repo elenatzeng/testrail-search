@@ -226,24 +226,37 @@ class CaseGenError(Exception):
     pass
 
 def call_gemini_with_retry(prompt_data, max_retries=3):
-    """呼叫 Gemini API 封裝（帶有 429 退避重試機制）"""
-    # 優先使用 1.5-flash，若有配額問題可穩定相容
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    """呼叫 Gemini API 封裝（具備自動降級與 429 退避重試機制）"""
+    # 優先使用 gemini-2.0-flash，若遇到問題自動降級嘗試 gemini-1.5-flash-latest
+    candidate_models = ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
     
-    for attempt in range(max_retries):
+    last_exception = None
+
+    for model_name in candidate_models:
         try:
-            response = model.generate_content(prompt_data)
-            return response.text.strip()
+            model = genai.GenerativeModel(model_name)
+            for attempt in range(max_retries):
+                try:
+                    response = model.generate_content(prompt_data)
+                    return response.text.strip()
+                except Exception as e:
+                    err_msg = str(e)
+                    # 遇到 429 Rate Limit 自動等待 4秒/8秒 後重試
+                    if "429" in err_msg or "quota" in err_msg.lower():
+                        if attempt < max_retries - 1:
+                            time.sleep(4 * (attempt + 1))
+                            continue
+                    raise e # 非 429 錯誤或重試耗盡，抛出由外層換模型
         except Exception as e:
-            err_msg = str(e)
-            if "429" in err_msg or "quota" in err_msg.lower():
-                if attempt < max_retries - 1:
-                    time.sleep(5 * (attempt + 1))  # 遇到 429 等待 5秒、10秒 後再試
-                    continue
-                else:
-                    raise CaseGenError("目前 API 請求過於頻繁（超過免費配額），請等待約 30 秒後再試。")
-            else:
-                raise CaseGenError(f"Gemini API 呼叫失敗：{err_msg}")
+            last_exception = e
+            continue # 當前模型失敗，切換下一個備援模型
+
+    # 所有模型均嘗試失敗時處理
+    err_str = str(last_exception)
+    if "429" in err_str or "quota" in err_str.lower():
+        raise CaseGenError("目前 API 請求過於頻繁（已達免費額度上限），請等待約 30 秒後再試。")
+    else:
+        raise CaseGenError(f"Gemini API 呼叫失敗：{err_str}")
 
 def generate_test_outline(summary: str, description: str) -> str:
     """呼叫 Gemini 產生測試大綱"""
