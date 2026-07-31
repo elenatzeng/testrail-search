@@ -272,7 +272,7 @@ with tab2:
                 except CaseGenError as e:
                     st.error(str(e))
 
-        # --- Step 3: 確認/編輯大綱 + 📄 分頁生成設定 + 選擇 TestRail 推送目標 ---
+        # --- Step 3: 確認/編輯大綱 + 分頁生成設定 + 選擇 TestRail 推送目標 ---
         if "test_outline" in st.session_state:
             st.markdown("### 🧭 測試大綱（可編輯修訂）")
             outline_text = st.text_area(
@@ -283,11 +283,9 @@ with tab2:
             )
             st.session_state["test_outline"] = outline_text
 
-            # 📄 **分頁與分批設定區塊**
             st.markdown("---")
             st.markdown("### 📄 大綱分頁生成設定（防止 Token 截斷）")
 
-            # 自動把大綱以行拆分，過濾掉空白行
             outline_lines = [line.strip() for line in outline_text.splitlines() if line.strip()]
             total_items = len(outline_lines)
 
@@ -301,7 +299,6 @@ with tab2:
                     help="建議設定 3~5 條，避免 AI 回覆過長導致中斷。"
                 )
 
-            # 計算總頁數與分頁選單
             page_options = ["全部一次產生"]
             if total_items > 0:
                 num_pages = (total_items + batch_size - 1) // batch_size
@@ -310,10 +307,18 @@ with tab2:
                     end_i = min((p + 1) * batch_size, total_items)
                     page_options.append(f"第 {p+1} 頁 (處理第 {start_i} ~ {end_i} 條大綱，共 {total_items} 條)")
 
-            with col_page_select:
-                selected_page = st.selectbox("請選擇本次要產生的分頁", options=page_options, index=1 if len(page_options) > 1 else 0)
+            # 保持分頁 index 紀錄
+            if "current_page_idx" not in st.session_state:
+                st.session_state["current_page_idx"] = 1 if len(page_options) > 1 else 0
 
-            # 根據選擇的頁面裁切 outline
+            with col_page_select:
+                selected_page = st.selectbox(
+                    "請選擇本次要產生的分頁",
+                    options=page_options,
+                    index=min(st.session_state["current_page_idx"], len(page_options) - 1)
+                )
+                st.session_state["current_page_idx"] = page_options.index(selected_page)
+
             if selected_page == "全部一次產生" or total_items == 0:
                 active_outline = outline_text
             else:
@@ -363,7 +368,6 @@ with tab2:
                         else:
                             st.info("這個 Project 底下沒有 Suite。")
 
-                    # 抓取該 Project & Suite 的所有 Sections (路徑)
                     if target_pid and target_sid:
                         sec_cache_key = f"tr_sections_path_{target_pid}_{target_sid}"
                         if sec_cache_key not in st.session_state:
@@ -376,7 +380,6 @@ with tab2:
 
                         existing_paths = sorted(list(set(st.session_state.get(sec_cache_key, {}).values())))
 
-                        # 下拉選單供使用者直接點選路徑
                         path_options = ["🤖 [自動由 AI 判斷路徑]", "✍️ [手動輸入新路徑...]"] + existing_paths
                         chosen_option = st.selectbox(
                             "📂 選擇測試案例存放路徑 (Section)",
@@ -408,22 +411,39 @@ with tab2:
                     selected_path_hint = st.text_input("路徑（格式：父層 > 子層）", placeholder="轉帳 > 充值")
 
             st.markdown("---")
-            if st.button(f"✅ 確認【{selected_page}】與目標，產生完整測試案例", type="primary", use_container_width=True):
-                try:
-                    with st.spinner("AI 正在產生測試案例..."):
-                        s = st.session_state["jira_summary"]
-                        cases = generate_test_cases(
-                            s['summary'],
-                            s['description'],
-                            active_outline,  # 帶入裁切過的分頁大綱內容
-                            path_hint=selected_path_hint,
-                        )
-                        st.session_state["generated_cases"] = cases
-                        st.session_state["target_pid_final"] = target_pid
-                        st.session_state["target_sid_final"] = target_sid
-                        st.session_state["selected_path_hint"] = selected_path_hint
-                except CaseGenError as e:
-                    st.error(str(e))
+            
+            # 🚀 增加快速切換分頁按鈕（上一頁/下一頁）
+            col_prev, col_main_btn, col_next = st.columns([1.5, 7, 1.5], vertical_alignment="center")
+            
+            curr_idx = st.session_state.get("current_page_idx", 0)
+            
+            with col_prev:
+                if st.button("⬅️ 上一頁", disabled=(curr_idx <= 1)):
+                    st.session_state["current_page_idx"] = curr_idx - 1
+                    st.rerun()
+                    
+            with col_next:
+                if st.button("➡️ 下一頁", disabled=(curr_idx >= len(page_options) - 1 or curr_idx == 0)):
+                    st.session_state["current_page_idx"] = curr_idx + 1
+                    st.rerun()
+
+            with col_main_btn:
+                if st.button(f"✅ 確認【{selected_page}】與目標，產生完整測試案例", use_container_width=True):
+                    try:
+                        with st.spinner("AI 正在產生測試案例..."):
+                            s = st.session_state["jira_summary"]
+                            cases = generate_test_cases(
+                                s['summary'],
+                                s['description'],
+                                active_outline,
+                                path_hint=selected_path_hint,
+                            )
+                            st.session_state["generated_cases"] = cases
+                            st.session_state["target_pid_final"] = target_pid
+                            st.session_state["target_sid_final"] = target_sid
+                            st.session_state["selected_path_hint"] = selected_path_hint
+                    except CaseGenError as e:
+                        st.error(str(e))
 
         # --- Step 4: 顯示產生結果 + 全選/選擇性推送至 TestRail ---
         if "generated_cases" in st.session_state:
@@ -433,12 +453,10 @@ with tab2:
             target_sid = st.session_state.get("target_sid_final", target_sid)
             override_path = st.session_state.get("selected_path_hint")
 
-            # 工具欄：全選控制與批次推送按鈕
             col_sel_all, col_batch_btn = st.columns([2, 3], vertical_alignment="center")
             with col_sel_all:
-                select_all = st.checkbox("☑️ 全選所有案例", value=True, key="select_all_cases")
+                select_all = st.checkbox("全選所有案例", value=False, key="select_all_cases")
 
-            # 建立推送單一案例的核心函式
             def push_case_to_tr(case_item, path_to_use):
                 cache_key = f"push_path_map_{target_pid}_{target_sid}"
                 if cache_key not in st.session_state:
@@ -472,14 +490,12 @@ with tab2:
 
             selected_indices = []
 
-            # 繪製各個案例卡片與獨立勾選框
             for idx, case in enumerate(cases):
                 final_push_path = override_path or case.get("path") or "未分類"
 
                 with st.container(border=True):
                     head_col1, head_col2 = st.columns([0.5, 9.5])
                     with head_col1:
-                        # 案例個別勾選框
                         is_selected = st.checkbox(
                             "",
                             value=select_all,
@@ -503,7 +519,6 @@ with tab2:
                         c1.markdown(f"**Step {s_idx}**\n\n{step.get('content', '')}")
                         c2.markdown(f"**Expected**\n\n{step.get('expected', '')}")
 
-                    # 個別推送按鈕
                     if st.button(f"📤 單獨推送案例 #{idx+1}", key=f"push_single_{idx}"):
                         if not (tr_url and tr_user and tr_pw):
                             st.warning("請先在側邊欄填寫 TestRail 連線資訊。")
@@ -517,9 +532,8 @@ with tab2:
                             except (TestRailWriteError, NameError) as e:
                                 st.error(str(e))
 
-            # 頂部的批次推送按鈕
             with col_batch_btn:
-                if st.button(f"🚀 批次推送已勾選案例 ({len(selected_indices)}/{len(cases)})", type="primary", use_container_width=True):
+                if st.button(f"🚀 批次推送已勾選案例 ({len(selected_indices)}/{len(cases)})", use_container_width=True):
                     if not (tr_url and tr_user and tr_pw):
                         st.warning("請先在側邊欄填寫 TestRail 連線資訊。")
                     elif not target_pid or not target_sid:
