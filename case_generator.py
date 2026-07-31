@@ -103,8 +103,17 @@ def _call_gemini(prompt: str, api_key: str, max_tokens: int) -> str:
         finish_reason = data.get("promptFeedback", {})
         raise CaseGenError(f"Gemini 沒有回傳任何內容，可能被安全過濾擋下：{finish_reason}")
 
-    parts = candidates[0].get("content", {}).get("parts", [])
+    candidate = candidates[0]
+    parts = candidate.get("content", {}).get("parts", [])
     text = "\n".join(p.get("text", "") for p in parts).strip()
+
+    if candidate.get("finishReason") == "MAX_TOKENS":
+        raise CaseGenError(
+            "AI 回覆在寫完之前就被截斷了（超過 max_tokens 上限）。\n"
+            "已經自動調高過預設上限，如果需求單內容特別長/複雜，"
+            "可以試著把測試大綱拆成幾次分開產生，或減少一次要求產生的案例數量。"
+        )
+
     if not text:
         raise CaseGenError("Gemini 回傳了空白內容，請重新產生一次。")
     return text
@@ -186,7 +195,7 @@ def generate_test_outline(
 
 只輸出條列大綱本身，不要加任何前言或結語。"""
 
-    return _call_llm(prompt, max_tokens=1500, api_key=api_key, provider=provider)
+    return _call_llm(prompt, max_tokens=4000, api_key=api_key, provider=provider)
 
 
 def generate_test_cases(
@@ -215,6 +224,12 @@ def generate_test_cases(
       ...
     ]
     """
+    if path_hint and re.match(r"^https?://", path_hint.strip(), flags=re.IGNORECASE):
+        raise CaseGenError(
+            "「路徑」欄位請填 TestRail 的分類路徑名稱，例如「行銷推廣 > 優惠券管理」，"
+            "不要貼 TestRail 頁面的網址。"
+        )
+
     default_format_hint = """每個 step 的 content / expected 用「數字編號 + 條列」的方式撰寫，
 可以在同一個 step 裡放多個子項目，例如：
 content: "1. 路徑：GoMoney > 權限管理 > 系統帳號管理\\n2. 點擊[編輯]按鈕\\n3. 編輯下面資訊\\n   • 編輯帳號類型：商戶管理員 → 系統管理員"
@@ -256,7 +271,7 @@ expected: "1. 顯示[檢查更改 / Review Changes] 彈窗\\n2. 標題：檢查�
 - 用詞盡量對齊金融/後台管理系統情境（帳號、角色、商戶、權限等）。
 - 只輸出 JSON，不要加前言、註解或 markdown 符號。"""
 
-    raw = _call_llm(prompt, max_tokens=4000, api_key=api_key, provider=provider)
+    raw = _call_llm(prompt, max_tokens=8000, api_key=api_key, provider=provider)
     parsed = _extract_json(raw)
 
     if isinstance(parsed, dict):
