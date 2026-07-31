@@ -33,8 +33,10 @@ ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_MODEL = "claude-sonnet-5"  # 依你的 API 方案調整，例如 claude-opus-4-8
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-GEMINI_MODEL = "gemini-2.5-flash"  # 免費額度目前涵蓋 Flash 系列；Google 偶爾會調整免費模型清單，
-                                    # 若這個模型不再免費，去 https://ai.google.dev 查目前的免費模型名稱替換即可
+GEMINI_MODEL = "gemini-3.6-flash"  # 2026/07 目前的正式版 Flash 模型。
+                                    # Google 常常汰換模型名稱/免費額度，若之後又收到 404
+                                    # "no longer available"，去 https://ai.google.dev/gemini-api/docs/models
+                                    # 查目前可用的模型 ID 換上即可，不需要改其他程式碼。
 
 
 class CaseGenError(Exception):
@@ -86,6 +88,12 @@ def _call_gemini(prompt: str, api_key: str, max_tokens: int) -> str:
 
     if resp.status_code == 429:
         raise CaseGenError("Gemini 免費額度的速率限制被打到了（429），請稍等一下再試一次。")
+    if resp.status_code == 404:
+        raise CaseGenError(
+            f"Gemini 模型「{GEMINI_MODEL}」已不可用（404）。Google 經常汰換模型名稱，"
+            f"請到 https://ai.google.dev/gemini-api/docs/models 查目前可用的模型 ID，"
+            f"更新 case_generator.py 裡的 GEMINI_MODEL 常數即可。\n原始錯誤：{resp.text[:300]}"
+        )
     if not resp.ok:
         raise CaseGenError(f"Gemini API 回傳錯誤 ({resp.status_code})：{resp.text[:300]}")
 
