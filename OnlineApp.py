@@ -272,9 +272,9 @@ with tab2:
                 except CaseGenError as e:
                     st.error(str(e))
 
-        # --- Step 3: 確認/編輯大綱 + 選擇 TestRail 推送目標 ---
+        # --- Step 3: 確認/編輯大綱 + 📄 分頁生成設定 + 選擇 TestRail 推送目標 ---
         if "test_outline" in st.session_state:
-            st.markdown("### 🧭 測試大綱（請先確認或修改，再產生完整案例）")
+            st.markdown("### 🧭 測試大綱（可編輯修訂）")
             outline_text = st.text_area(
                 "測試大綱",
                 value=st.session_state["test_outline"],
@@ -282,6 +282,46 @@ with tab2:
                 key="outline_editor"
             )
             st.session_state["test_outline"] = outline_text
+
+            # 📄 **分頁與分批設定區塊**
+            st.markdown("---")
+            st.markdown("### 📄 大綱分頁生成設定（防止 Token 截斷）")
+
+            # 自動把大綱以行拆分，過濾掉空白行
+            outline_lines = [line.strip() for line in outline_text.splitlines() if line.strip()]
+            total_items = len(outline_lines)
+
+            col_batch_size, col_page_select = st.columns([1, 2])
+            with col_batch_size:
+                batch_size = st.number_input(
+                    "每頁包含大綱條數",
+                    min_value=1,
+                    max_value=10,
+                    value=5,
+                    help="建議設定 3~5 條，避免 AI 回覆過長導致中斷。"
+                )
+
+            # 計算總頁數與分頁選單
+            page_options = ["全部一次產生"]
+            if total_items > 0:
+                num_pages = (total_items + batch_size - 1) // batch_size
+                for p in range(num_pages):
+                    start_i = p * batch_size + 1
+                    end_i = min((p + 1) * batch_size, total_items)
+                    page_options.append(f"第 {p+1} 頁 (處理第 {start_i} ~ {end_i} 條大綱，共 {total_items} 條)")
+
+            with col_page_select:
+                selected_page = st.selectbox("請選擇本次要產生的分頁", options=page_options, index=1 if len(page_options) > 1 else 0)
+
+            # 根據選擇的頁面裁切 outline
+            if selected_page == "全部一次產生" or total_items == 0:
+                active_outline = outline_text
+            else:
+                page_idx = page_options.index(selected_page) - 1
+                start_i = page_idx * batch_size
+                end_i = min((page_idx + 1) * batch_size, total_items)
+                selected_lines = outline_lines[start_i:end_i]
+                active_outline = "\n".join(selected_lines)
 
             st.markdown("---")
             st.markdown("### 🎯 TestRail 推送目標與路徑選取")
@@ -368,14 +408,14 @@ with tab2:
                     selected_path_hint = st.text_input("路徑（格式：父層 > 子層）", placeholder="轉帳 > 充值")
 
             st.markdown("---")
-            if st.button("✅ 確認大綱與目標，產生完整測試案例", type="primary", use_container_width=True):
+            if st.button(f"✅ 確認【{selected_page}】與目標，產生完整測試案例", type="primary", use_container_width=True):
                 try:
                     with st.spinner("AI 正在產生測試案例..."):
                         s = st.session_state["jira_summary"]
                         cases = generate_test_cases(
                             s['summary'],
                             s['description'],
-                            st.session_state["test_outline"],
+                            active_outline,  # 帶入裁切過的分頁大綱內容
                             path_hint=selected_path_hint,
                         )
                         st.session_state["generated_cases"] = cases
@@ -477,7 +517,7 @@ with tab2:
                             except (TestRailWriteError, NameError) as e:
                                 st.error(str(e))
 
-            # 頂部的批次推送按鈕（放在最後渲染以取得完整的 selected_indices）
+            # 頂部的批次推送按鈕
             with col_batch_btn:
                 if st.button(f"🚀 批次推送已勾選案例 ({len(selected_indices)}/{len(cases)})", type="primary", use_container_width=True):
                     if not (tr_url and tr_user and tr_pw):
