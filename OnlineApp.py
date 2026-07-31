@@ -1,19 +1,26 @@
-import streamlit as st
 import re
+import streamlit as st
 
-from style import apply_custom_style
-from utils import clean_html, fetch_data_from_tr, multi_lang_search
-from users import USER_CONFIG, DEFAULT_CONFIG
-from keywords import SEARCH_DICTIONARY
-
-# --- 新增的 Jira / AI 產案模組 ---
 from auth_whitelist import is_authorized
-from jira_client import fetch_issue, extract_issue_summary, JiraError
-from case_generator import generate_test_outline, generate_test_cases, CaseGenError
-from testrail_write import (
-    get_or_create_section, create_test_case, TestRailWriteError,
-    list_projects, list_suites, fetch_sections,
-)
+from case_generator import CaseGenError, generate_test_cases, generate_test_outline
+from jira_client import JiraError, extract_issue_summary, fetch_issue
+from keywords import SEARCH_DICTIONARY
+from style import apply_custom_style
+from users import DEFAULT_CONFIG, USER_CONFIG
+from utils import clean_html, fetch_data_from_tr, multi_lang_search
+
+# --- 安全匯入 testrail_write 模組 ---
+try:
+    from testrail_write import (
+        TestRailWriteError,
+        create_test_case,
+        fetch_sections,
+        get_or_create_section,
+        list_projects,
+        list_suites,
+    )
+except ImportError as e:
+    st.error(f"⚠️ 匯入 testrail_write 失敗，請確認檔案已 Commit 至 github 且分支正確：{e}")
 
 # 1. 頁面初始化
 st.set_page_config(
@@ -47,7 +54,7 @@ def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
 
-# 2. 側邊欄守護 (連線設定) — 沿用原本 TestRail 連線設定，AI/Jira 頁籤也會用到這裡的變數
+# 2. 側邊欄守護 (連線設定)
 with st.sidebar:
     st.header("🔐 連線設定")
     tr_url = st.text_input("TestRail URL", value=get_val("url"))
@@ -67,14 +74,13 @@ with st.sidebar:
 
 st.title("🧪 TestRail 智能檢索中心")
 
-# 這兩個變數在「案例查詢」分頁成功連線後會被覆蓋，先給預設值，
-# 讓「AI 產生測試案例」分頁在還沒連線時也不會噴錯。
+# 預設變數初始化
 all_cases, path_map, sync_time, p_name = [], {}, "", ""
 
 tab1, tab2 = st.tabs(["🔍 案例查詢", "🤖 AI 產生測試案例 (Jira)"])
 
 # ============================================================
-# Tab 1：原本的 TestRail 案例查詢功能（邏輯不變，只是包進 tab1）
+# Tab 1：TestRail 案例查詢功能
 # ============================================================
 with tab1:
     if tr_url and tr_user and tr_pw:
@@ -209,7 +215,7 @@ with tab1:
         st.info("👈 請先在左側完成連線設定。")
 
 # ============================================================
-# Tab 2：新功能 — 讀取 Jira 需求單 → 確認測試大綱 → 產生測試案例 → (可選)推送 TestRail
+# Tab 2：Jira 需求單 → AI 產生測試案例 → 推送 TestRail
 # ============================================================
 with tab2:
     st.subheader("🤖 從 Jira 需求單自動產生測試案例")
@@ -229,8 +235,6 @@ with tab2:
                 placeholder="https://yourteam.atlassian.net"
             )
             jira_email = st.text_input("Jira 帳號 Email", value=get_val("jira_email") or user_email)
-            # ⚠️ 不要把真正的 Token 寫死在程式碼裡；建議放在 .streamlit/secrets.toml
-            # 例如： JIRA_API_TOKEN = "你的新 token"
             jira_token = st.text_input(
                 "Jira API Token",
                 type="password",
@@ -268,7 +272,7 @@ with tab2:
                 except CaseGenError as e:
                     st.error(str(e))
 
-        # --- Step 3: 確認/編輯大綱，才能往下一步 ---
+        # --- Step 3: 確認/編輯大綱 ---
         if "test_outline" in st.session_state:
             st.markdown("### 🧭 測試大綱（請先確認或修改，再產生完整案例）")
             outline_text = st.text_area(
@@ -287,12 +291,13 @@ with tab2:
                     "路徑（格式：父層 > 子層，例如「行銷推廣 > 優惠券管理」）",
                     disabled=(path_mode == "自動判斷"),
                     placeholder="行銷推廣 > 優惠券管理",
-                    help="請填 TestRail 分類的路徑名稱，不要貼網址（例如不要貼 https://.../suites/view/6 這種連結）。"
+                    help="請填 TestRail 分類的路徑名稱，不要貼網址。"
                 )
 
             if st.button("✅ 確認大綱，產生完整測試案例"):
                 try:
                     with st.spinner("AI 正在產生測試案例..."):
+                        s = st.session_state["jira_summary"]
                         cases = generate_test_cases(
                             s['summary'],
                             s['description'],
@@ -303,7 +308,7 @@ with tab2:
                 except CaseGenError as e:
                     st.error(str(e))
 
-        # --- Step 4: 顯示產生結果 + 選擇要推送的 TestRail Project/Suite + 推送 ---
+        # --- Step 4: 顯示產生結果 + 推送 TestRail ---
         if "generated_cases" in st.session_state:
             st.markdown("### 🎯 TestRail 推送目標")
             st.caption("這裡選的 Project / Suite 跟左側「案例查詢」用的完全獨立，不會互相影響。")
@@ -317,7 +322,7 @@ with tab2:
                 if "tr_projects" not in st.session_state:
                     try:
                         st.session_state["tr_projects"] = list_projects(tr_url, tr_user, tr_pw)
-                    except TestRailWriteError as e:
+                    except (TestRailWriteError, NameError) as e:
                         st.session_state["tr_projects_error"] = str(e)
 
                 if st.session_state.get("tr_projects"):
@@ -332,7 +337,7 @@ with tab2:
                     if suite_cache_key not in st.session_state:
                         try:
                             st.session_state[suite_cache_key] = list_suites(tr_url, tr_user, tr_pw, target_pid)
-                        except TestRailWriteError as e:
+                        except (TestRailWriteError, NameError) as e:
                             st.error(str(e))
                             st.session_state[suite_cache_key] = []
 
@@ -345,14 +350,13 @@ with tab2:
                         else:
                             st.info("這個 Project 底下沒有 Suite。")
 
-                    if st.button("🔄 重新整理清單", help="如果 TestRail 上剛新增了 Project/Suite，點這裡重抓"):
+                    if st.button("🔄 重新整理清單"):
                         st.session_state.pop("tr_projects", None)
                         for k in list(st.session_state.keys()):
                             if k.startswith("tr_suites_"):
                                 st.session_state.pop(k, None)
                         st.rerun()
                 else:
-                    # 抓不到清單（例如帳號權限限制），退回手動輸入 ID
                     if st.session_state.get("tr_projects_error"):
                         st.warning(f"無法自動讀取 Project 清單，改用手動輸入：{st.session_state['tr_projects_error']}")
                     target_pid = st.number_input("Project ID", value=int(pid), key="target_pid_manual")
@@ -401,11 +405,10 @@ with tab2:
                                         case.get("title", "未命名案例"),
                                         "\n".join(case.get("preconditions", [])),
                                         case.get("steps", []),
-                                        # template_id=2,  # 若你的站台需要指定樣板，取消這行註解並填正確 ID
                                     )
                                 st.success(
                                     f"✅ 已建立測試案例 #{result.get('id')}"
                                     f"（Project {target_pid} / Suite {target_sid}）"
                                 )
-                            except TestRailWriteError as e:
+                            except (TestRailWriteError, NameError) as e:
                                 st.error(str(e))
