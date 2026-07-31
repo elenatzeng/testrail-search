@@ -20,7 +20,7 @@ try:
         list_suites,
     )
 except ImportError as e:
-    st.error(f"⚠️ 匯入 testrail_write 失敗，請確認檔案已 Commit 至 github 且分支正確：{e}")
+    st.error(f"⚠️ 匯入 testrail_write 失敗，請確認檔案已 Commit 至 GitHub 且分支正確：{e}")
 
 # 1. 頁面初始化
 st.set_page_config(
@@ -399,12 +399,22 @@ with tab2:
                                         tr_url, tr_user, tr_pw, target_pid, target_sid, target_path_map,
                                         case.get("path") or "未分類"
                                     )
+
+                                    # 處理 Preconditions 換行與格式轉換
+                                    preconds_raw = case.get("preconditions", [])
+                                    if isinstance(preconds_raw, list):
+                                        preconds_str = "\n".join(f"{i}. {p}" if not p.startswith(f"{i}.") else p for i, p in enumerate(preconds_raw, 1))
+                                    else:
+                                        preconds_str = str(preconds_raw or "")
+
+                                    # 建立 Test Case (指定 template_id=2 以套用 Test Case (Steps) 樣板)
                                     result = create_test_case(
                                         tr_url, tr_user, tr_pw,
                                         target_section_id,
                                         case.get("title", "未命名案例"),
-                                        "\n".join(case.get("preconditions", [])),
+                                        preconds_str,
                                         case.get("steps", []),
+                                        template_id=2,  # 指定步驟型樣板
                                     )
                                 st.success(
                                     f"✅ 已建立測試案例 #{result.get('id')}"
