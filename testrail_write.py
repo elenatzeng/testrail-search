@@ -19,6 +19,69 @@ class TestRailWriteError(Exception):
     pass
 
 
+def _get(tr_url: str, tr_user: str, tr_pw: str, path: str) -> Any:
+    url = f"{tr_url.rstrip('/')}/index.php?{path}"
+    try:
+        resp = requests.get(
+            url, auth=_auth(tr_user, tr_pw), headers={"Content-Type": "application/json"}, timeout=15
+        )
+    except requests.RequestException as e:
+        raise TestRailWriteError(f"連線 TestRail 失敗：{e}") from e
+    if not resp.ok:
+        raise TestRailWriteError(f"TestRail API 錯誤 ({resp.status_code})：{resp.text[:300]}")
+    return resp.json()
+
+
+def _unwrap_list(data: Any, key: str) -> List[Dict[str, Any]]:
+    """
+    TestRail 新版 API 會把清單包在 {"<key>": [...], "_links": {...}} 裡，
+    舊版直接回傳 [...]，這裡統一處理兩種格式。
+    """
+    if isinstance(data, dict):
+        return data.get(key, []) or []
+    if isinstance(data, list):
+        return data
+    return []
+
+
+def list_projects(tr_url: str, tr_user: str, tr_pw: str) -> List[Dict[str, Any]]:
+    """回傳 [{"id": ..., "name": ...}, ...]，讓使用者可以用選單挑 Project。"""
+    data = _get(tr_url, tr_user, tr_pw, "/api/v2/get_projects")
+    return _unwrap_list(data, "projects")
+
+
+def list_suites(tr_url: str, tr_user: str, tr_pw: str, project_id: int) -> List[Dict[str, Any]]:
+    """回傳指定 Project 底下的 [{"id": ..., "name": ...}, ...] Suite 清單。"""
+    data = _get(tr_url, tr_user, tr_pw, f"/api/v2/get_suites/{project_id}")
+    return _unwrap_list(data, "suites")
+
+
+def fetch_sections(
+    tr_url: str, tr_user: str, tr_pw: str, project_id: int, suite_id: int
+) -> Dict[int, str]:
+    """
+    針對指定的 Project/Suite，重新抓一份「section_id -> 完整路徑」的對照表，
+    格式跟 utils.fetch_data_from_tr() 產生的 path_map 一致，讓
+    get_or_create_section() 可以直接沿用。
+    """
+    data = _get(
+        tr_url, tr_user, tr_pw, f"/api/v2/get_sections/{project_id}&suite_id={suite_id}"
+    )
+    sections = _unwrap_list(data, "sections")
+
+    by_id = {s["id"]: s for s in sections}
+
+    def build_path(sec: Dict[str, Any], _seen: Optional[set] = None) -> str:
+        _seen = _seen or set()
+        name = sec.get("name", "")
+        parent_id = sec.get("parent_id")
+        if parent_id and parent_id in by_id and parent_id not in _seen:
+            return build_path(by_id[parent_id], _seen | {sec["id"]}) + " > " + name
+        return name
+
+    return {s["id"]: build_path(s) for s in sections}
+
+
 def _auth(tr_user: str, tr_pw: str) -> HTTPBasicAuth:
     return HTTPBasicAuth(tr_user, tr_pw)
 
