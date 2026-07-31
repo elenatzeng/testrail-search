@@ -381,20 +381,77 @@ with tab2:
                         st.session_state["generated_cases"] = cases
                         st.session_state["target_pid_final"] = target_pid
                         st.session_state["target_sid_final"] = target_sid
+                        st.session_state["selected_path_hint"] = selected_path_hint
                 except CaseGenError as e:
                     st.error(str(e))
 
-        # --- Step 4: 顯示產生結果 + 推送 TestRail ---
+        # --- Step 4: 顯示產生結果 + 全選/選擇性推送至 TestRail ---
         if "generated_cases" in st.session_state:
             st.markdown("### ✅ 產生結果與推送")
             cases = st.session_state["generated_cases"]
             target_pid = st.session_state.get("target_pid_final", target_pid)
             target_sid = st.session_state.get("target_sid_final", target_sid)
+            override_path = st.session_state.get("selected_path_hint")
 
+            # 工具欄：全選控制與批次推送按鈕
+            col_sel_all, col_batch_btn = st.columns([2, 3], vertical_alignment="center")
+            with col_sel_all:
+                select_all = st.checkbox("☑️ 全選所有案例", value=True, key="select_all_cases")
+
+            # 建立推送單一案例的核心函式
+            def push_case_to_tr(case_item, path_to_use):
+                cache_key = f"push_path_map_{target_pid}_{target_sid}"
+                if cache_key not in st.session_state:
+                    st.session_state[cache_key] = fetch_sections(
+                        tr_url, tr_user, tr_pw, target_pid, target_sid
+                    )
+                target_path_map = st.session_state[cache_key]
+
+                target_section_id = get_or_create_section(
+                    tr_url, tr_user, tr_pw, target_pid, target_sid, target_path_map,
+                    path_to_use
+                )
+
+                preconds_raw = case_item.get("preconditions", [])
+                if isinstance(preconds_raw, list):
+                    preconds_str = "\n".join(
+                        f"{i}. {p}" if not str(p).startswith(f"{i}.") else str(p)
+                        for i, p in enumerate(preconds_raw, 1)
+                    )
+                else:
+                    preconds_str = str(preconds_raw or "")
+
+                return create_test_case(
+                    tr_url, tr_user, tr_pw,
+                    target_section_id,
+                    case_item.get("title", "未命名案例"),
+                    preconds_str,
+                    case_item.get("steps", []),
+                    template_id=2,
+                )
+
+            selected_indices = []
+
+            # 繪製各個案例卡片與獨立勾選框
             for idx, case in enumerate(cases):
+                final_push_path = override_path or case.get("path") or "未分類"
+
                 with st.container(border=True):
-                    st.markdown(f"**{case.get('title', '(未命名案例)')}**")
-                    st.caption(f"📍 預計寫入路徑：{case.get('path') or '(未指定，將建立於「未分類」)'}")
+                    head_col1, head_col2 = st.columns([0.5, 9.5])
+                    with head_col1:
+                        # 案例個別勾選框
+                        is_selected = st.checkbox(
+                            "",
+                            value=select_all,
+                            key=f"case_select_{idx}",
+                            label_visibility="collapsed"
+                        )
+                        if is_selected:
+                            selected_indices.append(idx)
+
+                    with head_col2:
+                        st.markdown(f"**{case.get('title', '(未命名案例)')}**")
+                        st.caption(f"📍 預計寫入路徑：**{final_push_path}**")
 
                     st.markdown("**Preconditions**")
                     for i, pc in enumerate(case.get("preconditions", []), 1):
@@ -406,45 +463,50 @@ with tab2:
                         c1.markdown(f"**Step {s_idx}**\n\n{step.get('content', '')}")
                         c2.markdown(f"**Expected**\n\n{step.get('expected', '')}")
 
-                    if st.button("📤 推送至 TestRail", key=f"push_{idx}"):
+                    # 個別推送按鈕
+                    if st.button(f"📤 單獨推送案例 #{idx+1}", key=f"push_single_{idx}"):
                         if not (tr_url and tr_user and tr_pw):
                             st.warning("請先在側邊欄填寫 TestRail 連線資訊。")
                         elif not target_pid or not target_sid:
                             st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
                         else:
                             try:
-                                with st.spinner("正在寫入 TestRail..."):
-                                    cache_key = f"push_path_map_{target_pid}_{target_sid}"
-                                    if cache_key not in st.session_state:
-                                        st.session_state[cache_key] = fetch_sections(
-                                            tr_url, tr_user, tr_pw, target_pid, target_sid
-                                        )
-                                    target_path_map = st.session_state[cache_key]
-
-                                    target_section_id = get_or_create_section(
-                                        tr_url, tr_user, tr_pw, target_pid, target_sid, target_path_map,
-                                        case.get("path") or "未分類"
-                                    )
-
-                                    # 處理 Preconditions 換行與編號
-                                    preconds_raw = case.get("preconditions", [])
-                                    if isinstance(preconds_raw, list):
-                                        preconds_str = "\n".join(f"{i}. {p}" if not str(p).startswith(f"{i}.") else str(p) for i, p in enumerate(preconds_raw, 1))
-                                    else:
-                                        preconds_str = str(preconds_raw or "")
-
-                                    # 建立案例 (指定 template_id=2)
-                                    result = create_test_case(
-                                        tr_url, tr_user, tr_pw,
-                                        target_section_id,
-                                        case.get("title", "未命名案例"),
-                                        preconds_str,
-                                        case.get("steps", []),
-                                        template_id=2,
-                                    )
-                                st.success(
-                                    f"✅ 已建立測試案例 #{result.get('id')}"
-                                    f"（Project {target_pid} / Suite {target_sid}）"
-                                )
+                                with st.spinner(f"正在寫入 TestRail（分類：{final_push_path}）..."):
+                                    res = push_case_to_tr(case, final_push_path)
+                                st.success(f"✅ 已成功建立測試案例 #{res.get('id')}！")
                             except (TestRailWriteError, NameError) as e:
                                 st.error(str(e))
+
+            # 頂部的批次推送按鈕（放在最後渲染以取得完整的 selected_indices）
+            with col_batch_btn:
+                if st.button(f"🚀 批次推送已勾選案例 ({len(selected_indices)}/{len(cases)})", type="primary", use_container_width=True):
+                    if not (tr_url and tr_user and tr_pw):
+                        st.warning("請先在側邊欄填寫 TestRail 連線資訊。")
+                    elif not target_pid or not target_sid:
+                        st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
+                    elif not selected_indices:
+                        st.warning("請至少勾選一個測試案例進行推送。")
+                    else:
+                        success_count = 0
+                        error_msgs = []
+                        progress_bar = st.progress(0, text="正在進行批次推送...")
+
+                        for progress_idx, case_idx in enumerate(selected_indices, 1):
+                            target_case = cases[case_idx]
+                            final_path = override_path or target_case.get("path") or "未分類"
+                            try:
+                                progress_bar.progress(
+                                    progress_idx / len(selected_indices),
+                                    text=f"正在推送第 ({progress_idx}/{len(selected_indices)}) 個案例：{target_case.get('title')}"
+                                )
+                                push_case_to_tr(target_case, final_path)
+                                success_count += 1
+                            except Exception as e:
+                                error_msgs.append(f"案例【{target_case.get('title')}】推送失敗：{str(e)}")
+
+                        progress_bar.empty()
+                        if success_count > 0:
+                            st.success(f"🎉 成功批次推送 {success_count} 個測試案例至 TestRail！")
+                        if error_msgs:
+                            for err in error_msgs:
+                                st.error(err)
