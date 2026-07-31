@@ -272,53 +272,26 @@ with tab2:
                 except CaseGenError as e:
                     st.error(str(e))
 
-        # --- Step 3: 確認/編輯大綱 ---
+        # --- Step 3: 確認/編輯大綱 + 選擇 TestRail 推送目標 ---
         if "test_outline" in st.session_state:
             st.markdown("### 🧭 測試大綱（請先確認或修改，再產生完整案例）")
             outline_text = st.text_area(
                 "測試大綱",
                 value=st.session_state["test_outline"],
-                height=220,
+                height=200,
                 key="outline_editor"
             )
             st.session_state["test_outline"] = outline_text
 
-            col_a, col_b = st.columns([1, 2])
-            with col_a:
-                path_mode = st.radio("測試案例路徑", ["自動判斷", "手動指定"], horizontal=True)
-            with col_b:
-                manual_path = st.text_input(
-                    "路徑（格式：父層 > 子層，例如「行銷推廣 > 優惠券管理」）",
-                    disabled=(path_mode == "自動判斷"),
-                    placeholder="行銷推廣 > 優惠券管理",
-                    help="請填 TestRail 分類的路徑名稱，不要貼網址。"
-                )
+            st.markdown("---")
+            st.markdown("### 🎯 TestRail 推送目標與路徑選取")
 
-            if st.button("✅ 確認大綱，產生完整測試案例"):
-                try:
-                    with st.spinner("AI 正在產生測試案例..."):
-                        s = st.session_state["jira_summary"]
-                        cases = generate_test_cases(
-                            s['summary'],
-                            s['description'],
-                            st.session_state["test_outline"],
-                            path_hint=(manual_path if path_mode == "手動指定" else None),
-                        )
-                        st.session_state["generated_cases"] = cases
-                except CaseGenError as e:
-                    st.error(str(e))
-
-        # --- Step 4: 顯示產生結果 + 推送 TestRail ---
-        if "generated_cases" in st.session_state:
-            st.markdown("### 🎯 TestRail 推送目標")
-            st.caption("這裡選的 Project / Suite 跟左側「案例查詢」用的完全獨立，不會互相影響。")
+            target_pid, target_sid = None, None
+            selected_path_hint = None
 
             if not (tr_url and tr_user and tr_pw):
-                st.warning("請先在側邊欄填寫 TestRail 連線資訊（帳號/API Key），這裡才能抓 Project 清單。")
-                target_pid, target_sid = None, None
+                st.warning("👈 請先在側邊欄填寫 TestRail 連線資訊（帳號/API Key），才能載入 Project 與路徑清單。")
             else:
-                target_pid, target_sid = None, None
-
                 if "tr_projects" not in st.session_state:
                     try:
                         st.session_state["tr_projects"] = list_projects(tr_url, tr_user, tr_pw)
@@ -350,25 +323,78 @@ with tab2:
                         else:
                             st.info("這個 Project 底下沒有 Suite。")
 
-                    if st.button("🔄 重新整理清單"):
+                    # 抓取該 Project & Suite 的所有 Sections (路徑)
+                    if target_pid and target_sid:
+                        sec_cache_key = f"tr_sections_path_{target_pid}_{target_sid}"
+                        if sec_cache_key not in st.session_state:
+                            try:
+                                with st.spinner("正在讀取 TestRail 分類路徑..."):
+                                    sec_map = fetch_sections(tr_url, tr_user, tr_pw, target_pid, target_sid)
+                                    st.session_state[sec_cache_key] = sec_map
+                            except Exception as e:
+                                st.session_state[sec_cache_key] = {}
+
+                        existing_paths = sorted(list(set(st.session_state.get(sec_cache_key, {}).values())))
+
+                        # 下拉選單供使用者直接點選路徑
+                        path_options = ["🤖 [自動由 AI 判斷路徑]", "✍️ [手動輸入新路徑...]"] + existing_paths
+                        chosen_option = st.selectbox(
+                            "📂 選擇測試案例存放路徑 (Section)",
+                            options=path_options,
+                            index=0,
+                            help="可直接點選現有的 TestRail 分類路徑，避免手動輸入錯誤。"
+                        )
+
+                        if chosen_option == "✍️ [手動輸入新路徑...]":
+                            selected_path_hint = st.text_input(
+                                "手動輸入新路徑（格式：父層 > 子層，例如「行銷推廣 > 優惠券管理」）",
+                                placeholder="轉帳 > 充值"
+                            )
+                        elif chosen_option != "🤖 [自動由 AI 判斷路徑]":
+                            selected_path_hint = chosen_option
+
+                    if st.button("🔄 重新整理專案與分類清單"):
                         st.session_state.pop("tr_projects", None)
                         for k in list(st.session_state.keys()):
-                            if k.startswith("tr_suites_"):
+                            if k.startswith("tr_suites_") or k.startswith("tr_sections_"):
                                 st.session_state.pop(k, None)
                         st.rerun()
                 else:
                     if st.session_state.get("tr_projects_error"):
-                        st.warning(f"無法自動讀取 Project 清單，改用手動輸入：{st.session_state['tr_projects_error']}")
-                    target_pid = st.number_input("Project ID", value=int(pid), key="target_pid_manual")
-                    target_sid = st.number_input("Suite ID", value=int(sid), key="target_sid_manual")
+                        st.warning(f"無法自動讀取 Project 清單：{st.session_state['tr_projects_error']}")
+                    col_p_m, col_s_m = st.columns(2)
+                    target_pid = col_p_m.number_input("Project ID", value=int(pid), key="target_pid_manual")
+                    target_sid = col_s_m.number_input("Suite ID", value=int(sid), key="target_sid_manual")
+                    selected_path_hint = st.text_input("路徑（格式：父層 > 子層）", placeholder="轉帳 > 充值")
 
-            st.markdown("### ✅ 產生結果")
+            st.markdown("---")
+            if st.button("✅ 確認大綱與目標，產生完整測試案例", type="primary", use_container_width=True):
+                try:
+                    with st.spinner("AI 正在產生測試案例..."):
+                        s = st.session_state["jira_summary"]
+                        cases = generate_test_cases(
+                            s['summary'],
+                            s['description'],
+                            st.session_state["test_outline"],
+                            path_hint=selected_path_hint,
+                        )
+                        st.session_state["generated_cases"] = cases
+                        st.session_state["target_pid_final"] = target_pid
+                        st.session_state["target_sid_final"] = target_sid
+                except CaseGenError as e:
+                    st.error(str(e))
+
+        # --- Step 4: 顯示產生結果 + 推送 TestRail ---
+        if "generated_cases" in st.session_state:
+            st.markdown("### ✅ 產生結果與推送")
             cases = st.session_state["generated_cases"]
+            target_pid = st.session_state.get("target_pid_final", target_pid)
+            target_sid = st.session_state.get("target_sid_final", target_sid)
 
             for idx, case in enumerate(cases):
                 with st.container(border=True):
                     st.markdown(f"**{case.get('title', '(未命名案例)')}**")
-                    st.caption(f"路徑建議：{case.get('path') or '(未指定，將建立於「未分類」)'}")
+                    st.caption(f"📍 預計寫入路徑：{case.get('path') or '(未指定，將建立於「未分類」)'}")
 
                     st.markdown("**Preconditions**")
                     for i, pc in enumerate(case.get("preconditions", []), 1):
@@ -384,7 +410,7 @@ with tab2:
                         if not (tr_url and tr_user and tr_pw):
                             st.warning("請先在側邊欄填寫 TestRail 連線資訊。")
                         elif not target_pid or not target_sid:
-                            st.warning("請先在上方選擇（或輸入）要推送的 Project / Suite。")
+                            st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
                         else:
                             try:
                                 with st.spinner("正在寫入 TestRail..."):
@@ -400,21 +426,21 @@ with tab2:
                                         case.get("path") or "未分類"
                                     )
 
-                                    # 處理 Preconditions 換行與格式轉換
+                                    # 處理 Preconditions 換行與編號
                                     preconds_raw = case.get("preconditions", [])
                                     if isinstance(preconds_raw, list):
-                                        preconds_str = "\n".join(f"{i}. {p}" if not p.startswith(f"{i}.") else p for i, p in enumerate(preconds_raw, 1))
+                                        preconds_str = "\n".join(f"{i}. {p}" if not str(p).startswith(f"{i}.") else str(p) for i, p in enumerate(preconds_raw, 1))
                                     else:
                                         preconds_str = str(preconds_raw or "")
 
-                                    # 建立 Test Case (指定 template_id=2 以套用 Test Case (Steps) 樣板)
+                                    # 建立案例 (指定 template_id=2)
                                     result = create_test_case(
                                         tr_url, tr_user, tr_pw,
                                         target_section_id,
                                         case.get("title", "未命名案例"),
                                         preconds_str,
                                         case.get("steps", []),
-                                        template_id=2,  # 指定步驟型樣板
+                                        template_id=2,
                                     )
                                 st.success(
                                     f"✅ 已建立測試案例 #{result.get('id')}"
