@@ -10,7 +10,10 @@ from keywords import SEARCH_DICTIONARY
 from auth_whitelist import is_authorized
 from jira_client import fetch_issue, extract_issue_summary, JiraError
 from case_generator import generate_test_outline, generate_test_cases, CaseGenError
-from testrail_write import get_or_create_section, create_test_case, TestRailWriteError
+from testrail_write import (
+    get_or_create_section, create_test_case, TestRailWriteError,
+    list_projects, list_suites, fetch_sections,
+)
 
 # 1. 頁面初始化
 st.set_page_config(
@@ -300,8 +303,61 @@ with tab2:
                 except CaseGenError as e:
                     st.error(str(e))
 
-        # --- Step 4: 顯示產生結果 + 可選推送 TestRail ---
+        # --- Step 4: 顯示產生結果 + 選擇要推送的 TestRail Project/Suite + 推送 ---
         if "generated_cases" in st.session_state:
+            st.markdown("### 🎯 TestRail 推送目標")
+            st.caption("這裡選的 Project / Suite 跟左側「案例查詢」用的完全獨立，不會互相影響。")
+
+            if not (tr_url and tr_user and tr_pw):
+                st.warning("請先在側邊欄填寫 TestRail 連線資訊（帳號/API Key），這裡才能抓 Project 清單。")
+                target_pid, target_sid = None, None
+            else:
+                target_pid, target_sid = None, None
+
+                if "tr_projects" not in st.session_state:
+                    try:
+                        st.session_state["tr_projects"] = list_projects(tr_url, tr_user, tr_pw)
+                    except TestRailWriteError as e:
+                        st.session_state["tr_projects_error"] = str(e)
+
+                if st.session_state.get("tr_projects"):
+                    proj_map = {p["name"]: p["id"] for p in st.session_state["tr_projects"]}
+                    col_p, col_s = st.columns(2)
+
+                    with col_p:
+                        proj_name = st.selectbox("Project", list(proj_map.keys()), key="target_project_select")
+                        target_pid = proj_map[proj_name]
+
+                    suite_cache_key = f"tr_suites_{target_pid}"
+                    if suite_cache_key not in st.session_state:
+                        try:
+                            st.session_state[suite_cache_key] = list_suites(tr_url, tr_user, tr_pw, target_pid)
+                        except TestRailWriteError as e:
+                            st.error(str(e))
+                            st.session_state[suite_cache_key] = []
+
+                    with col_s:
+                        suites = st.session_state[suite_cache_key]
+                        if suites:
+                            suite_map = {sv["name"]: sv["id"] for sv in suites}
+                            suite_name = st.selectbox("Suite", list(suite_map.keys()), key="target_suite_select")
+                            target_sid = suite_map[suite_name]
+                        else:
+                            st.info("這個 Project 底下沒有 Suite。")
+
+                    if st.button("🔄 重新整理清單", help="如果 TestRail 上剛新增了 Project/Suite，點這裡重抓"):
+                        st.session_state.pop("tr_projects", None)
+                        for k in list(st.session_state.keys()):
+                            if k.startswith("tr_suites_"):
+                                st.session_state.pop(k, None)
+                        st.rerun()
+                else:
+                    # 抓不到清單（例如帳號權限限制），退回手動輸入 ID
+                    if st.session_state.get("tr_projects_error"):
+                        st.warning(f"無法自動讀取 Project 清單，改用手動輸入：{st.session_state['tr_projects_error']}")
+                    target_pid = st.number_input("Project ID", value=int(pid), key="target_pid_manual")
+                    target_sid = st.number_input("Suite ID", value=int(sid), key="target_sid_manual")
+
             st.markdown("### ✅ 產生結果")
             cases = st.session_state["generated_cases"]
 
@@ -322,12 +378,21 @@ with tab2:
 
                     if st.button("📤 推送至 TestRail", key=f"push_{idx}"):
                         if not (tr_url and tr_user and tr_pw):
-                            st.warning("請先在側邊欄填寫 TestRail 連線資訊（Tab「案例查詢」也會用到）。")
+                            st.warning("請先在側邊欄填寫 TestRail 連線資訊。")
+                        elif not target_pid or not target_sid:
+                            st.warning("請先在上方選擇（或輸入）要推送的 Project / Suite。")
                         else:
                             try:
                                 with st.spinner("正在寫入 TestRail..."):
+                                    cache_key = f"push_path_map_{target_pid}_{target_sid}"
+                                    if cache_key not in st.session_state:
+                                        st.session_state[cache_key] = fetch_sections(
+                                            tr_url, tr_user, tr_pw, target_pid, target_sid
+                                        )
+                                    target_path_map = st.session_state[cache_key]
+
                                     target_section_id = get_or_create_section(
-                                        tr_url, tr_user, tr_pw, pid, sid, path_map,
+                                        tr_url, tr_user, tr_pw, target_pid, target_sid, target_path_map,
                                         case.get("path") or "未分類"
                                     )
                                     result = create_test_case(
@@ -338,6 +403,9 @@ with tab2:
                                         case.get("steps", []),
                                         # template_id=2,  # 若你的站台需要指定樣板，取消這行註解並填正確 ID
                                     )
-                                st.success(f"✅ 已建立測試案例 #{result.get('id')}")
+                                st.success(
+                                    f"✅ 已建立測試案例 #{result.get('id')}"
+                                    f"（Project {target_pid} / Suite {target_sid}）"
+                                )
                             except TestRailWriteError as e:
                                 st.error(str(e))
