@@ -236,7 +236,6 @@ with tab2:
             )
             jira_email = st.text_input("Jira 帳號 Email", value=get_val("jira_email") or user_email)
             
-            # 自動優先套用 Secrets 中的共享 Key
             default_token = st.secrets.get("JIRA_API_TOKEN", "") if hasattr(st, "secrets") else ""
             jira_token = st.text_input(
                 "Jira API Token",
@@ -456,8 +455,12 @@ with tab2:
                             st.session_state["target_pid_final"] = target_pid
                             st.session_state["target_sid_final"] = target_sid
                             st.session_state["selected_path_hint"] = selected_path_hint
-                            # 重置全選狀態
+                            
+                            # 💡 每次新產生案例時，清除之前的全選與個案勾選紀錄
                             st.session_state["select_all_cases"] = False
+                            for k in list(st.session_state.keys()):
+                                if k.startswith("case_select_"):
+                                    st.session_state.pop(k, None)
                     except CaseGenError as e:
                         st.error(str(e))
 
@@ -469,8 +472,8 @@ with tab2:
             target_sid = st.session_state.get("target_sid_final", target_sid)
             override_path = st.session_state.get("selected_path_hint")
 
-            # 🛠️ 回調函式：當全選狀態改變時，強制更新每一個案例的勾選狀態
-            def toggle_all_cases():
+            # 🛠️ 回調函式：當全選狀態改變時，強制更新每一個案例的 Session State 並 rerun
+            def on_select_all_change():
                 new_status = st.session_state.get("select_all_cases", False)
                 for idx in range(len(cases)):
                     st.session_state[f"case_select_{idx}"] = new_status
@@ -481,7 +484,7 @@ with tab2:
                     "全選所有案例",
                     value=st.session_state.get("select_all_cases", False),
                     key="select_all_cases",
-                    on_change=toggle_all_cases  # 觸發全選連動
+                    on_change=on_select_all_change
                 )
 
             def push_case_to_tr(case_item, path_to_use):
@@ -520,10 +523,10 @@ with tab2:
             for idx, case in enumerate(cases):
                 final_push_path = override_path or case.get("path") or "未分類"
 
-                # 確保案例勾選開關的初始 Session State
+                # 💡 每個案例的 key，預設皆為 False (預設不勾選)
                 case_key = f"case_select_{idx}"
                 if case_key not in st.session_state:
-                    st.session_state[case_key] = st.session_state.get("select_all_cases", False)
+                    st.session_state[case_key] = False
 
                 with st.container(border=True):
                     head_col1, head_col2 = st.columns([0.5, 9.5])
