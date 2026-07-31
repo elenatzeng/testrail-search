@@ -1,5 +1,6 @@
 import json
 import re
+import time
 import google.generativeai as genai
 
 # --- 根據截圖精準提取的三端 (前台/GoGaming/GoMoney) 固定功能路徑樹 ---
@@ -224,33 +225,44 @@ JSON 輸出格式約束（請直接輸出標準 JSON Array）：
 class CaseGenError(Exception):
     pass
 
+def call_gemini_with_retry(prompt_data, max_retries=3):
+    """呼叫 Gemini API 封裝（帶有 429 退避重試機制）"""
+    # 優先使用 1.5-flash，若有配額問題可穩定相容
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    
+    for attempt in range(max_retries):
+        try:
+            response = model.generate_content(prompt_data)
+            return response.text.strip()
+        except Exception as e:
+            err_msg = str(e)
+            if "429" in err_msg or "quota" in err_msg.lower():
+                if attempt < max_retries - 1:
+                    time.sleep(5 * (attempt + 1))  # 遇到 429 等待 5秒、10秒 後再試
+                    continue
+                else:
+                    raise CaseGenError("目前 API 請求過於頻繁（超過免費配額），請等待約 30 秒後再試。")
+            else:
+                raise CaseGenError(f"Gemini API 呼叫失敗：{err_msg}")
+
 def generate_test_outline(summary: str, description: str) -> str:
     """呼叫 Gemini 產生測試大綱"""
-    try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
-        response = model.generate_content(prompt)
-        return response.text.strip()
-    except Exception as e:
-        raise CaseGenError(f"產生大綱失敗：{str(e)}")
+    prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
+    return call_gemini_with_retry(prompt)
 
 def generate_test_cases(summary: str, description: str, outline: str, path_hint: str = None) -> list:
     """呼叫 Gemini 產生極簡風格與固定路徑的 Test Cases"""
+    user_input = f"Jira 摘要：{summary}\nJira 描述：{description}\n測試大綱：\n{outline}"
+    if path_hint:
+        user_input += f"\n使用者指定優先路徑：{path_hint}"
+
+    raw_text = call_gemini_with_retry([SYSTEM_PROMPT, user_input])
+
+    # 清除 Markdown 程式碼區塊標記
+    cleaned_text = re.sub(r"^```json\s*", "", raw_text, flags=re.MULTILINE)
+    cleaned_text = re.sub(r"^```\s*", "", cleaned_text, flags=re.MULTILINE).strip()
+
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        user_input = f"Jira 摘要：{summary}\nJira 描述：{description}\n測試大綱：\n{outline}"
-        if path_hint:
-            user_input += f"\n使用者指定優先路徑：{path_hint}"
-
-        response = model.generate_content([SYSTEM_PROMPT, user_input])
-        raw_text = response.text.strip()
-
-        # 清除 Markdown 程式碼區塊標記
-        cleaned_text = re.sub(r"^```json\s*", "", raw_text, flags=re.MULTILINE)
-        cleaned_text = re.sub(r"^```\s*", "", cleaned_text, flags=re.MULTILINE).strip()
-
         return json.loads(cleaned_text)
     except json.JSONDecodeError:
         raise CaseGenError("AI 回傳的格式非有效 JSON，請再試一次。")
-    except Exception as e:
-        raise CaseGenError(f"產生測試案例失敗：{str(e)}")
