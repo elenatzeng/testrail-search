@@ -8,7 +8,7 @@ SYSTEM_PATH_TREE = """
 - 前台 > 首页 > 我的钱包 > 钱包总览 > 充值
 - 前台 > 首页 > 我的钱包 > 钱包总览 > 提现
 - 前台 > 首页 > 我的钱包 > 钱包总览 > 劃轉
-- 前台 > 首页 > 我的钱包 > 钱包总览 > 钱包历史记录
+- 前台 > 首页 > 我的钱包 > 钱包历史记录
 - 前台 > 首页 > 我的钱包 > 银行卡管理
 - 前台 > 首页 > 我的钱包 > 支付宝管理
 - 前台 > 首页 > 我的钱包 > 数字货币地址管理
@@ -227,7 +227,7 @@ class CaseGenError(Exception):
 def generate_test_outline(summary: str, description: str) -> str:
     """呼叫 Gemini 產生測試大綱"""
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
         response = model.generate_content(prompt)
         return response.text.strip()
@@ -237,7 +237,7 @@ def generate_test_outline(summary: str, description: str) -> str:
 def generate_test_cases(summary: str, description: str, outline: str, path_hint: str = None) -> list:
     """呼叫 Gemini 產生極簡風格與固定路徑的 Test Cases"""
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         user_input = f"Jira 摘要：{summary}\nJira 描述：{description}\n測試大綱：\n{outline}"
         if path_hint:
             user_input += f"\n使用者指定優先路徑：{path_hint}"
