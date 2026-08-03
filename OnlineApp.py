@@ -351,7 +351,7 @@ with tab2:
                 active_outline = "\n".join(selected_lines)
 
             # =================================================================
-            # 📌【獨立選擇區 1】測試案例內文壓入之模組路徑 (100% 必定顯示)
+            # 📌【獨立選擇區 1】測試案例內文壓入之模組路徑
             # =================================================================
             st.markdown("---")
             st.markdown("### 📌 選擇測試案例內文壓入之模組路徑")
@@ -369,7 +369,7 @@ with tab2:
                 )
 
             # =================================================================
-            # 🎯【獨立選擇區 2】TestRail 實際推送目標 Section (與內文路徑完全解耦)
+            # 🎯【獨立選擇區 2】TestRail 實際推送目標 Section
             # =================================================================
             st.markdown("---")
             st.markdown("### 🎯 TestRail 推送目標與路徑選取")
@@ -378,7 +378,6 @@ with tab2:
             selected_path_hint = None
             existing_paths = []
 
-            # 💡 自動備援憑證機制
             active_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
             active_tr_user = tr_user or st.secrets.get("TESTRAIL_USER", "")
             active_tr_pw = tr_pw or st.secrets.get("TESTRAIL_API_KEY", "") or st.secrets.get("TESTRAIL_PASSWORD", "")
@@ -482,13 +481,12 @@ with tab2:
                         with st.spinner("AI 正在產生測試案例..."):
                             s = st.session_state["jira_summary"]
 
-                            # 帶入使用者選定的模組路徑 selected_path
                             cases = generate_test_cases(
                                 summary=s['summary'],
                                 description=s['description'],
                                 outline=active_outline,
                                 env_type=selected_env_type,
-                                selected_path=user_selected_module_path,  # 👈 帶入壓入內文的模組路徑
+                                selected_path=user_selected_module_path,
                                 path_hint=selected_path_hint,
                                 available_paths=existing_paths
                             )
@@ -504,7 +502,7 @@ with tab2:
                     except Exception as e:
                         show_friendly_error(e, "產生測試案例時")
 
-        # --- Step 4: 顯示產生結果 + 全選/選擇性推送至 TestRail ---
+        # --- Step 4: 顯示產生結果 + 全選/選擇性推送至 TestRail (內文預設摺疊) ---
         if "generated_cases" in st.session_state:
             st.markdown("### ✅ 產生結果與推送")
             cases = st.session_state["generated_cases"]
@@ -526,7 +524,6 @@ with tab2:
                     on_change=on_select_all_change
                 )
 
-            # 🛠️ 推送至 TestRail 的核心函式（修正 Preconditions 重複前綴）
             def push_case_to_tr(case_item, path_to_use):
                 final_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
                 final_tr_user = tr_user or st.secrets.get("TESTRAIL_USER", "")
@@ -550,7 +547,7 @@ with tab2:
                 if isinstance(preconds_raw, list):
                     clean_preconds = []
                     for i, p in enumerate(preconds_raw, 1):
-                        clean_p = re.sub(r"^\d+[\.\s]*", "", str(p).strip())  # 擦除 AI 帶有的 "1. "，避免重複為 1. 1.
+                        clean_p = re.sub(r"^\d+[\.\s]*", "", str(p).strip())
                         clean_preconds.append(f"{i}. {clean_p}")
                     preconds_str = "\n".join(clean_preconds)
                 else:
@@ -568,7 +565,6 @@ with tab2:
             selected_indices = []
 
             for idx, case in enumerate(cases):
-                # 若推送目標手動選取了「特定 Section/其他」，強制以推送目標為準
                 if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", ""]:
                     final_push_path = override_path
                 else:
@@ -579,7 +575,8 @@ with tab2:
                     st.session_state[case_key] = False
 
                 with st.container(border=True):
-                    head_col1, head_col2 = st.columns([0.5, 9.5])
+                    # 📌 卡片頂部：只保留標題、預計 Section 與單獨推送按鈕
+                    head_col1, head_col2, head_col3 = st.columns([0.5, 7.5, 2], vertical_alignment="center")
                     with head_col1:
                         is_selected = st.checkbox(
                             "",
@@ -593,27 +590,31 @@ with tab2:
                         st.markdown(f"**{case.get('title', '(未命名案例)')}**")
                         st.caption(f"📍 預計寫入 TestRail Section：**{final_push_path}**")
 
-                    st.markdown("**Preconditions**")
-                    for i, pc in enumerate(case.get("preconditions", []), 1):
-                        clean_pc = re.sub(r"^\d+[\.\s]*", "", str(pc).strip())  # 修正 UI 渲染 1. 1. 重複數字
-                        st.markdown(f"{i}. {md_break(clean_pc)}")
+                    with head_col3:
+                        if st.button(f"📤 單獨推送", key=f"push_single_{idx}", use_container_width=True):
+                            if not target_pid or not target_sid:
+                                st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
+                            else:
+                                try:
+                                    with st.spinner(f"正在寫入 TestRail（分類：{final_push_path}）..."):
+                                        res = push_case_to_tr(case, final_push_path)
+                                    st.success(f"✅ 已成功建立案例 #{res.get('id')}！")
+                                except Exception as e:
+                                    show_friendly_error(e, "推送測試案例至 TestRail 時")
 
-                    st.markdown("**Steps**")
-                    for s_idx, step in enumerate(case.get("steps", []), 1):
-                        c1, c2 = st.columns(2)
-                        c1.markdown(f"**Step {s_idx}**\n\n{md_break(step.get('content', ''))}")
-                        c2.markdown(f"**Expected**\n\n{md_break(step.get('expected', ''))}")
+                    # 🙈 內文預設摺疊，點開才看得見步驟細節
+                    with st.expander("🔍 查看案例詳細步驟 (Preconditions & Steps)", expanded=False):
+                        st.markdown("**Preconditions**")
+                        for i, pc in enumerate(case.get("preconditions", []), 1):
+                            clean_pc = re.sub(r"^\d+[\.\s]*", "", str(pc).strip())
+                            st.markdown(f"{i}. {md_break(clean_pc)}")
 
-                    if st.button(f"📤 單獨推送案例 #{idx+1}", key=f"push_single_{idx}"):
-                        if not target_pid or not target_sid:
-                            st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
-                        else:
-                            try:
-                                with st.spinner(f"正在寫入 TestRail（分類：{final_push_path}）..."):
-                                    res = push_case_to_tr(case, final_push_path)
-                                st.success(f"✅ 已成功建立測試案例 #{res.get('id')}！")
-                            except Exception as e:
-                                show_friendly_error(e, "推送測試案例至 TestRail 時")
+                        st.markdown("---")
+                        st.markdown("**Steps**")
+                        for s_idx, step in enumerate(case.get("steps", []), 1):
+                            c1, c2 = st.columns(2)
+                            c1.markdown(f"**Step {s_idx}**\n\n{md_break(step.get('content', ''))}")
+                            c2.markdown(f"**Expected**\n\n{md_break(step.get('expected', ''))}")
 
             with col_batch_btn:
                 if st.button(f"🚀 批次推送已勾選案例 ({len(selected_indices)}/{len(cases)})", use_container_width=True):
