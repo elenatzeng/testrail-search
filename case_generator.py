@@ -5,17 +5,17 @@ import time
 
 import google.generativeai as genai
 
-# --- 按環境拆分的功能目錄清單 (Python 端關鍵字過濾用) ---
+# --- 將所有目錄精細拆分為列表，方便程式做迴圈尋找 ---
 
 SYSTEM_PATHS = {
-    "Web": [
+    "FE": [
         "前台 > 首页 > 我的钱包 > 钱包总览 > 充值",
         "前台 > 首页 > 我的钱包 > 钱包总览 > 提现",
         "前台 > 首页 > 我的钱包 > 钱包总览 > 劃轉",
         "前台 > 首页 > 我的钱包 > 钱包历史记录",
         "前台 > 首页 > 我的钱包 > 银行卡管理",
         "前台 > 首页 > 我的钱包 > 支付宝管理",
-        "前台 > 首页 > 数字货币地址管理",
+        "前台 > 首页 > 我的钱包 > 数字货币地址管理",
         "前台 > 首页 > 订单 > 体育订单",
         "前台 > 首页 > 订单 > 彩票订单",
         "前台 > 首页 > 订单 > 娱乐城订单",
@@ -172,9 +172,9 @@ SYSTEM_PATHS = {
     ],
 }
 
-# 現行主要 Gemini 模型名稱
+# 現行主要 Gemini Flash 模型，並提供備援清單
 PRIMARY_MODEL = "gemini-2.5-flash"
-FALLBACK_MODEL = "gemini-1.5-flash"
+FALLBACK_MODELS = ["gemini-1.5-flash", "gemini-1.5-pro"]
 
 
 class CaseGenError(Exception):
@@ -182,6 +182,7 @@ class CaseGenError(Exception):
 
 
 def _configure_genai() -> None:
+    """ 明確讀取 GEMINI_API_KEY / GOOGLE_API_KEY 並進行初始化 """
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     if not key:
         try:
@@ -197,7 +198,7 @@ def _configure_genai() -> None:
 
 
 def filter_relevant_paths(env_type: str, text_content: str) -> str:
-    """ Python 端關鍵字匹配：僅傳送與需求相關的目錄，大幅節省 Prompt Token """
+    """ Python 端迴圈尋找：根據需求關鍵字，只過濾出相關的目錄 """
     all_paths = SYSTEM_PATHS.get(env_type, [])
     if not all_paths:
         all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
@@ -216,10 +217,10 @@ def filter_relevant_paths(env_type: str, text_content: str) -> str:
     return "\n".join([f"- {p}" for p in matched_paths])
 
 
-def call_gemini_with_retry(prompt_data, max_retries=3):
-    """ 具備 429 限流重試與多模型自動備援 (Fallback) 的 API 發射器 """
+def call_gemini_with_retry(prompt_data, max_retries=2):
+    """呼叫 Gemini API 封裝（自動重試 + 備援模型切換）"""
     _configure_genai()
-    models_to_try = [PRIMARY_MODEL, FALLBACK_MODEL]
+    models_to_try = [PRIMARY_MODEL] + FALLBACK_MODELS
 
     for model_name in models_to_try:
         model = genai.GenerativeModel(model_name)
@@ -229,12 +230,12 @@ def call_gemini_with_retry(prompt_data, max_retries=3):
                 return response.text.strip()
             except Exception as e:
                 err_msg = str(e)
-                # 處理 429 頻率限制
+                # 遇到 429 頻率限制，適度沉睡拉開請求間隔
                 if "429" in err_msg or "quota" in err_msg.lower() or "resourceexhausted" in err_msg.lower().replace("_", ""):
                     if attempt < max_retries - 1:
-                        time.sleep(5 * (attempt + 1))
+                        time.sleep(8 * (attempt + 1))
                         continue
-                # 若是模型不存在或過期 (404 / NOT_FOUND)，跳出 retry 切換備援模型
+                # 若模型名稱不存在，嘗試切換備援模型
                 elif "404" in err_msg or "not found" in err_msg.lower():
                     break
                 else:
@@ -242,19 +243,21 @@ def call_gemini_with_retry(prompt_data, max_retries=3):
                         break
                     time.sleep(2)
 
-    raise CaseGenError("Gemini API 請求失敗，可能是觸發每分鐘用量上限 (429)，請等待 20 秒後再試。")
+    raise CaseGenError("API 請求較為頻繁（已觸發限制），請稍後再試！")
 
 
 def generate_test_outline(summary: str, description: str) -> str:
+    """產生測試大綱（極簡 Prompt）"""
     prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
     return call_gemini_with_retry(prompt)
 
 
 def generate_test_cases(summary: str, description: str, outline: str, env_type: str = "GoGaming", path_hint: str = None) -> list:
-    """ 產生 TestRail 測試案例（含步驟強效拆解與 \n\n 換行修復） """
+    """產生測試案例（使用 Python 關鍵字過濾 + 自動分行後處理）"""
     combined_text = f"{summary} {description} {outline} {path_hint or ''}"
     filtered_tree = filter_relevant_paths(env_type, combined_text)
 
+    # Prompt 要求 (純字串 preconditions + \n 換行步驟)
     system_prompt = f"""你是一位資深 QA。請將需求轉換為 TestRail 測試案例 JSON Array。
 
 規範：
@@ -262,21 +265,22 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
 {filtered_tree}
 
 2. title: [模組]-情境 或 [動作]-目的
-3. preconditions: 陣列字串，格式為純說明（不可帶 1. 2. 等數字頭）
-4. steps (測試案例內容【必須強制分行】):
-   - content: 每個主要步驟（1., 2., 3.）以及子項動作/驗證點（•）都**必須獨立換行**。
-   - expected: 預期結果有多點時，**每一點也必須獨立換行**。
+3. preconditions: 陣列字串，格式為純文字說明（絕不可帶 1. 2. 等數字開頭）
+4. steps:
+   - content 格式（步驟與驗證點必須換行 \\n）：
+     1. 路徑：[選取的 path]\\n2. [主要動作/步驟]\\n   • [具體測試驗證點]
+   - expected: 預期結果，有多點時請使用 \\n 換行
 
-回傳格式範例（標準 JSON，請注意 \\n 換行）：
+回傳格式（標準 JSON）：
 [
   {{
-    "title": "优惠券管理 - 验证优惠券创建与栏位校验",
-    "path": "GoGaming > 营销推广 > 优惠券管理",
-    "preconditions": ["账号已登录且具备优惠券管理权限。"],
+    "title": "提现信息 - 请输入金额",
+    "path": "前台 > 首页 > 我的钱包 > 钱包总览 > 提现",
+    "preconditions": ["帳號已登入且具備權限。"],
     "steps": [
       {{
-        "content": "1. 路徑：GoGaming > 营销推广 > 优惠券管理\\n2. 点击“创建优惠券”，检查类型下拉单\\n   • 验证是否包含“BW现金券”、“Freespin”、“Freechip”选项\\n3. 选择“Freechip”或“Freespin”并选取适用游戏\\n   • 验证是否动态展开对应栏位（筹码/旋转数量、价值、派彩上限）",
-        "expected": "1. 下拉单包含：BW现金券、Freespin、Freechip。\\n2. 选择游戏后，正确动态显示对应栏位。"
+        "content": "1. 路徑：前台 > 首页 > 我的钱包 > 钱包总览 > 提现\\n2. 输入金额\\n   • 输入超出范围数字",
+        "expected": "Tips Red Error Message :\\n• CN : 提现金额必须介于 n - m 之间。"
       }}
     ]
   }}
@@ -294,20 +298,20 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
     try:
         cases = json.loads(cleaned_text)
         
-        # --- Python 端強效後處理：自動修正 UI 換行壓縮與開頭重複數字 ---
+        # --- Python 強效後處理層：保證 UI 呈現永遠美麗且分行 ---
         for case in cases:
-            # 1. 移除 Preconditions 重複出現的數字編號
+            # 1. 自動移除 preconditions 前面被 AI 誤加的 "1. " 或 "2. "
             if "preconditions" in case and isinstance(case["preconditions"], list):
                 case["preconditions"] = [
                     re.sub(r"^\s*\d+[\.\s\-]+", "", pre) for pre in case["preconditions"]
                 ]
 
-            # 2. 針對 steps 強制注入雙換行 (\n\n) 與縮排
+            # 2. 強制修復步驟中的連寫與壓縮，加入 Markdown 雙換行 (\n\n)
             for step in case.get("steps", []):
                 if "content" in step and step["content"]:
                     text = step["content"]
                     
-                    # (A) 遇圓點 (•, ·, ・)，強制補上雙換行 + 縮排
+                    # (A) 遇點號或中英文圓點 (•, ·, ・)，強制補上雙換行 + 縮排
                     text = re.sub(r"\s*[•·・]\s*", "\n\n   • ", text)
                     
                     # (B) 若 AI 漏寫圓點直接接在句尾，自動抓關鍵字 (验证/校验/选择/切换/检查) 強制斷行
@@ -323,7 +327,7 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
                     text = re.sub(r"\s*[•·・]\s*", "\n\n• ", text)
                     text = re.sub(r"(?<!^)\s*(\d+\.\s+)", r"\n\n\1", text)
                     step["expected"] = re.sub(r"\n{3,}", "\n\n", text).strip()
-                    
+
         return cases
     except json.JSONDecodeError:
         raise CaseGenError("AI 回傳格式非有效 JSON，請再試一次。")
