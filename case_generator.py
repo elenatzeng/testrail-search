@@ -20,7 +20,7 @@ def get_gemini_model():
         raise CaseGenError("未設定 GEMINI_API_KEY，請在 Secrets 中配置。")
     
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-3.6-flash")
+    return genai.GenerativeModel("gemini-3.5-flash")
 
 
 def call_gemini_with_retry(prompt_input, max_retries=3, delay=5):
