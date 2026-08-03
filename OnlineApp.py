@@ -2,7 +2,8 @@ import re
 import streamlit as st
 
 from auth_whitelist import is_authorized
-from case_generator import CaseGenError, generate_test_cases, generate_test_outline
+# 匯入 SYSTEM_PATHS 以供 UI 生成模組路徑選單
+from case_generator import SYSTEM_PATHS, CaseGenError, generate_test_cases, generate_test_outline
 from jira_client import JiraError, extract_issue_summary, fetch_issue
 from keywords import SEARCH_DICTIONARY
 from style import apply_custom_style
@@ -349,13 +350,33 @@ with tab2:
                 selected_lines = outline_lines[start_i:end_i]
                 active_outline = "\n".join(selected_lines)
 
+            # =================================================================
+            # 📌【獨立選擇區 1】測試案例內文壓入之模組路徑 (100% 必定顯示)
+            # =================================================================
+            st.markdown("---")
+            st.markdown("### 📌 選擇測試案例內文壓入之模組路徑")
+            col_env, col_module = st.columns(2)
+            with col_env:
+                selected_env_type = st.selectbox("系統環境", options=["GoGaming", "FE", "GoMoney"], index=0, key="gen_env_type_select")
+            with col_module:
+                module_path_list = ["🤖 [自動由 AI 判斷路徑]"] + SYSTEM_PATHS.get(selected_env_type, [])
+                user_selected_module_path = st.selectbox(
+                    "選擇要壓入測試案例內文的路徑",
+                    options=module_path_list,
+                    index=0,
+                    key="gen_module_path_select",
+                    help="選定後，AI 生成案例時 Step 1 的內文將會顯示此路徑。"
+                )
+
+            # =================================================================
+            # 🎯【獨立選擇區 2】TestRail 實際推送目標 Section (與內文路徑完全解耦)
+            # =================================================================
             st.markdown("---")
             st.markdown("### 🎯 TestRail 推送目標與路徑選取")
 
             target_pid, target_sid = None, None
             selected_path_hint = None
             existing_paths = []
-            proj_name = "GoGaming"
 
             # 💡 自動備援憑證機制
             active_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
@@ -413,13 +434,15 @@ with tab2:
                             "📂 選擇測試案例存放路徑 (Section)",
                             options=path_options,
                             index=0,
-                            help="若選擇「🤖 [自動由 AI 判斷路徑]」，AI 會自動將案例分類至最佳目錄階層中。"
+                            key="target_section_select",
+                            help="此選項決定 TestRail 實際上把案例存在哪個資料夾底下。"
                         )
 
                         if chosen_option == "✍️ [手動輸入新路徑...]":
                             selected_path_hint = st.text_input(
                                 "手動輸入新路徑（格式：父層 > 子層，例如「行銷推廣 > 優惠券管理」）",
-                                placeholder="轉帳 > 充值"
+                                placeholder="轉帳 > 充值",
+                                key="manual_path_input"
                             )
                         elif chosen_option != "🤖 [自動由 AI 判斷路徑]":
                             selected_path_hint = chosen_option
@@ -436,7 +459,7 @@ with tab2:
                     col_p_m, col_s_m = st.columns(2)
                     target_pid = col_p_m.number_input("Project ID", value=int(pid), key="target_pid_manual")
                     target_sid = col_s_m.number_input("Suite ID", value=int(sid), key="target_sid_manual")
-                    selected_path_hint = st.text_input("路徑（格式：父層 > 子層）", placeholder="轉帳 > 充值")
+                    selected_path_hint = st.text_input("路徑（格式：父層 > 子層）", placeholder="轉帳 > 充值", key="manual_path_input_fallback")
 
             st.markdown("---")
 
@@ -459,11 +482,13 @@ with tab2:
                         with st.spinner("AI 正在產生測試案例..."):
                             s = st.session_state["jira_summary"]
 
+                            # 帶入使用者選定的模組路徑 selected_path
                             cases = generate_test_cases(
-                                s['summary'],
-                                s['description'],
-                                active_outline,
-                                env_type=proj_name,  # 帶入正確的系統環境名稱
+                                summary=s['summary'],
+                                description=s['description'],
+                                outline=active_outline,
+                                env_type=selected_env_type,
+                                selected_path=user_selected_module_path,  # 👈 帶入壓入內文的模組路徑
                                 path_hint=selected_path_hint,
                                 available_paths=existing_paths
                             )
@@ -501,7 +526,7 @@ with tab2:
                     on_change=on_select_all_change
                 )
 
-            # 🛠️ 具備完整 Credentials 備援與動態路徑鎖定的 TestRail 推送函式
+            # 🛠️ 推送至 TestRail 的核心函式
             def push_case_to_tr(case_item, path_to_use):
                 final_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
                 final_tr_user = tr_user or st.secrets.get("TESTRAIL_USER", "")
@@ -542,8 +567,8 @@ with tab2:
             selected_indices = []
 
             for idx, case in enumerate(cases):
-                # 只有當使用者明確選了「非自動」的具體路徑時才覆蓋，否則 100% 採用 AI 推導的 Path
-                if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", "其他", ""]:
+                # 若推送目標手動選取了「特定 Section/其他」，強制以推送目標為準
+                if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", ""]:
                     final_push_path = override_path
                 else:
                     final_push_path = case.get("path") or "其他"
@@ -565,7 +590,7 @@ with tab2:
 
                     with head_col2:
                         st.markdown(f"**{case.get('title', '(未命名案例)')}**")
-                        st.caption(f"📍 預計寫入路徑：**{final_push_path}**")
+                        st.caption(f"📍 預計寫入 TestRail Section：**{final_push_path}**")
 
                     st.markdown("**Preconditions**")
                     for i, pc in enumerate(case.get("preconditions", []), 1):
@@ -579,7 +604,7 @@ with tab2:
 
                     if st.button(f"📤 單獨推送案例 #{idx+1}", key=f"push_single_{idx}"):
                         if not target_pid or not target_sid:
-                            st.warning("無法取得正確的 Project / Suite ID，請確認連线。")
+                            st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
                         else:
                             try:
                                 with st.spinner(f"正在寫入 TestRail（分類：{final_push_path}）..."):
@@ -602,7 +627,7 @@ with tab2:
                         for progress_idx, case_idx in enumerate(selected_indices, 1):
                             target_case = cases[case_idx]
                             
-                            if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", "其他", ""]:
+                            if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", ""]:
                                 final_path = override_path
                             else:
                                 final_path = target_case.get("path") or "其他"
