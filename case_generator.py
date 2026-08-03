@@ -191,11 +191,6 @@ def _configure_genai() -> None:
 
 
 def get_candidate_paths(env_type: str, text_content: str, available_paths: list = None) -> list:
-    """ 
-    取得可選路徑清單：
-    1. 優先使用從 TestRail API 抓取的清單
-    2. 否則依據 env_type (FE, GoGaming, GoMoney) 傳回完整的模組清單
-    """
     if available_paths and len(available_paths) > 0:
         return available_paths
 
@@ -229,29 +224,35 @@ def call_gemini_with_retry(prompt_data, max_retries=4):
                 raise CaseGenError(f"API 呼叫失敗：{err_msg}")
 
 
+# 🧠 1. 大綱層級加強：要求生成業務邏輯與異常規則
 def generate_test_outline(summary: str, description: str) -> str:
-    prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
+    prompt = f"""你是一位嚴謹的 Senior QA Lead。請分析以下 Jira 需求，列出完整的測試重點大綱。
+
+【強制覆蓋要求】：
+1. 嚴禁只列出 UI/介面佈局測試。
+2. 必須包含 **業務邏輯（Business Logic）**：例如金額限制、次數上限、狀態變更流轉、重複領取/操作防禦。
+3. 必須包含 **邊界與異常測試（Boundary & Negative Cases）**：例如無權限操作、重複送出、極值驗證、系統失敗時的回滾機制。
+4. 必須包含 **前後台數據一致性與資料庫/日誌（Data Integrity）**：例如前台異動後台狀態是否即時更新、操作日誌記錄。
+
+Jira 摘要：{summary}
+Jira 描述：{description}
+
+請輸出點條式大綱（每行一個重點，並在開頭標註 [UI/介面]、[業務邏輯]、[異常/邊界] 或 [數據/狀態]）："""
     return call_gemini_with_retry(prompt)
 
 
+# 🧠 2. 案例生成層級加強：強制深度邏輯步驟
 def generate_test_cases(
     summary: str,
     description: str,
     outline: str,
     env_type: str = "GoGaming",
     path_hint: str = None,
-    selected_path: str = None,  # 👈 使用者從 UI 手動選取的模組路徑
+    selected_path: str = None,
     available_paths: list = None,
 ) -> list:
-    """
-    生成測試案例：
-    若 selected_path (或 path_hint) 有指定明確路徑，AI 會強制套用該路徑；
-    否則提供系統模組清單供 AI 參考。
-    """
-    # 決定最終要套用的路徑名稱
     target_path = selected_path or path_hint
-    
-    # 判斷使用者是否傳入了有效的指定路徑
+
     has_custom_path = target_path and target_path not in [
         "🤖 [自動由 AI 判斷路徑]",
         "其他",
@@ -272,35 +273,37 @@ def generate_test_cases(
 {paths_str}
 2. steps 内 Step 1 的 content 請輸出：路徑：[選取的 path]"""
 
-    system_prompt = f"""你是一位資深 QA。請分析 Jira 需求與大綱，並將其轉換為 TestRail 測試案例 JSON Array。
+    system_prompt = f"""你是一位資深 QA 工程師。請根據 Jira 需求與大綱，生成深度、高質量的測試案例 JSON Array。
 
 【路徑與 Step 拆分關鍵指令】：
 {path_instruction}
 
-3. **Step 結構必須拆分為多個獨立的 Step 物件（至少 2~3 個 Step），嚴禁全部塞在 Step 1**：
+【測試邏輯深度要求（極度重要）】：
+1. **拒絕淺層 UI 案例**：不要只寫「點擊選單」、「欄位顯示」。必須涵蓋 **狀態變更、業務規則、限制觸發、邊界條件、異常覆蓋**。
+2. **Step 結構必須拆分為多個獨立物件 (2~4 個 Step)**：
    - **Step 1 (固定導航路徑)**：
      - content: "路徑：{display_path}"
      - expected: "成功進入 {display_path} 頁面。"
-   - **Step 2 (主要測試操作)**：
-     - content: 詳細的測試步驟與動作（例如點擊、輸入資料、選擇下拉選單）。
-     - expected: 對應步驟的操作反應或畫面變化。
-   - **Step 3 (可選：最終驗證/結果檢查)**：
-     - content: 檢查數據、系統提示或資料庫狀態。
-     - expected: 最終預期結果（若有錯誤提示用 Tips Red Error Message :）。
+   - **Step 2 (核心操作與條件建構)**：
+     - content: 具體操作（包含輸入特定數值、重複觸發、權限切換或條件組合）。
+     - expected: 頁面反應與前端即時校驗。
+   - **Step 3 (業務邏輯與狀態驗證)**：
+     - content: 觸發提交、發放、審核，或在另一端（前台/後台）檢查數據。
+     - expected: 驗證狀態碼、資料庫變更、次數扣減、金額計算，若有錯誤提示用 Tips Red Error Message :
 
 【案例結構規範】：
 - title: [模組]-情境 或 [動作]-目的
-- preconditions: 前置條件列表（不要包含任何序號前綴如 "1. "）
+- preconditions: 前置條件列表（不要包含任何序號前綴如 "1. "，需標明帳號權限或初始化數據）
 - steps: 包含多個 Step 物件的 List
 
 回傳格式（標準 JSON）：
 [
   {{
-    "title": "[优惠券管理]-新增优惠券类型选单验证",
+    "title": "[优惠券管理]-重复领取优惠券逻辑与限制校验",
     "path": "{display_path}",
     "preconditions": [
-      "登入後台管理系統。",
-      "具備優惠券管理權限。"
+      "玩家帳號已註冊且狀態為正常。",
+      "後台已配置限制每人僅可領取 1 次的優惠券。"
     ],
     "steps": [
       {{
@@ -308,12 +311,12 @@ def generate_test_cases(
         "expected": "成功進入優惠券管理頁面。"
       }},
       {{
-        "content": "點擊「新增優惠券」按鈕，並點開「優惠券類型」下拉選單。",
-        "expected": "下拉選單正確展開。"
+        "content": "使用玩家帳號第一次輸入優惠券代碼並點擊「領取」。",
+        "expected": "領取成功，優惠券狀態更新為「已使用」，玩家錢包增加對應紅利。"
       }},
       {{
-        "content": "檢查下拉選單選項內容。",
-        "expected": "正確包含並顯示「BW現金券」、「Freespin」、「Freechip」選項。"
+        "content": "再次輸入相同優惠券代碼並試圖二次領取。",
+        "expected": "系統阻擋領取，並彈出提示 Tips Red Error Message : 该优惠券已使用，请勿重复领取，且錢包餘額與數據無異常變動。"
       }}
     ]
   }}
@@ -330,27 +333,25 @@ def generate_test_cases(
 
     try:
         cases = json.loads(cleaned_text)
-        
+
         # 後處理：1. 強制校正 path 2. 校正 Step 1 內文 3. 清理 preconditions 前綴數字
         for case in cases:
             if has_custom_path:
                 case["path"] = target_path
             elif not case.get("path") or case.get("path") == "其他":
                 case["path"] = candidate_paths[0] if candidate_paths else "GoGaming > 营销推广 > 优惠券管理"
-            
-            # 修正 Step 1 路徑內文
+
             steps = case.get("steps", [])
             if steps and isinstance(steps, list):
                 first_step = steps[0]
                 content = first_step.get("content", "")
-                
+
                 if "路徑：" in content or "路徑:" in content:
                     new_content = re.sub(r".*?路徑[:：].*?(\n|$)", f"路徑：{case['path']}\n", content)
                     first_step["content"] = new_content.strip()
                 else:
                     first_step["content"] = f"路徑：{case['path']}\n" + content
 
-            # 清理 Preconditions 原本帶有的數字前綴
             preconds = case.get("preconditions", [])
             if isinstance(preconds, list):
                 case["preconditions"] = [re.sub(r"^\d+[\.\s]*", "", str(p).strip()) for p in preconds]
