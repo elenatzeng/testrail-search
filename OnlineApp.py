@@ -2,7 +2,7 @@ import re
 import streamlit as st
 
 from auth_whitelist import is_authorized
-from case_generator import CaseGenError, generate_test_cases, generate_test_outline
+from case_generator import CaseGenError, generate_test_cases, generate_test_outline, SYSTEM_PATHS
 from jira_client import JiraError, extract_issue_summary, fetch_issue
 from keywords import SEARCH_DICTIONARY
 from style import apply_custom_style
@@ -235,7 +235,7 @@ with tab2:
                 placeholder="https://yourteam.atlassian.net"
             )
             jira_email = st.text_input("Jira 帳號 Email", value=get_val("jira_email") or user_email)
-            
+
             default_token = st.secrets.get("JIRA_API_TOKEN", "") if hasattr(st, "secrets") else ""
             jira_token = st.text_input(
                 "Jira API Token",
@@ -287,11 +287,11 @@ with tab2:
             st.session_state["test_outline"] = outline_text
 
             st.markdown("---")
-            st.markdown("### 🌐 前後台與系統模組提示")
-            system_scope_hint = st.text_input(
-                "請說明當前測試目標屬於前台還是後台？（例：後台管理系統 / 前台會員中心 / API 接口）",
-                placeholder="例如：後台管理系統 > 營銷推廣 > 優惠券管理",
-                help="協助 AI 判斷步驟內容屬於管理員操作還是前台玩家操作"
+            st.markdown("### 🌐 系統端選擇")
+            env_type = st.selectbox(
+                "這個需求單屬於哪個系統端？",
+                options=list(SYSTEM_PATHS.keys()),
+                help="AI 只會從這個系統端底下的路徑清單挑選 path，選錯會導致案例被歸到「其他」或錯誤分類。"
             )
 
             st.markdown("---")
@@ -421,15 +421,15 @@ with tab2:
                     selected_path_hint = st.text_input("路徑（格式：父層 > 子層）", placeholder="轉帳 > 充值")
 
             st.markdown("---")
-            
+
             col_prev, col_main_btn, col_next = st.columns([1.5, 7, 1.5], vertical_alignment="center")
             curr_idx = st.session_state.get("current_page_idx", 0)
-            
+
             with col_prev:
                 if st.button("⬅️ 上一頁", disabled=(curr_idx <= 1)):
                     st.session_state["current_page_idx"] = curr_idx - 1
                     st.rerun()
-                    
+
             with col_next:
                 if st.button("➡️ 下一頁", disabled=(curr_idx >= len(page_options) - 1 or curr_idx == 0)):
                     st.session_state["current_page_idx"] = curr_idx + 1
@@ -440,22 +440,19 @@ with tab2:
                     try:
                         with st.spinner("AI 正在產生測試案例..."):
                             s = st.session_state["jira_summary"]
-                            
-                            combined_outline = active_outline
-                            if system_scope_hint:
-                                combined_outline = f"【系統與前後台範圍：{system_scope_hint}】\n" + active_outline
 
                             cases = generate_test_cases(
                                 s['summary'],
                                 s['description'],
-                                combined_outline,
+                                active_outline,
+                                env_type=env_type,
                                 path_hint=selected_path_hint,
                             )
                             st.session_state["generated_cases"] = cases
                             st.session_state["target_pid_final"] = target_pid
                             st.session_state["target_sid_final"] = target_sid
                             st.session_state["selected_path_hint"] = selected_path_hint
-                            
+
                             # 💡 每次新產生案例時，清除之前的全選與個案勾選紀錄
                             st.session_state["select_all_cases"] = False
                             for k in list(st.session_state.keys()):
