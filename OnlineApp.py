@@ -355,6 +355,7 @@ with tab2:
             target_pid, target_sid = None, None
             selected_path_hint = None
             existing_paths = []
+            proj_name = "GoGaming"
 
             # 💡 自動備援憑證機制
             active_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
@@ -412,7 +413,7 @@ with tab2:
                             "📂 選擇測試案例存放路徑 (Section)",
                             options=path_options,
                             index=0,
-                            help="若選擇「🤖 [自動由 AI 判斷路徑]」，AI 會自動將案例分類至分析出來的目錄階層中。"
+                            help="若選擇「🤖 [自動由 AI 判斷路徑]」，AI 會自動將案例分類至最佳目錄階層中。"
                         )
 
                         if chosen_option == "✍️ [手動輸入新路徑...]":
@@ -462,6 +463,7 @@ with tab2:
                                 s['summary'],
                                 s['description'],
                                 active_outline,
+                                env_type=proj_name,  # 帶入正確的系統環境名稱
                                 path_hint=selected_path_hint,
                                 available_paths=existing_paths
                             )
@@ -508,7 +510,6 @@ with tab2:
                 if not (final_tr_url and final_tr_user and final_tr_pw):
                     raise TestRailWriteError("未找到有效的 TestRail 連線憑證（請在側邊欄填寫或設定 Secrets）。")
 
-                # 強制刷新並對齊最新的 Section 路徑資訊
                 cache_key = f"push_path_map_{target_pid}_{target_sid}"
                 target_path_map = fetch_sections(
                     final_tr_url, final_tr_user, final_tr_pw, target_pid, target_sid
@@ -541,7 +542,7 @@ with tab2:
             selected_indices = []
 
             for idx, case in enumerate(cases):
-                # 💡 修復重點：只有使用者「明確指定路徑」時才強制覆蓋，否則 100% 採用 AI 產生的精準 Path
+                # 只有當使用者明確選了「非自動」的具體路徑時才覆蓋，否則 100% 採用 AI 推導的 Path
                 if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", "其他", ""]:
                     final_push_path = override_path
                 else:
@@ -578,7 +579,7 @@ with tab2:
 
                     if st.button(f"📤 單獨推送案例 #{idx+1}", key=f"push_single_{idx}"):
                         if not target_pid or not target_sid:
-                            st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
+                            st.warning("無法取得正確的 Project / Suite ID，請確認連线。")
                         else:
                             try:
                                 with st.spinner(f"正在寫入 TestRail（分類：{final_push_path}）..."):
@@ -601,7 +602,6 @@ with tab2:
                         for progress_idx, case_idx in enumerate(selected_indices, 1):
                             target_case = cases[case_idx]
                             
-                            # 動態對齊該案例的路徑
                             if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", "其他", ""]:
                                 final_path = override_path
                             else:
