@@ -246,7 +246,6 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
     combined_text = f"{summary} {description} {outline} {path_hint or ''}"
     filtered_tree = filter_relevant_paths(env_type, combined_text)
 
-    # 嚴格要求排版與換行規範
     system_prompt = f"""你是一位資深 QA。請將需求轉換為 TestRail 測試案例 JSON Array。
 
 規範：
@@ -254,24 +253,22 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
 {filtered_tree}
 
 2. title: [模組]-情境 或 [動作]-目的
-3. steps:
-   - content 格式（【極度重要】每一項子項目 • 必須強制獨立換行，絕對不可與主要步驟擠在同一行）：
-     1. 路徑：[選取的 path]
-     2. [動作/步驟]
-        • [子項目1]
-        • [子項目2]
-   - expected: 預期結果，若有細項或錯誤提示，同樣每一點（如 1., 2. 或 •）都必須強制換行。
+3. preconditions: 陣列字串，格式為純說明（不可帶 1. 2. 等數字頭），例如 ["账号已登录且具备权限。"]
+4. steps:
+   - content 格式（每點必須換行 \\n）：
+     1. 路徑：[選取的 path]\\n2. [主要步驟名稱]\\n   • [子情境1]\\n   • [子情境2]
+   - expected: 預期結果，若有多點同樣使用 \\n 換行。
 
-回傳格式範例（嚴格遵守 \\n 換行）：
+回傳格式（標準 JSON）：
 [
   {{
-    "title": "创建优惠券 - 选择BW现金券校验",
+    "title": "优惠券管理 - 创建BW现金券类型与栏位校验",
     "path": "GoGaming > 营销推广 > 优惠券管理",
-    "preconditions": ["1. 账号已登录且具备优惠券管理与审核权限。"],
+    "preconditions": ["账号已登录且具备优惠券管理与审核权限。"],
     "steps": [
       {{
-        "content": "1. 路徑：GoGaming > 营销推广 > 优惠券管理\\n2. 点击“创建优惠券”，选择类型“BW现金券”\\n   • 校验必填栏位与动态选项（币种、金额、提款倍数）\\n   • 校验游戏排除/指定",
-        "expected": "1. 显示必填校验提示\\n2. 动态选项正确显示"
+        "content": "1. 路徑：GoGaming > 营销推广 > 优惠券管理\\n2. 点击“创建优惠券”，选择类型“BW现金券”\\n   • 校验必填栏位与动态选项\\n3. 必填栏位留空提交",
+        "expected": "Tips Red Error Message :\\n• CN : 请填写必填项。"
       }}
     ]
   }}
@@ -289,14 +286,29 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
     try:
         cases = json.loads(cleaned_text)
         
-        # 【後處理防護機制】：透過 Python 程式強制修復未換行的子項目
+        # --- Python 強制後處理防護機制 ---
         for case in cases:
+            # 1. 移除 Preconditions 中重複的數字開頭（如 "1. "）
+            if "preconditions" in case and isinstance(case["preconditions"], list):
+                case["preconditions"] = [
+                    re.sub(r"^\s*\d+[\.\s\-]+", "", pre) for pre in case["preconditions"]
+                ]
+
+            # 2. 強制修復 steps 中的內容換行（解決 • 被擠在同行的問題）
             for step in case.get("steps", []):
                 if "content" in step and step["content"]:
-                    # 如果文字中包含子項目點號「•」，但前面不是換行字元 \n，強制插入 \n
-                    step["content"] = re.sub(r"([^\n])\s*•\s*", r"\1\n   • ", step["content"])
+                    text = step["content"]
+                    # 只要符號 (• 或 ·) 前面不是 \n，一律強制換行 + 空格縮排
+                    text = re.sub(r"([^\n])\s*[•·]\s*", r"\1\n   • ", text)
+                    # 確保步驟數字 (如 "2. ") 也是獨立換行
+                    text = re.sub(r"([^\n])\s*(\d+\.\s+)", r"\1\n\2", text)
+                    step["content"] = text
+
                 if "expected" in step and step["expected"]:
-                    step["expected"] = re.sub(r"([^\n])\s*•\s*", r"\1\n• ", step["expected"])
+                    text = step["expected"]
+                    text = re.sub(r"([^\n])\s*[•·]\s*", r"\1\n• ", text)
+                    text = re.sub(r"([^\n])\s*(\d+\.\s+)", r"\1\n\2", text)
+                    step["expected"] = text
                     
         return cases
     except json.JSONDecodeError:
