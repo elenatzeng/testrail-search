@@ -172,10 +172,6 @@ SYSTEM_PATHS = {
     ],
 }
 
-# 2026/07 現況：gemini-2.0-flash 已於 2026/6/1 正式關閉下架，呼叫會直接失敗。
-# 目前可用的正式版 Flash 模型是 gemini-3.6-flash（比 3.5 便宜、輸出更精簡）。
-# Google 汰換模型名稱很頻繁，之後若又收到「模型不存在/no longer available」的錯誤，
-# 去 https://ai.google.dev/gemini-api/docs/models 查目前可用的模型 ID 換掉這裡即可。
 GEMINI_MODEL_NAME = "gemini-3.6-flash"
 
 
@@ -184,12 +180,6 @@ class CaseGenError(Exception):
 
 
 def _configure_genai() -> None:
-    """
-    明確設定 API Key，不要依賴 SDK 自動去讀環境變數。
-    google.generativeai 預設只會找 GOOGLE_API_KEY 這個環境變數名稱，
-    如果 Streamlit secrets 裡設定的是 GEMINI_API_KEY，SDK 不會自動抓到，
-    這裡統一從 GEMINI_API_KEY（相容 GOOGLE_API_KEY）讀取，並明確呼叫 configure()。
-    """
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     if not key:
         try:
@@ -205,33 +195,25 @@ def _configure_genai() -> None:
 
 
 def filter_relevant_paths(env_type: str, text_content: str) -> str:
-    """ Python 端迴圈尋找：根據需求關鍵字，只過濾出相關的目錄 """
     all_paths = SYSTEM_PATHS.get(env_type, [])
     if not all_paths:
-        # 若找不到指定端，自動合併全量目錄
         all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
 
     matched_paths = []
-    # 提取需求文案中的所有字詞做關鍵字匹配
     for path in all_paths:
-        # 將路徑拆解成小節，如 ["前台", "首页", "我的钱包", "提现"]
         segments = [seg.strip() for seg in path.split(">")]
-        # 如果路徑最後幾層關鍵字（如：提现、充值、VIP）有出現在需求文案中
         for seg in segments[1:]:
             if len(seg) >= 2 and seg.lower() in text_content.lower():
                 matched_paths.append(path)
                 break
 
-    # 如果關鍵字比對不到（例如寫得太抽象），就回傳該端的所有目錄備用
     if not matched_paths:
         matched_paths = all_paths
 
-    # 組合成條列式字串
     return "\n".join([f"- {p}" for p in matched_paths])
 
 
 def call_gemini_with_retry(prompt_data, max_retries=4):
-    """呼叫 Gemini API 封裝（自動重試）"""
     _configure_genai()
     model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
@@ -249,27 +231,22 @@ def call_gemini_with_retry(prompt_data, max_retries=4):
                     raise CaseGenError("API 請求過於頻繁（已達免費額度），請等待約 20 秒後再試。")
             elif "404" in err_msg or "not found" in err_msg.lower() or "no longer available" in err_msg.lower():
                 raise CaseGenError(
-                    f"模型「{GEMINI_MODEL_NAME}」已不可用（Google 經常汰換模型名稱）。"
-                    f"請到 https://ai.google.dev/gemini-api/docs/models 查目前可用的模型 ID，"
-                    f"更新 case_generator.py 裡的 GEMINI_MODEL_NAME 常數即可。\n原始錯誤：{err_msg[:300]}"
+                    f"模型「{GEMINI_MODEL_NAME}」已不可用。請更換 GEMINI_MODEL_NAME 常數。\n原始錯誤：{err_msg[:300]}"
                 )
             else:
                 raise CaseGenError(f"API 呼叫失敗：{err_msg}")
 
 
 def generate_test_outline(summary: str, description: str) -> str:
-    """產生測試大綱（極簡 Prompt）"""
     prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
     return call_gemini_with_retry(prompt)
 
 
 def generate_test_cases(summary: str, description: str, outline: str, env_type: str = "GoGaming", path_hint: str = None) -> list:
-    """產生測試案例（使用 Python 迴圈過濾後的精準目錄）"""
-    # 1. 在 Python 端做關鍵字過濾，只取出相關目錄（極大節省 Token）
     combined_text = f"{summary} {description} {outline} {path_hint or ''}"
     filtered_tree = filter_relevant_paths(env_type, combined_text)
 
-    # 2. 超極簡 Prompt
+    # 嚴格要求排版與換行規範
     system_prompt = f"""你是一位資深 QA。請將需求轉換為 TestRail 測試案例 JSON Array。
 
 規範：
@@ -278,22 +255,23 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
 
 2. title: [模組]-情境 或 [動作]-目的
 3. steps:
-   - content 格式：
+   - content 格式（【極度重要】每一項子項目 • 必須強制獨立換行，絕對不可與主要步驟擠在同一行）：
      1. 路徑：[選取的 path]
      2. [動作/步驟]
-     • [具體測試情境]
-   - expected: 預期結果，若有錯誤提示用 Tips Red Error Message :
+        • [子項目1]
+        • [子項目2]
+   - expected: 預期結果，若有細項或錯誤提示，同樣每一點（如 1., 2. 或 •）都必須強制換行。
 
-回傳格式（標準 JSON）：
+回傳格式範例（嚴格遵守 \\n 換行）：
 [
   {{
-    "title": "提现信息 - 请输入金额",
-    "path": "前台 > 首页 > 我的钱包 > 钱包总览 > 提现",
-    "preconditions": ["1. 帳號已登入且具備權限。"],
+    "title": "创建优惠券 - 选择BW现金券校验",
+    "path": "GoGaming > 营销推广 > 优惠券管理",
+    "preconditions": ["1. 账号已登录且具备优惠券管理与审核权限。"],
     "steps": [
       {{
-        "content": "1. 路徑：前台 > 首页 > 我的钱包 > 钱包总览 > 提现\\n2. 输入金额\\n   • 输入超出范围数字",
-        "expected": "Tips Red Error Message :\\n• CN : 提现金额必须介于 n - m 之间。"
+        "content": "1. 路徑：GoGaming > 营销推广 > 优惠券管理\\n2. 点击“创建优惠券”，选择类型“BW现金券”\\n   • 校验必填栏位与动态选项（币种、金额、提款倍数）\\n   • 校验游戏排除/指定",
+        "expected": "1. 显示必填校验提示\\n2. 动态选项正确显示"
       }}
     ]
   }}
@@ -309,6 +287,17 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
     cleaned_text = re.sub(r"^```\s*", "", cleaned_text, flags=re.MULTILINE).strip()
 
     try:
-        return json.loads(cleaned_text)
+        cases = json.loads(cleaned_text)
+        
+        # 【後處理防護機制】：透過 Python 程式強制修復未換行的子項目
+        for case in cases:
+            for step in case.get("steps", []):
+                if "content" in step and step["content"]:
+                    # 如果文字中包含子項目點號「•」，但前面不是換行字元 \n，強制插入 \n
+                    step["content"] = re.sub(r"([^\n])\s*•\s*", r"\1\n   • ", step["content"])
+                if "expected" in step and step["expected"]:
+                    step["expected"] = re.sub(r"([^\n])\s*•\s*", r"\1\n• ", step["expected"])
+                    
+        return cases
     except json.JSONDecodeError:
         raise CaseGenError("AI 回傳格式非有效 JSON，請再試一次。")
