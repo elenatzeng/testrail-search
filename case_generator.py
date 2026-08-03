@@ -46,7 +46,7 @@ def call_gemini_with_retry(prompt_input, max_retries=3, delay=5):
 
 def get_candidate_paths(env_type: str, query_text: str, available_paths: list = None) -> list:
     """計算並排序最合適的系統路徑"""
-    paths_to_check = available_paths if available_paths else SYSTEM_PATHS.get(env_type, SYSTEM_PATHS["GoGaming"])
+    paths_to_check = available_paths if available_paths else SYSTEM_PATHS.get(env_type, SYSTEM_PATHS.get("GoGaming", ["其他"]))
     
     scored_paths = []
     q_words = [w.lower() for w in re.split(r"[\s>_/,\.-]+", query_text) if w]
@@ -113,10 +113,30 @@ def generate_test_cases(
 3. **Step 拆分**：必須拆為 2~3 個獨立 Step 物件（Step 1: 進入路徑; Step 2: 操作與輸入; Step 3: 邏輯驗證與預期結果）。
 4. Preconditions 不要包含序號（如 1. ）。
 
-JSON 範例：
+------------------------------------------------------------------
+【🚨 測試案例標題 (title) 嚴格命名規範 - 違反將影響品質】
+
+1. 🚫 絕不寫前綴路徑與分類標籤：
+   - 嚴禁出現 `[营销推广]`, `[优惠券]`, `[UI]` 等任何前綴標籤！標題必須保持純淨，因為 TestRail 已經有 Section 分類。
+
+2. 🚫 絕不使用 Bug 單與學術冗字：
+   - 嚴禁出現「驗證」、「測試」、「檢查」、「機制」、「...測試案例」等冗字。
+
+3. 🎯 淺顯直覺命名（請依 Jira 提供之資訊彈性組合，有什麼寫什麼，切勿憑空捏造）：
+   - 【畫面欄位/區塊】`[區塊/頁籤] - [欄位或功能點]`
+     ・Jira 有中英文：`账号列表 - 角色 / Role`
+     ・Jira 只有中文：`账号列表 - 角色`
+   - 【動作與按鈕】`点击[按鈕/動作] - [預期結果/送出行為]`
+     ・範例：`点击[确认] - 送出充值单`
+   - 【條件與提示】`[區塊/欄位] - [說明]([提示文案或情境])`
+     ・有給文案：`存款人真实姓名(未完成KYC认证)` 或 `金額輸入 - 提示[金額不可為空]`
+     ・無詳細文案：`金額欄位 - 異常輸入`
+------------------------------------------------------------------
+
+JSON 範例（標題切勿寫成 [模組]-情境）：
 [
   {{
-    "title": "[模組]-情境或邏輯驗證",
+    "title": "充值信息 - 选择红利",
     "path": "{display_path}",
     "preconditions": ["前置條件描述"],
     "steps": [
