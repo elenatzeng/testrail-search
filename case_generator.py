@@ -1,9 +1,12 @@
 import json
+import os
 import re
 import time
+
 import google.generativeai as genai
 
 # --- 將所有目錄精細拆分為列表，方便程式做迴圈尋找 ---
+
 SYSTEM_PATHS = {
     "FE": [
         "前台 > 首页 > 我的钱包 > 钱包总览 > 充值",
@@ -35,7 +38,7 @@ SYSTEM_PATHS = {
         "前台 > 侧栏功能 > 游戏",
         "前台 > 侧栏功能 > 在线客服",
         "前台 > 侧栏功能 > 语言",
-        "前台 > 侧栏功能 > 日夜间版"
+        "前台 > 侧栏功能 > 日夜间版",
     ],
     "GoGaming": [
         "GoGaming > 仪表盘",
@@ -118,7 +121,7 @@ SYSTEM_PATHS = {
         "GoGaming > 实用工具 > 數據導出",
         "GoGaming > 实用工具 > 報告查看",
         "GoGaming > 实用工具 > 離線下載",
-        "GoGaming > 实用工具 > NGR報表"
+        "GoGaming > 实用工具 > NGR報表",
     ],
     "GoMoney": [
         "GoMoney > 首页",
@@ -165,12 +168,41 @@ SYSTEM_PATHS = {
         "GoMoney > 系统管理 > 组织管理",
         "GoMoney > 系统管理 > 操作日志",
         "GoMoney > 系统管理 > 商户IP白名单",
-        "GoMoney > 实用工具 > 报告查看"
-    ]
+        "GoMoney > 实用工具 > 报告查看",
+    ],
 }
+
+# 2026/07 現況：gemini-2.0-flash 已於 2026/6/1 正式關閉下架，呼叫會直接失敗。
+# 目前可用的正式版 Flash 模型是 gemini-3.6-flash（比 3.5 便宜、輸出更精簡）。
+# Google 汰換模型名稱很頻繁，之後若又收到「模型不存在/no longer available」的錯誤，
+# 去 https://ai.google.dev/gemini-api/docs/models 查目前可用的模型 ID 換掉這裡即可。
+GEMINI_MODEL_NAME = "gemini-3.6-flash"
+
 
 class CaseGenError(Exception):
     pass
+
+
+def _configure_genai() -> None:
+    """
+    明確設定 API Key，不要依賴 SDK 自動去讀環境變數。
+    google.generativeai 預設只會找 GOOGLE_API_KEY 這個環境變數名稱，
+    如果 Streamlit secrets 裡設定的是 GEMINI_API_KEY，SDK 不會自動抓到，
+    這裡統一從 GEMINI_API_KEY（相容 GOOGLE_API_KEY）讀取，並明確呼叫 configure()。
+    """
+    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
+    if not key:
+        try:
+            import streamlit as st
+            key = st.secrets.get("GEMINI_API_KEY", "") or st.secrets.get("GOOGLE_API_KEY", "")
+        except Exception:
+            pass
+    if not key:
+        raise CaseGenError(
+            "找不到 GEMINI_API_KEY，請在 .streamlit/secrets.toml 或環境變數中設定。"
+        )
+    genai.configure(api_key=key)
+
 
 def filter_relevant_paths(env_type: str, text_content: str) -> str:
     """ Python 端迴圈尋找：根據需求關鍵字，只過濾出相關的目錄 """
@@ -197,32 +229,42 @@ def filter_relevant_paths(env_type: str, text_content: str) -> str:
     # 組合成條列式字串
     return "\n".join([f"- {p}" for p in matched_paths])
 
+
 def call_gemini_with_retry(prompt_data, max_retries=4):
     """呼叫 Gemini API 封裝（自動重試）"""
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    _configure_genai()
+    model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+
     for attempt in range(max_retries):
         try:
             response = model.generate_content(prompt_data)
             return response.text.strip()
         except Exception as e:
             err_msg = str(e)
-            if "429" in err_msg or "quota" in err_msg.lower():
+            if "429" in err_msg or "quota" in err_msg.lower() or "resourceexhausted" in err_msg.lower().replace("_", ""):
                 if attempt < max_retries - 1:
                     time.sleep(4 * (attempt + 1))
                     continue
                 else:
                     raise CaseGenError("API 請求過於頻繁（已達免費額度），請等待約 20 秒後再試。")
+            elif "404" in err_msg or "not found" in err_msg.lower() or "no longer available" in err_msg.lower():
+                raise CaseGenError(
+                    f"模型「{GEMINI_MODEL_NAME}」已不可用（Google 經常汰換模型名稱）。"
+                    f"請到 https://ai.google.dev/gemini-api/docs/models 查目前可用的模型 ID，"
+                    f"更新 case_generator.py 裡的 GEMINI_MODEL_NAME 常數即可。\n原始錯誤：{err_msg[:300]}"
+                )
             else:
                 raise CaseGenError(f"API 呼叫失敗：{err_msg}")
+
 
 def generate_test_outline(summary: str, description: str) -> str:
     """產生測試大綱（極簡 Prompt）"""
     prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
     return call_gemini_with_retry(prompt)
 
+
 def generate_test_cases(summary: str, description: str, outline: str, env_type: str = "GoGaming", path_hint: str = None) -> list:
     """產生測試案例（使用 Python 迴圈過濾後的精準目錄）"""
-    
     # 1. 在 Python 端做關鍵字過濾，只取出相關目錄（極大節省 Token）
     combined_text = f"{summary} {description} {outline} {path_hint or ''}"
     filtered_tree = filter_relevant_paths(env_type, combined_text)
@@ -239,7 +281,7 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
    - content 格式：
      1. 路徑：[選取的 path]
      2. [動作/步驟]
-        • [具體測試情境]
+     • [具體測試情境]
    - expected: 預期結果，若有錯誤提示用 Tips Red Error Message :
 
 回傳格式（標準 JSON）：
