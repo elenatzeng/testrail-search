@@ -54,6 +54,17 @@ def get_val(key):
     return st.query_params.get(key, st.session_state.get(f"store_{key}", ""))
 
 
+def md_break(text) -> str:
+    """
+    Markdown 裡單一個 \\n 不會換行，一定要「兩個空白 + \\n」或空一行才會斷行。
+    AI 產生的 steps/preconditions 內容裡都是單一 \\n，直接丟給 st.markdown()
+    會全部擠成一行，這裡統一轉換一次再顯示。
+    """
+    if not text:
+        return ""
+    return str(text).replace("\n", "  \n")
+
+
 # 2. 側邊欄守護 (連線設定)
 with st.sidebar:
     st.header("🔐 連線設定")
@@ -535,13 +546,13 @@ with tab2:
 
                     st.markdown("**Preconditions**")
                     for i, pc in enumerate(case.get("preconditions", []), 1):
-                        st.markdown(f"{i}. {pc}")
+                        st.markdown(f"{i}. {md_break(pc)}")
 
                     st.markdown("**Steps**")
                     for s_idx, step in enumerate(case.get("steps", []), 1):
                         c1, c2 = st.columns(2)
-                        c1.markdown(f"**Step {s_idx}**\n\n{step.get('content', '')}")
-                        c2.markdown(f"**Expected**\n\n{step.get('expected', '')}")
+                        c1.markdown(f"**Step {s_idx}**\n\n{md_break(step.get('content', ''))}")
+                        c2.markdown(f"**Expected**\n\n{md_break(step.get('expected', ''))}")
 
                     if st.button(f"📤 單獨推送案例 #{idx+1}", key=f"push_single_{idx}"):
                         if not (tr_url and tr_user and tr_pw):
