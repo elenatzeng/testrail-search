@@ -526,7 +526,7 @@ with tab2:
                     on_change=on_select_all_change
                 )
 
-            # 🛠️ 推送至 TestRail 的核心函式
+            # 🛠️ 推送至 TestRail 的核心函式（修正 Preconditions 重複前綴）
             def push_case_to_tr(case_item, path_to_use):
                 final_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
                 final_tr_user = tr_user or st.secrets.get("TESTRAIL_USER", "")
@@ -548,10 +548,11 @@ with tab2:
 
                 preconds_raw = case_item.get("preconditions", [])
                 if isinstance(preconds_raw, list):
-                    preconds_str = "\n".join(
-                        f"{i}. {p}" if not str(p).startswith(f"{i}.") else str(p)
-                        for i, p in enumerate(preconds_raw, 1)
-                    )
+                    clean_preconds = []
+                    for i, p in enumerate(preconds_raw, 1):
+                        clean_p = re.sub(r"^\d+[\.\s]*", "", str(p).strip())  # 擦除 AI 帶有的 "1. "，避免重複為 1. 1.
+                        clean_preconds.append(f"{i}. {clean_p}")
+                    preconds_str = "\n".join(clean_preconds)
                 else:
                     preconds_str = str(preconds_raw or "")
 
@@ -594,7 +595,8 @@ with tab2:
 
                     st.markdown("**Preconditions**")
                     for i, pc in enumerate(case.get("preconditions", []), 1):
-                        st.markdown(f"{i}. {md_break(pc)}")
+                        clean_pc = re.sub(r"^\d+[\.\s]*", "", str(pc).strip())  # 修正 UI 渲染 1. 1. 重複數字
+                        st.markdown(f"{i}. {md_break(clean_pc)}")
 
                     st.markdown("**Steps**")
                     for s_idx, step in enumerate(case.get("steps", []), 1):
