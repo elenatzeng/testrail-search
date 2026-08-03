@@ -351,14 +351,14 @@ with tab2:
                 active_outline = "\n".join(selected_lines)
 
             # =================================================================
-            # 📌【獨立選擇區 1】測試案例內文壓入之模組路徑 (動態讀取 system_paths.py)
+            # 📌【獨立選擇區 1】測試案例內文壓入之模組路徑 (動態鉤稽 selected_env_type)
             # =================================================================
             st.markdown("---")
             st.markdown("### 📌 選擇測試案例內文壓入之模組路徑")
             
-            # 🔥 關鍵修正：動態讀取 system_paths.py 的所有 Key (例如 WEB, GoGaming, GoMoney 等)
             env_options = list(SYSTEM_PATHS.keys())
             col_env, col_module = st.columns(2)
+            
             with col_env:
                 selected_env_type = st.selectbox(
                     "系統環境", 
@@ -368,12 +368,15 @@ with tab2:
                 )
             
             with col_module:
-                module_path_list = ["🤖 [自動由 AI 判斷路徑]"] + SYSTEM_PATHS.get(selected_env_type, [])
+                # 🎯 關鍵鉤稽：根據目前選中的 selected_env_type 動態取得該環境對應的路徑
+                current_paths = SYSTEM_PATHS.get(selected_env_type, [])
+                module_path_list = ["🤖 [自動由 AI 判斷路徑]"] + current_paths
+                
                 user_selected_module_path = st.selectbox(
                     "選擇要壓入測試案例內文的路徑",
                     options=module_path_list,
                     index=0,
-                    key="gen_module_path_select",
+                    key=f"gen_module_path_select_{selected_env_type}",
                     help="選定後，AI 生成案例時 Step 1 的內文將會顯示此路徑。"
                 )
 
@@ -504,14 +507,14 @@ with tab2:
                             st.session_state["target_sid_final"] = target_sid
                             st.session_state["selected_path_hint"] = selected_path_hint
 
-                            st.session_state["select_all_cases"] = False
+                            # 清除之前的選取狀態
                             for k in list(st.session_state.keys()):
                                 if k.startswith("case_select_"):
                                     st.session_state.pop(k, None)
                     except Exception as e:
                         show_friendly_error(e, "產生測試案例時")
 
-        # --- Step 4: 顯示產生結果 + 全選/選擇性推送至 TestRail (內文預設摺疊) ---
+        # --- Step 4: 顯示產生結果 + 全選/選擇性推送至 TestRail (極速效能版) ---
         if "generated_cases" in st.session_state:
             st.markdown("### ✅ 產生結果與推送")
             cases = st.session_state["generated_cases"]
@@ -519,19 +522,20 @@ with tab2:
             target_sid = st.session_state.get("target_sid_final", target_sid)
             override_path = st.session_state.get("selected_path_hint")
 
-            def on_select_all_change():
-                new_status = st.session_state.get("select_all_cases", False)
-                for idx in range(len(cases)):
-                    st.session_state[f"case_select_{idx}"] = new_status
-
-            col_sel_all, col_batch_btn = st.columns([2, 3], vertical_alignment="center")
+            col_sel_all, col_desel_all, col_batch_btn = st.columns([1.5, 1.5, 4], vertical_alignment="center")
+            
+            # 🚀 快速全選邏輯：一次寫入 Session State 並重新渲染，零延遲
             with col_sel_all:
-                st.checkbox(
-                    "全選所有案例",
-                    value=st.session_state.get("select_all_cases", False),
-                    key="select_all_cases",
-                    on_change=on_select_all_change
-                )
+                if st.button("☑️ 全部勾選", key="btn_select_all", use_container_width=True):
+                    for idx in range(len(cases)):
+                        st.session_state[f"case_select_{idx}"] = True
+                    st.rerun()
+
+            with col_desel_all:
+                if st.button("⬜ 全部取消", key="btn_deselect_all", use_container_width=True):
+                    for idx in range(len(cases)):
+                        st.session_state[f"case_select_{idx}"] = False
+                    st.rerun()
 
             def push_case_to_tr(case_item, path_to_use):
                 final_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
@@ -539,7 +543,7 @@ with tab2:
                 final_tr_pw = tr_pw or st.secrets.get("TESTRAIL_API_KEY", "") or st.secrets.get("TESTRAIL_PASSWORD", "")
 
                 if not (final_tr_url and final_tr_user and final_tr_pw):
-                    raise TestRailWriteError("未找到有效的 TestRail 連線憑證（請在側邊欄填寫或設定 Secrets）。")
+                    raise TestRailWriteError("未找到有效的 TestRail 連線憑證。")
 
                 cache_key = f"push_path_map_{target_pid}_{target_sid}"
                 target_path_map = fetch_sections(
@@ -554,10 +558,7 @@ with tab2:
 
                 preconds_raw = case_item.get("preconditions", [])
                 if isinstance(preconds_raw, list):
-                    clean_preconds = []
-                    for i, p in enumerate(preconds_raw, 1):
-                        clean_p = re.sub(r"^\d+[\.\s]*", "", str(p).strip())
-                        clean_preconds.append(f"{i}. {clean_p}")
+                    clean_preconds = [f"{i}. {re.sub(r'^\d+[\.\s]*', '', str(p).strip())}" for i, p in enumerate(preconds_raw, 1)]
                     preconds_str = "\n".join(clean_preconds)
                 else:
                     preconds_str = str(preconds_raw or "")
@@ -573,6 +574,7 @@ with tab2:
 
             selected_indices = []
 
+            # 📌 渲染測試案例列表
             for idx, case in enumerate(cases):
                 if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", ""]:
                     final_push_path = override_path
@@ -580,15 +582,17 @@ with tab2:
                     final_push_path = case.get("path") or "其他"
 
                 case_key = f"case_select_{idx}"
+                # 確保 State 初始化
                 if case_key not in st.session_state:
                     st.session_state[case_key] = False
 
                 with st.container(border=True):
-                    # 📌 卡片頂部：只保留標題、預計 Section 與單獨推送按鈕
-                    head_col1, head_col2, head_col3 = st.columns([0.5, 7.5, 2], vertical_alignment="center")
+                    head_col1, head_col2, head_col3 = st.columns([0.6, 7.4, 2], vertical_alignment="center")
+                    
                     with head_col1:
                         is_selected = st.checkbox(
                             "",
+                            value=st.session_state[case_key],
                             key=case_key,
                             label_visibility="collapsed"
                         )
@@ -600,19 +604,18 @@ with tab2:
                         st.caption(f"📍 預計寫入 TestRail Section：**{final_push_path}**")
 
                     with head_col3:
-                        if st.button(f"📤 單獨推送", key=f"push_single_{idx}", use_container_width=True):
+                        if st.button("📤 單獨推送", key=f"push_single_{idx}", use_container_width=True):
                             if not target_pid or not target_sid:
                                 st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
                             else:
                                 try:
-                                    with st.spinner(f"正在寫入 TestRail（分類：{final_push_path}）..."):
+                                    with st.spinner(f"正在寫入 TestRail..."):
                                         res = push_case_to_tr(case, final_push_path)
                                     st.success(f"✅ 已成功建立案例 #{res.get('id')}！")
                                 except Exception as e:
                                     show_friendly_error(e, "推送測試案例至 TestRail 時")
 
-                    # 🙈 內文預設摺疊，點開才看得見步驟細節
-                    with st.expander("🔍 查看案例詳細步驟 (Preconditions & Steps)", expanded=False):
+                    with st.expander("🔍 查看案例詳細步驟", expanded=False):
                         st.markdown("**Preconditions**")
                         for i, pc in enumerate(case.get("preconditions", []), 1):
                             clean_pc = re.sub(r"^\d+[\.\s]*", "", str(pc).strip())
@@ -625,6 +628,7 @@ with tab2:
                             c1.markdown(f"**Step {s_idx}**\n\n{md_break(step.get('content', ''))}")
                             c2.markdown(f"**Expected**\n\n{md_break(step.get('expected', ''))}")
 
+            # 批次推送按鈕
             with col_batch_btn:
                 if st.button(f"🚀 批次推送已勾選案例 ({len(selected_indices)}/{len(cases)})", use_container_width=True):
                     if not target_pid or not target_sid:
