@@ -5,10 +5,8 @@ import time
 
 import google.generativeai as genai
 
-# --- 將所有目錄精細拆分為列表，方便程式做迴圈尋找 ---
-
 SYSTEM_PATHS = {
-    "WEB": [
+    "FE": [
         "前台 > 首页 > 我的钱包 > 钱包总览 > 充值",
         "前台 > 首页 > 我的钱包 > 钱包总览 > 提现",
         "前台 > 首页 > 我的钱包 > 钱包总览 > 劃轉",
@@ -172,10 +170,6 @@ SYSTEM_PATHS = {
     ],
 }
 
-# 2026/07 現況：gemini-2.0-flash 已於 2026/6/1 正式關閉下架，呼叫會直接失敗。
-# 目前可用的正式版 Flash 模型是 gemini-3.6-flash（比 3.5 便宜、輸出更精簡）。
-# Google 汰換模型名稱很頻繁，之後若又收到「模型不存在/no longer available」的錯誤，
-# 去 https://ai.google.dev/gemini-api/docs/models 查目前可用的模型 ID 換掉這裡即可。
 GEMINI_MODEL_NAME = "gemini-3.6-flash"
 
 
@@ -184,12 +178,6 @@ class CaseGenError(Exception):
 
 
 def _configure_genai() -> None:
-    """
-    明確設定 API Key，不要依賴 SDK 自動去讀環境變數。
-    google.generativeai 預設只會找 GOOGLE_API_KEY 這個環境變數名稱，
-    如果 Streamlit secrets 裡設定的是 GEMINI_API_KEY，SDK 不會自動抓到，
-    這裡統一從 GEMINI_API_KEY（相容 GOOGLE_API_KEY）讀取，並明確呼叫 configure()。
-    """
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     if not key:
         try:
@@ -204,34 +192,33 @@ def _configure_genai() -> None:
     genai.configure(api_key=key)
 
 
-def filter_relevant_paths(env_type: str, text_content: str) -> str:
-    """ Python 端迴圈尋找：根據需求關鍵字，只過濾出相關的目錄 """
-    all_paths = SYSTEM_PATHS.get(env_type, [])
-    if not all_paths:
-        # 若找不到指定端，自動合併全量目錄
-        all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
+def filter_relevant_paths(env_type: str, text_content: str, available_paths: list = None) -> str:
+    """
+    如果呼叫端有提供 available_paths（即時從 TestRail 抓回來的真實分類路徑），
+    優先使用這份清單；沒有提供才退回用 SYSTEM_PATHS[env_type] 這份備援清單。
+    """
+    if available_paths:
+        all_paths = available_paths
+    else:
+        all_paths = SYSTEM_PATHS.get(env_type, [])
+        if not all_paths:
+            all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
 
     matched_paths = []
-    # 提取需求文案中的所有字詞做關鍵字匹配
     for path in all_paths:
-        # 將路徑拆解成小節，如 ["前台", "首页", "我的钱包", "提现"]
         segments = [seg.strip() for seg in path.split(">")]
-        # 如果路徑最後幾層關鍵字（如：提现、充值、VIP）有出現在需求文案中
         for seg in segments[1:]:
             if len(seg) >= 2 and seg.lower() in text_content.lower():
                 matched_paths.append(path)
                 break
 
-    # 如果關鍵字比對不到（例如寫得太抽象），就回傳該端的所有目錄備用
     if not matched_paths:
         matched_paths = all_paths
 
-    # 組合成條列式字串
     return "\n".join([f"- {p}" for p in matched_paths])
 
 
 def call_gemini_with_retry(prompt_data, max_retries=4):
-    """呼叫 Gemini API 封裝（自動重試）"""
     _configure_genai()
     model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
@@ -258,18 +245,26 @@ def call_gemini_with_retry(prompt_data, max_retries=4):
 
 
 def generate_test_outline(summary: str, description: str) -> str:
-    """產生測試大綱（極簡 Prompt）"""
     prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
     return call_gemini_with_retry(prompt)
 
 
-def generate_test_cases(summary: str, description: str, outline: str, env_type: str = "GoGaming", path_hint: str = None) -> list:
-    """產生測試案例（使用 Python 迴圈過濾後的精準目錄）"""
-    # 1. 在 Python 端做關鍵字過濾，只取出相關目錄（極大節省 Token）
+def generate_test_cases(
+    summary: str,
+    description: str,
+    outline: str,
+    env_type: str = "GoGaming",
+    path_hint: str = None,
+    available_paths: list = None,
+) -> list:
+    """
+    available_paths：如果有提供（例如即時從 TestRail 抓回來的真實分類路徑），
+    會優先拿這份清單給 AI 挑選 path，比 env_type 對應的內建清單更準確、
+    也不需要手動維護。
+    """
     combined_text = f"{summary} {description} {outline} {path_hint or ''}"
-    filtered_tree = filter_relevant_paths(env_type, combined_text)
+    filtered_tree = filter_relevant_paths(env_type, combined_text, available_paths=available_paths)
 
-    # 2. 超極簡 Prompt
     system_prompt = f"""你是一位資深 QA。請將需求轉換為 TestRail 測試案例 JSON Array。
 
 規範：
