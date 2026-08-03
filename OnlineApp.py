@@ -351,21 +351,15 @@ with tab2:
                 active_outline = "\n".join(selected_lines)
 
             # =================================================================
-            # 📌【獨立選擇區 1】測試案例內文壓入之模組路徑
+            # 📌 改為動態讀取 SYSTEM_PATHS 的 key，這樣 system_paths.py 改名或新增 key 這裡就會同步變更！
             # =================================================================
-            st.markdown("---")
-            st.markdown("### 📌 選擇測試案例內文壓入之模組路徑")
-            col_env, col_module = st.columns(2)
+            env_options = list(SYSTEM_PATHS.keys())
             with col_env:
-                selected_env_type = st.selectbox("系統環境", options=["GoGaming", "FE", "GoMoney"], index=0, key="gen_env_type_select")
-            with col_module:
-                module_path_list = ["🤖 [自動由 AI 判斷路徑]"] + SYSTEM_PATHS.get(selected_env_type, [])
-                user_selected_module_path = st.selectbox(
-                    "選擇要壓入測試案例內文的路徑",
-                    options=module_path_list,
-                    index=0,
-                    key="gen_module_path_select",
-                    help="選定後，AI 生成案例時 Step 1 的內文將會顯示此路徑。"
+                selected_env_type = st.selectbox(
+                    "系統環境", 
+                    options=env_options, 
+                    index=0, 
+                    key="gen_env_type_select"
                 )
 
             # =================================================================
