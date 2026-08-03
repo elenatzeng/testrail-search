@@ -65,6 +65,17 @@ def md_break(text) -> str:
     return str(text).replace("\n", "  \n")
 
 
+def show_friendly_error(e: Exception, context: str = "這個步驟") -> None:
+    """
+    統一的錯誤顯示：不讓 Streamlit 跳出紅色 Traceback 畫面（那個對非工程背景的
+    使用者太嚇人），而是顯示一個清楚、可讀的訊息。技術細節收進可展開區塊，
+    需要回報問題時再展開複製即可。
+    """
+    st.error(f"⚠️ {context}發生了一點問題，可以再試一次；如果一直發生，麻煩把下面的詳細內容截圖給開發者。")
+    with st.expander("🔍 詳細錯誤內容（回報問題時可以複製這裡）", expanded=False):
+        st.code(f"{type(e).__name__}: {e}", language="text")
+
+
 # 2. 側邊欄守護 (連線設定)
 with st.sidebar:
     st.header("🔐 連線設定")
@@ -267,8 +278,8 @@ with tab2:
                         st.session_state["jira_summary"] = extract_issue_summary(issue_json)
                         st.session_state.pop("test_outline", None)
                         st.session_state.pop("generated_cases", None)
-                except JiraError as e:
-                    st.error(str(e))
+                except Exception as e:
+                    show_friendly_error(e, "讀取 Jira 需求單時")
 
         if "jira_summary" in st.session_state:
             s = st.session_state["jira_summary"]
@@ -283,8 +294,8 @@ with tab2:
                     with st.spinner("AI 正在分析需求並整理測試重點..."):
                         outline = generate_test_outline(s['summary'], s['description'])
                         st.session_state["test_outline"] = outline
-                except CaseGenError as e:
-                    st.error(str(e))
+                except Exception as e:
+                    show_friendly_error(e, "產生測試大綱時")
 
         # --- Step 3: 確認/編輯大綱 + 分頁生成設定 + 選擇 TestRail 推送目標 ---
         if "test_outline" in st.session_state:
@@ -354,8 +365,8 @@ with tab2:
                 if "tr_projects" not in st.session_state:
                     try:
                         st.session_state["tr_projects"] = list_projects(tr_url, tr_user, tr_pw)
-                    except (TestRailWriteError, NameError) as e:
-                        st.session_state["tr_projects_error"] = str(e)
+                    except Exception as e:
+                        st.session_state["tr_projects_error"] = f"{type(e).__name__}: {e}"
 
                 if st.session_state.get("tr_projects"):
                     proj_map = {p["name"]: p["id"] for p in st.session_state["tr_projects"]}
@@ -369,8 +380,8 @@ with tab2:
                     if suite_cache_key not in st.session_state:
                         try:
                             st.session_state[suite_cache_key] = list_suites(tr_url, tr_user, tr_pw, target_pid)
-                        except (TestRailWriteError, NameError) as e:
-                            st.error(str(e))
+                        except Exception as e:
+                            show_friendly_error(e, "讀取 Suite 清單時")
                             st.session_state[suite_cache_key] = []
 
                     with col_s:
@@ -462,8 +473,8 @@ with tab2:
                             for k in list(st.session_state.keys()):
                                 if k.startswith("case_select_"):
                                     st.session_state.pop(k, None)
-                    except CaseGenError as e:
-                        st.error(str(e))
+                    except Exception as e:
+                        show_friendly_error(e, "產生測試案例時")
 
         # --- Step 4: 顯示產生結果 + 全選/選擇性推送至 TestRail ---
         if "generated_cases" in st.session_state:
@@ -564,8 +575,8 @@ with tab2:
                                 with st.spinner(f"正在寫入 TestRail（分類：{final_push_path}）..."):
                                     res = push_case_to_tr(case, final_push_path)
                                 st.success(f"✅ 已成功建立測試案例 #{res.get('id')}！")
-                            except (TestRailWriteError, NameError) as e:
-                                st.error(str(e))
+                            except Exception as e:
+                                show_friendly_error(e, "推送測試案例至 TestRail 時")
 
             with col_batch_btn:
                 if st.button(f"🚀 批次推送已勾選案例 ({len(selected_indices)}/{len(cases)})", use_container_width=True):
