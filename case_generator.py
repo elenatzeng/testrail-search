@@ -5,7 +5,7 @@ import time
 
 import google.generativeai as genai
 
-# --- 按環境拆分的功能目錄清單 ---
+# --- 按環境拆分的功能目錄清單 (Python 端關鍵字過濾用) ---
 
 SYSTEM_PATHS = {
     "Web": [
@@ -172,7 +172,9 @@ SYSTEM_PATHS = {
     ],
 }
 
-GEMINI_MODEL_NAME = "gemini-2.0-flash"
+# 現行主要 Gemini 模型名稱
+PRIMARY_MODEL = "gemini-2.5-flash"
+FALLBACK_MODEL = "gemini-1.5-flash"
 
 
 class CaseGenError(Exception):
@@ -195,7 +197,7 @@ def _configure_genai() -> None:
 
 
 def filter_relevant_paths(env_type: str, text_content: str) -> str:
-    """ Python 端迴圈搜尋：根據需求關鍵字篩選對應路徑 """
+    """ Python 端關鍵字匹配：僅傳送與需求相關的目錄，大幅節省 Prompt Token """
     all_paths = SYSTEM_PATHS.get(env_type, [])
     if not all_paths:
         all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
@@ -214,29 +216,33 @@ def filter_relevant_paths(env_type: str, text_content: str) -> str:
     return "\n".join([f"- {p}" for p in matched_paths])
 
 
-def call_gemini_with_retry(prompt_data, max_retries=4):
-    """ 呼叫 Gemini API 封裝（退避重試） """
+def call_gemini_with_retry(prompt_data, max_retries=3):
+    """ 具備 429 限流重試與多模型自動備援 (Fallback) 的 API 發射器 """
     _configure_genai()
-    model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+    models_to_try = [PRIMARY_MODEL, FALLBACK_MODEL]
 
-    for attempt in range(max_retries):
-        try:
-            response = model.generate_content(prompt_data)
-            return response.text.strip()
-        except Exception as e:
-            err_msg = str(e)
-            if "429" in err_msg or "quota" in err_msg.lower() or "resourceexhausted" in err_msg.lower().replace("_", ""):
-                if attempt < max_retries - 1:
-                    time.sleep(4 * (attempt + 1))
-                    continue
+    for model_name in models_to_try:
+        model = genai.GenerativeModel(model_name)
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_content(prompt_data)
+                return response.text.strip()
+            except Exception as e:
+                err_msg = str(e)
+                # 處理 429 頻率限制
+                if "429" in err_msg or "quota" in err_msg.lower() or "resourceexhausted" in err_msg.lower().replace("_", ""):
+                    if attempt < max_retries - 1:
+                        time.sleep(5 * (attempt + 1))
+                        continue
+                # 若是模型不存在或過期 (404 / NOT_FOUND)，跳出 retry 切換備援模型
+                elif "404" in err_msg or "not found" in err_msg.lower():
+                    break
                 else:
-                    raise CaseGenError("API 請求過於頻繁（已達免費額度），請等待約 20 秒後再試。")
-            elif "404" in err_msg or "not found" in err_msg.lower() or "no longer available" in err_msg.lower():
-                raise CaseGenError(
-                    f"模型「{GEMINI_MODEL_NAME}」已不可用，請更換 GEMINI_MODEL_NAME 常數。\n原始錯誤：{err_msg[:300]}"
-                )
-            else:
-                raise CaseGenError(f"API 呼叫失敗：{err_msg}")
+                    if attempt == max_retries - 1:
+                        break
+                    time.sleep(2)
+
+    raise CaseGenError("Gemini API 請求失敗，可能是觸發每分鐘用量上限 (429)，請等待 20 秒後再試。")
 
 
 def generate_test_outline(summary: str, description: str) -> str:
@@ -245,11 +251,10 @@ def generate_test_outline(summary: str, description: str) -> str:
 
 
 def generate_test_cases(summary: str, description: str, outline: str, env_type: str = "GoGaming", path_hint: str = None) -> list:
-    """ 產生 TestRail 測試案例（包含測試案例專屬的強制分行邏輯） """
+    """ 產生 TestRail 測試案例（含步驟強效拆解與 \n\n 換行修復） """
     combined_text = f"{summary} {description} {outline} {path_hint or ''}"
     filtered_tree = filter_relevant_paths(env_type, combined_text)
 
-    # 關鍵修改：在 Prompt 範例中明確寫出帶有 \n 的換行結構，並要求 AI 將動作與驗證點拆開
     system_prompt = f"""你是一位資深 QA。請將需求轉換為 TestRail 測試案例 JSON Array。
 
 規範：
@@ -259,7 +264,7 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
 2. title: [模組]-情境 或 [動作]-目的
 3. preconditions: 陣列字串，格式為純說明（不可帶 1. 2. 等數字頭）
 4. steps (測試案例內容【必須強制分行】):
-   - content: 每個主要步驟（1., 2., 3.）以及子項動作/驗證點（•）都**必須獨立一行**。
+   - content: 每個主要步驟（1., 2., 3.）以及子項動作/驗證點（•）都**必須獨立換行**。
    - expected: 預期結果有多點時，**每一點也必須獨立換行**。
 
 回傳格式範例（標準 JSON，請注意 \\n 換行）：
@@ -289,7 +294,7 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
     try:
         cases = json.loads(cleaned_text)
         
-        # --- Python 端強效後處理：自動修正測試案例未分行的文字 ---
+        # --- Python 端強效後處理：自動修正 UI 換行壓縮與開頭重複數字 ---
         for case in cases:
             # 1. 移除 Preconditions 重複出現的數字編號
             if "preconditions" in case and isinstance(case["preconditions"], list):
@@ -297,18 +302,18 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
                     re.sub(r"^\s*\d+[\.\s\-]+", "", pre) for pre in case["preconditions"]
                 ]
 
-            # 2. 針對測試案例步驟 (steps) 進行強效分行切割
+            # 2. 針對 steps 強制注入雙換行 (\n\n) 與縮排
             for step in case.get("steps", []):
                 if "content" in step and step["content"]:
                     text = step["content"]
                     
-                    # (A) 遇點號或中英文圓點 (•, ·, ・)，強制補上雙換行 + 縮排
+                    # (A) 遇圓點 (•, ·, ・)，強制補上雙換行 + 縮排
                     text = re.sub(r"\s*[•·・]\s*", "\n\n   • ", text)
                     
-                    # (B) 如果 AI 沒寫點號直接寫在同一行，自動辨識關鍵字 (验证/校验/选择/切换/检查) 並切分換行
+                    # (B) 若 AI 漏寫圓點直接接在句尾，自動抓關鍵字 (验证/校验/选择/切换/检查) 強制斷行
                     text = re.sub(r"([^\n])\s*([·•]?\s*(?:验证|校验|选择|切换|检查))\s*", r"\1\n\n   • \2", text)
                     
-                    # (C) 數字主要步驟 (2. 3. 4.) 強制換行
+                    # (C) 數字主要步驟 (2. 3. 4.) 前面強制注入雙換行
                     text = re.sub(r"(?<!^)\s*(\d+\.\s+)", r"\n\n\1", text)
                     
                     step["content"] = re.sub(r"\n{3,}", "\n\n", text).strip()
