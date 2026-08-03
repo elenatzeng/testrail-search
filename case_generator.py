@@ -192,17 +192,17 @@ def _configure_genai() -> None:
 
 def get_candidate_paths(env_type: str, text_content: str, available_paths: list = None) -> list:
     """ 
-    挑選候選路徑：
-    1. 若有實時從 TestRail 抓取的 API 清單，優先使用 API 清單。
-    2. 否則將所有系統 (FE, GoGaming, GoMoney) 的路徑完全展平給 Gemini AI，
-       防止關鍵字預先過濾誤刪正確答案！
+    取得可選路徑清單：
+    1. 優先使用從 TestRail API 抓取的清單
+    2. 否則依據 env_type (FE, GoGaming, GoMoney) 傳回完整的模組清單
     """
     if available_paths and len(available_paths) > 0:
         return available_paths
 
-    # 展平所有系統路徑，確保 GoGaming > 营销推广 > 优惠券管理 一定會被送到 Gemini 手中
-    all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
-    return all_paths
+    paths = SYSTEM_PATHS.get(env_type, [])
+    if not paths:
+        paths = [p for ps in SYSTEM_PATHS.values() for p in ps]
+    return paths
 
 
 def call_gemini_with_retry(prompt_data, max_retries=4):
@@ -240,22 +240,49 @@ def generate_test_cases(
     outline: str,
     env_type: str = "GoGaming",
     path_hint: str = None,
+    selected_path: str = None,  # 👈 使用者從 UI 手動選取的模組路徑
     available_paths: list = None,
 ) -> list:
-    combined_text = f"{summary} {description} {outline} {path_hint or ''}"
-    candidate_paths = get_candidate_paths(env_type, combined_text, available_paths=available_paths)
+    """
+    生成測試案例：
+    若 selected_path (或 path_hint) 有指定明確路徑，AI 會強制套用該路徑；
+    否則提供系統模組清單供 AI 參考。
+    """
+    # 決定最終要套用的路徑名稱
+    target_path = selected_path or path_hint
+    
+    # 判斷使用者是否傳入了有效的指定路徑
+    has_custom_path = target_path and target_path not in [
+        "🤖 [自動由 AI 判斷路徑]",
+        "其他",
+        "",
+        None
+    ]
+
+    candidate_paths = get_candidate_paths(env_type, f"{summary} {description} {outline}", available_paths=available_paths)
     paths_str = "\n".join([f"- {p}" for p in candidate_paths])
+
+    if has_custom_path:
+        # 使用者手動選定路徑的嚴格 Prompt
+        path_instruction = f"""1. path 欄位請固定輸出："{target_path}"
+2. steps 内 Step 1 請統一寫為：1. 路徑：{target_path}"""
+    else:
+        # 讓 AI 從清單中挑選的 Prompt
+        path_instruction = f"""1. path 必須「完全相同」地引用以下系統路徑清單中的其中一條：
+{paths_str}
+2. steps 内 Step 1 請統一寫為：1. 路徑：[選取的 path]"""
 
     system_prompt = f"""你是一位資深 QA。請分析 Jira 需求與大綱，並將其轉換為 TestRail 測試案例 JSON Array。
 
-【路徑匹配嚴格指令】：
-1. path: 必須「完全相同」地引用以下系統路徑清單中的其中一條，請仔細理解需求屬於哪一個系統模組（絕對不可以輸出「其他」或不在清單內的字串）：
-{paths_str}
+【路徑匹配指令】：
+{path_instruction}
 
-2. title: [模組]-情境 或 [動作]-目的
-3. steps:
+【案例結構規範】：
+- title: [模組]-情境 或 [動作]-目的
+- preconditions: 前置條件列表
+- steps:
    - content 格式：
-     1. 路徑：[選取的 path]
+     1. 路徑：[對應路徑]
      2. [動作/步驟]
      • [具體測試情境]
    - expected: 預期結果，若有錯誤提示用 Tips Red Error Message :
@@ -264,23 +291,23 @@ def generate_test_cases(
 [
   {{
     "title": "[优惠券管理]-新增优惠券类型选单验证",
-    "path": "GoGaming > 营销推广 > 优惠券管理",
+    "path": "{target_path if has_custom_path else 'GoGaming > 营销推广 > 优惠券管理'}",
     "preconditions": [
       "1. 登入後台管理系統。",
       "2. 具備優惠券管理權限。"
     ],
     "steps": [
       {{
-        "content": "1. 路徑：GoGaming > 营销推广 > 优惠券管理\\n2. 點擊創建優惠券並檢查類型下拉選單\\n   • 檢查類型選單中是否正確新增「BW現金券」、「Freespin」、「Freechip」選項",
-        "expected": "優惠券類型選單正確包含並顯示「BW現金券」、「Freespin」、「Freechip」三個選項。"
+        "content": "1. 路徑：{target_path if has_custom_path else 'GoGaming > 营销推广 > 优惠券管理'}\\n2. 點擊創建優惠券並檢查類型下拉選單\\n   • 檢查類型選單中是否正確新增選項",
+        "expected": "優惠券類型選單正確包含並顯示對應選項。"
       }}
     ]
   }}
 ]"""
 
     user_input = f"Jira 摘要：{summary}\nJira 描述：{description}\n測試大綱：\n{outline}"
-    if path_hint and path_hint not in ["🤖 [自動由 AI 判斷路徑]", "其他", ""]:
-        user_input += f"\n【使用者指定強制路徑】：{path_hint}"
+    if has_custom_path:
+        user_input += f"\n【使用者指定模組/路徑】：{target_path}"
 
     raw_text = call_gemini_with_retry([system_prompt, user_input])
 
@@ -290,9 +317,11 @@ def generate_test_cases(
     try:
         cases = json.loads(cleaned_text)
         
-        # Post-Processing 防呆機制：若 AI 誤填「其他」，強制預設 fallback 到最佳候選路徑
+        # 後處理：若使用者手動選定了模組路徑，強制校正所有案例的 path 欄位
         for case in cases:
-            if not case.get("path") or case.get("path") == "其他":
+            if has_custom_path:
+                case["path"] = target_path
+            elif not case.get("path") or case.get("path") == "其他":
                 case["path"] = candidate_paths[0] if candidate_paths else "GoGaming > 营销推广 > 优惠券管理"
                 
         return cases
