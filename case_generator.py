@@ -5,7 +5,7 @@ import time
 
 import google.generativeai as genai
 
-# --- 按環境拆分的功能目錄清單，供 Python 端進行關鍵字過濾 ---
+# --- 按環境拆分的功能目錄清單 ---
 
 SYSTEM_PATHS = {
     "Web": [
@@ -180,7 +180,6 @@ class CaseGenError(Exception):
 
 
 def _configure_genai() -> None:
-    """初始化並設定 API Key"""
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     if not key:
         try:
@@ -196,7 +195,7 @@ def _configure_genai() -> None:
 
 
 def filter_relevant_paths(env_type: str, text_content: str) -> str:
-    """Python 端迴圈搜尋：根據需求內文關鍵字匹配出最相關的子目錄樹，極大化節省 Token"""
+    """ Python 端迴圈搜尋：根據需求關鍵字篩選對應路徑 """
     all_paths = SYSTEM_PATHS.get(env_type, [])
     if not all_paths:
         all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
@@ -209,7 +208,6 @@ def filter_relevant_paths(env_type: str, text_content: str) -> str:
                 matched_paths.append(path)
                 break
 
-    # 若未能匹配到關鍵字，自動備退回傳該環境全量目錄
     if not matched_paths:
         matched_paths = all_paths
 
@@ -217,7 +215,7 @@ def filter_relevant_paths(env_type: str, text_content: str) -> str:
 
 
 def call_gemini_with_retry(prompt_data, max_retries=4):
-    """呼叫 Gemini API 封裝（具備 429 頻率退避與重試機制）"""
+    """ 呼叫 Gemini API 封裝（退避重試） """
     _configure_genai()
     model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
@@ -232,7 +230,7 @@ def call_gemini_with_retry(prompt_data, max_retries=4):
                     time.sleep(4 * (attempt + 1))
                     continue
                 else:
-                    raise CaseGenError("API 請求過於頻繁（已達免費額度），請稍後再試。")
+                    raise CaseGenError("API 請求過於頻繁（已達免費額度），請等待約 20 秒後再試。")
             elif "404" in err_msg or "not found" in err_msg.lower() or "no longer available" in err_msg.lower():
                 raise CaseGenError(
                     f"模型「{GEMINI_MODEL_NAME}」已不可用，請更換 GEMINI_MODEL_NAME 常數。\n原始錯誤：{err_msg[:300]}"
@@ -242,16 +240,16 @@ def call_gemini_with_retry(prompt_data, max_retries=4):
 
 
 def generate_test_outline(summary: str, description: str) -> str:
-    """產生測試大綱條目"""
     prompt = f"請針對以下 Jira 需求，列出測試大綱條目（每行一條重點，不要贅詞）：\n摘要：{summary}\n描述：{description}"
     return call_gemini_with_retry(prompt)
 
 
 def generate_test_cases(summary: str, description: str, outline: str, env_type: str = "GoGaming", path_hint: str = None) -> list:
-    """產生精簡格式的 TestRail 測試案例 (含有強制換行與編號淨化後處理)"""
+    """ 產生 TestRail 測試案例（包含測試案例專屬的強制分行邏輯） """
     combined_text = f"{summary} {description} {outline} {path_hint or ''}"
     filtered_tree = filter_relevant_paths(env_type, combined_text)
 
+    # 關鍵修改：在 Prompt 範例中明確寫出帶有 \n 的換行結構，並要求 AI 將動作與驗證點拆開
     system_prompt = f"""你是一位資深 QA。請將需求轉換為 TestRail 測試案例 JSON Array。
 
 規範：
@@ -259,22 +257,21 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
 {filtered_tree}
 
 2. title: [模組]-情境 或 [動作]-目的
-3. preconditions: 陣列字串，格式為純說明（不可帶 1. 2. 等數字頭），例如 ["账号已登录且具备权限。"]
-4. steps:
-   - content 格式（【極度重要】主要步驟與子項目均需強制換行 \\n）：
-     1. 路徑：[選取的 path]\\n2. [主要步驟名稱]\\n   • [子情境1]\\n   • [子情境2]
-   - expected: 預期結果，若有多點同樣使用 \\n 強制換行。
+3. preconditions: 陣列字串，格式為純說明（不可帶 1. 2. 等數字頭）
+4. steps (測試案例內容【必須強制分行】):
+   - content: 每個主要步驟（1., 2., 3.）以及子項動作/驗證點（•）都**必須獨立一行**。
+   - expected: 預期結果有多點時，**每一點也必須獨立換行**。
 
-回傳格式範例（標準 JSON）：
+回傳格式範例（標準 JSON，請注意 \\n 換行）：
 [
   {{
-    "title": "优惠券管理 - 创建BW现金券类型与栏位校验",
+    "title": "优惠券管理 - 验证优惠券创建与栏位校验",
     "path": "GoGaming > 营销推广 > 优惠券管理",
-    "preconditions": ["账号已登录且具备优惠券管理与审核权限。"],
+    "preconditions": ["账号已登录且具备优惠券管理权限。"],
     "steps": [
       {{
-        "content": "1. 路徑：GoGaming > 营销推广 > 优惠券管理\\n2. 点击“创建优惠券”，选择类型“BW现金券”\\n   • 校验必填栏位与动态选项\\n3. 必填栏位留空提交",
-        "expected": "Tips Red Error Message :\\n• CN : 请填写必填项。"
+        "content": "1. 路徑：GoGaming > 营销推广 > 优惠券管理\\n2. 点击“创建优惠券”，检查类型下拉单\\n   • 验证是否包含“BW现金券”、“Freespin”、“Freechip”选项\\n3. 选择“Freechip”或“Freespin”并选取适用游戏\\n   • 验证是否动态展开对应栏位（筹码/旋转数量、价值、派彩上限）",
+        "expected": "1. 下拉单包含：BW现金券、Freespin、Freechip。\\n2. 选择游戏后，正确动态显示对应栏位。"
       }}
     ]
   }}
@@ -292,22 +289,28 @@ def generate_test_cases(summary: str, description: str, outline: str, env_type: 
     try:
         cases = json.loads(cleaned_text)
         
-        # --- Python 強制後處理防護機制 (解法: Markdown 雙換行防護) ---
+        # --- Python 端強效後處理：自動修正測試案例未分行的文字 ---
         for case in cases:
-            # 1. 消除 Preconditions 重複出現的數字編號（例如 "1. 1." -> "1."）
+            # 1. 移除 Preconditions 重複出現的數字編號
             if "preconditions" in case and isinstance(case["preconditions"], list):
                 case["preconditions"] = [
                     re.sub(r"^\s*\d+[\.\s\-]+", "", pre) for pre in case["preconditions"]
                 ]
 
-            # 2. 強制修復 steps 內容（處理 • / · 子項目與數字主步驟的前端縮排換行）
+            # 2. 針對測試案例步驟 (steps) 進行強效分行切割
             for step in case.get("steps", []):
                 if "content" in step and step["content"]:
                     text = step["content"]
-                    # 匹配所有子項目符號 (•, ·, ・)，替換為雙換行 + 空格縮排子點
+                    
+                    # (A) 遇點號或中英文圓點 (•, ·, ・)，強制補上雙換行 + 縮排
                     text = re.sub(r"\s*[•·・]\s*", "\n\n   • ", text)
-                    # 匹配非開頭的阿拉伯數字主步驟 (例如 2. 3. 4.)，強制插入雙換行
+                    
+                    # (B) 如果 AI 沒寫點號直接寫在同一行，自動辨識關鍵字 (验证/校验/选择/切换/检查) 並切分換行
+                    text = re.sub(r"([^\n])\s*([·•]?\s*(?:验证|校验|选择|切换|检查))\s*", r"\1\n\n   • \2", text)
+                    
+                    # (C) 數字主要步驟 (2. 3. 4.) 強制換行
                     text = re.sub(r"(?<!^)\s*(\d+\.\s+)", r"\n\n\1", text)
+                    
                     step["content"] = re.sub(r"\n{3,}", "\n\n", text).strip()
 
                 if "expected" in step and step["expected"]:
