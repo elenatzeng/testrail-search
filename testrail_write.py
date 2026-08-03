@@ -19,6 +19,10 @@ class TestRailWriteError(Exception):
     pass
 
 
+def _auth(tr_user: str, tr_pw: str) -> HTTPBasicAuth:
+    return HTTPBasicAuth(tr_user, tr_pw)
+
+
 def _get(tr_url: str, tr_user: str, tr_pw: str, path: str) -> Any:
     url = f"{tr_url.rstrip('/')}/index.php?{path}"
     try:
@@ -82,15 +86,31 @@ def fetch_sections(
     return {s["id"]: build_path(s) for s in sections}
 
 
-def _auth(tr_user: str, tr_pw: str) -> HTTPBasicAuth:
-    return HTTPBasicAuth(tr_user, tr_pw)
-
-
 def find_section_id_by_path(path_map: Dict[int, str], path_str: str) -> Optional[int]:
-    target = (path_str or "").strip()
+    """
+    強效模糊/精準雙重對齊搜尋：
+    1. 優先精確比對完整路徑。
+    2. 若帶有 'GoGaming >' 或 '前台 >' 等前端贅字，自動進行尾部路徑模糊對齊。
+    """
+    if not path_str:
+        return None
+
+    # 1. 統一將各種分隔符號轉換為 " > "
+    target = path_str.replace("/", " > ").replace("→", " > ").strip()
+    target_clean = " > ".join([s.strip() for s in target.split(">") if s.strip()])
+
+    # 階段 1：完全精準比對
     for sid, p in path_map.items():
-        if (p or "").strip() == target:
+        p_clean = " > ".join([s.strip() for s in (p or "").split(">") if s.strip()])
+        if p_clean == target_clean:
             return sid
+
+    # 階段 2：忽略頂層前綴 (例如忽略 "GoGaming > ") 進行尾部比對
+    for sid, p in path_map.items():
+        p_clean = " > ".join([s.strip() for s in (p or "").split(">") if s.strip()])
+        if target_clean.endswith(p_clean) or p_clean.endswith(target_clean):
+            return sid
+
     return None
 
 
@@ -108,7 +128,7 @@ def get_or_create_section(
     如果不存在，依 " > " 拆解路徑，逐層檢查/建立，回傳最末層的 section_id。
     path_map 會被就地更新（同一個 dict 物件），方便後續案例沿用同一次查詢結果。
     """
-    path_str = (path_str or "未分類").strip()
+    path_str = (path_str or "未分類").replace("/", " > ").replace("→", " > ").strip()
 
     existing = find_section_id_by_path(path_map, path_str)
     if existing is not None:
