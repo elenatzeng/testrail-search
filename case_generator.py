@@ -232,7 +232,7 @@ def call_gemini_with_retry(prompt_data, max_retries=4):
                     time.sleep(4 * (attempt + 1))
                     continue
                 else:
-                    raise CaseGenError("API 請求過於頻繁（已達免費額度），請等待約 20 秒後再試。")
+                    raise CaseGenError("API 請求過於頻繁（已達免費額度），請稍後再試。")
             elif "404" in err_msg or "not found" in err_msg.lower() or "no longer available" in err_msg.lower():
                 raise CaseGenError(
                     f"模型「{GEMINI_MODEL_NAME}」已不可用，請更換 GEMINI_MODEL_NAME 常數。\n原始錯誤：{err_msg[:300]}"
