@@ -55,9 +55,7 @@ def get_val(key):
 
 
 def md_break(text) -> str:
-    """
-    Markdown 顯示優化：確保換行能正確被 Streamlit 渲染
-    """
+    """ Markdown 顯示優化：確保換行能正確被 Streamlit 渲染 """
     if not text:
         return ""
     return str(text).replace("\n", "  \n")
@@ -414,7 +412,7 @@ with tab2:
                             "📂 選擇測試案例存放路徑 (Section)",
                             options=path_options,
                             index=0,
-                            help="可直接點選現有的 TestRail 分類路徑，避免手動輸入錯誤。"
+                            help="若選擇「🤖 [自動由 AI 判斷路徑]」，AI 會自動將案例分類至分析出來的目錄階層中。"
                         )
 
                         if chosen_option == "✍️ [手動輸入新路徑...]":
@@ -464,7 +462,8 @@ with tab2:
                                 s['summary'],
                                 s['description'],
                                 active_outline,
-                                path_hint=selected_path_hint
+                                path_hint=selected_path_hint,
+                                available_paths=existing_paths
                             )
                             st.session_state["generated_cases"] = cases
                             st.session_state["target_pid_final"] = target_pid
@@ -500,7 +499,7 @@ with tab2:
                     on_change=on_select_all_change
                 )
 
-            # 🛠️ 具備完整 Credentials 備援的 TestRail 推送函式
+            # 🛠️ 具備完整 Credentials 備援與動態路徑鎖定的 TestRail 推送函式
             def push_case_to_tr(case_item, path_to_use):
                 final_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
                 final_tr_user = tr_user or st.secrets.get("TESTRAIL_USER", "")
@@ -509,12 +508,12 @@ with tab2:
                 if not (final_tr_url and final_tr_user and final_tr_pw):
                     raise TestRailWriteError("未找到有效的 TestRail 連線憑證（請在側邊欄填寫或設定 Secrets）。")
 
+                # 強制刷新並對齊最新的 Section 路徑資訊
                 cache_key = f"push_path_map_{target_pid}_{target_sid}"
-                if cache_key not in st.session_state:
-                    st.session_state[cache_key] = fetch_sections(
-                        final_tr_url, final_tr_user, final_tr_pw, target_pid, target_sid
-                    )
-                target_path_map = st.session_state[cache_key]
+                target_path_map = fetch_sections(
+                    final_tr_url, final_tr_user, final_tr_pw, target_pid, target_sid
+                )
+                st.session_state[cache_key] = target_path_map
 
                 target_section_id = get_or_create_section(
                     final_tr_url, final_tr_user, final_tr_pw, target_pid, target_sid, target_path_map,
@@ -542,7 +541,11 @@ with tab2:
             selected_indices = []
 
             for idx, case in enumerate(cases):
-                final_push_path = override_path or case.get("path") or "未分類"
+                # 💡 修復重點：只有使用者「明確指定路徑」時才強制覆蓋，否則 100% 採用 AI 產生的精準 Path
+                if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", "其他", ""]:
+                    final_push_path = override_path
+                else:
+                    final_push_path = case.get("path") or "其他"
 
                 case_key = f"case_select_{idx}"
                 if case_key not in st.session_state:
@@ -597,7 +600,13 @@ with tab2:
 
                         for progress_idx, case_idx in enumerate(selected_indices, 1):
                             target_case = cases[case_idx]
-                            final_path = override_path or target_case.get("path") or "未分類"
+                            
+                            # 動態對齊該案例的路徑
+                            if override_path and override_path not in ["🤖 [自動由 AI 判斷路徑]", "其他", ""]:
+                                final_path = override_path
+                            else:
+                                final_path = target_case.get("path") or "其他"
+
                             try:
                                 progress_bar.progress(
                                     progress_idx / len(selected_indices),
