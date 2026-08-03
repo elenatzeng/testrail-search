@@ -186,18 +186,13 @@ def _configure_genai() -> None:
         except Exception:
             pass
     if not key:
-        raise CaseGenError(
-            "找不到 GEMINI_API_KEY，請在 .streamlit/secrets.toml 或環境變數中設定。"
-        )
+        raise CaseGenError("找不到 GEMINI_API_KEY，請在 .streamlit/secrets.toml 或環境變數中設定。")
     genai.configure(api_key=key)
 
 
-def filter_relevant_paths(env_type: str, text_content: str, available_paths: list = None) -> str:
-    """
-    如果呼叫端有提供 available_paths（即時從 TestRail 抓回來的真實分類路徑），
-    優先使用這份清單；沒有提供才退回用 SYSTEM_PATHS[env_type] 這份備援清單。
-    """
-    if available_paths:
+def get_candidate_paths(env_type: str, text_content: str, available_paths: list = None) -> list:
+    """ 挑選候選路徑：優先使用 API 實時抓取的清單，否則退回 SYSTEM_PATHS """
+    if available_paths and len(available_paths) > 0:
         all_paths = available_paths
     else:
         all_paths = SYSTEM_PATHS.get(env_type, [])
@@ -205,17 +200,18 @@ def filter_relevant_paths(env_type: str, text_content: str, available_paths: lis
             all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
 
     matched_paths = []
+    keywords = set(re.findall(r'[\u4e00-\u9fa5a-zA-Z0-9]+', text_content.lower()))
+
     for path in all_paths:
-        segments = [seg.strip() for seg in path.split(">")]
-        for seg in segments[1:]:
-            if len(seg) >= 2 and seg.lower() in text_content.lower():
-                matched_paths.append(path)
-                break
+        path_lower = path.lower()
+        if any(kw in path_lower for kw in keywords if len(kw) >= 2):
+            matched_paths.append(path)
 
-    if not matched_paths:
-        matched_paths = all_paths
+    # 候選過少時，直接把所有路徑餵給 AI 進行全域語意分析
+    if len(matched_paths) < 3:
+        return all_paths
 
-    return "\n".join([f"- {p}" for p in matched_paths])
+    return matched_paths
 
 
 def call_gemini_with_retry(prompt_data, max_retries=4):
@@ -236,9 +232,7 @@ def call_gemini_with_retry(prompt_data, max_retries=4):
                     raise CaseGenError("API 請求過於頻繁（已達免費額度），請等待約 20 秒後再試。")
             elif "404" in err_msg or "not found" in err_msg.lower() or "no longer available" in err_msg.lower():
                 raise CaseGenError(
-                    f"模型「{GEMINI_MODEL_NAME}」已不可用（Google 經常汰換模型名稱）。"
-                    f"請到 https://ai.google.dev/gemini-api/docs/models 查目前可用的模型 ID，"
-                    f"更新 case_generator.py 裡的 GEMINI_MODEL_NAME 常數即可。\n原始錯誤：{err_msg[:300]}"
+                    f"模型「{GEMINI_MODEL_NAME}」不可用。\n原始錯誤：{err_msg[:300]}"
                 )
             else:
                 raise CaseGenError(f"API 呼叫失敗：{err_msg}")
@@ -257,19 +251,15 @@ def generate_test_cases(
     path_hint: str = None,
     available_paths: list = None,
 ) -> list:
-    """
-    available_paths：如果有提供（例如即時從 TestRail 抓回來的真實分類路徑），
-    會優先拿這份清單給 AI 挑選 path，比 env_type 對應的內建清單更準確、
-    也不需要手動維護。
-    """
     combined_text = f"{summary} {description} {outline} {path_hint or ''}"
-    filtered_tree = filter_relevant_paths(env_type, combined_text, available_paths=available_paths)
+    candidate_paths = get_candidate_paths(env_type, combined_text, available_paths=available_paths)
+    paths_str = "\n".join([f"- {p}" for p in candidate_paths])
 
-    system_prompt = f"""你是一位資深 QA。請將需求轉換為 TestRail 測試案例 JSON Array。
+    system_prompt = f"""你是一位資深 QA。請分析 Jira 需求與大綱，並將其轉換為 TestRail 測試案例 JSON Array。
 
-規範：
-1. path: 必須 100% 精確匹配此清單中的其中一條：
-{filtered_tree}
+【路徑匹配嚴格指令】：
+1. path: 必須「完全相同」地引用以下系統路徑清單中的其中一條，請仔細理解需求屬於哪一個系統模組（絕對不可以輸出「其他」或不在清單內的字串）：
+{paths_str}
 
 2. title: [模組]-情境 或 [動作]-目的
 3. steps:
@@ -282,21 +272,24 @@ def generate_test_cases(
 回傳格式（標準 JSON）：
 [
   {{
-    "title": "提现信息 - 请输入金额",
-    "path": "前台 > 首页 > 我的钱包 > 钱包总览 > 提现",
-    "preconditions": ["1. 帳號已登入且具備權限。"],
+    "title": "[优惠券管理]-新增优惠券类型选单验证",
+    "path": "GoGaming > 营销推广 > 优惠券管理",
+    "preconditions": [
+      "1. 登入後台管理系統。",
+      "2. 具備優惠券管理權限。"
+    ],
     "steps": [
       {{
-        "content": "1. 路徑：前台 > 首页 > 我的钱包 > 钱包总览 > 提现\\n2. 输入金额\\n   • 输入超出范围数字",
-        "expected": "Tips Red Error Message :\\n• CN : 提现金额必须介于 n - m 之间。"
+        "content": "1. 路徑：GoGaming > 营销推广 > 优惠券管理\\n2. 點擊創建優惠券並檢查類型下拉選單\\n   • 檢查類型選單中是否正確新增「BW現金券」、「Freespin」、「Freechip」選項",
+        "expected": "優惠券類型選單正確包含並顯示「BW現金券」、「Freespin」、「Freechip」三個選項。"
       }}
     ]
   }}
 ]"""
 
     user_input = f"Jira 摘要：{summary}\nJira 描述：{description}\n測試大綱：\n{outline}"
-    if path_hint:
-        user_input += f"\n指定優先路徑：{path_hint}"
+    if path_hint and path_hint not in ["🤖 [自動由 AI 判斷路徑]", "其他", ""]:
+        user_input += f"\n【使用者指定強制路徑】：{path_hint}"
 
     raw_text = call_gemini_with_retry([system_prompt, user_input])
 
@@ -304,6 +297,13 @@ def generate_test_cases(
     cleaned_text = re.sub(r"^```\s*", "", cleaned_text, flags=re.MULTILINE).strip()
 
     try:
-        return json.loads(cleaned_text)
+        cases = json.loads(cleaned_text)
+        
+        # Post-Processing 防呆機制：若 AI 誤填「其他」，強制預設 fallback 到最佳候選路徑
+        for case in cases:
+            if not case.get("path") or case.get("path") == "其他":
+                case["path"] = candidate_paths[0] if candidate_paths else "GoGaming > 营销推广 > 优惠券管理"
+                
+        return cases
     except json.JSONDecodeError:
         raise CaseGenError("AI 回傳格式非有效 JSON，請再試一次。")
