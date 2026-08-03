@@ -2,7 +2,7 @@ import re
 import streamlit as st
 
 from auth_whitelist import is_authorized
-# 匯入 SYSTEM_PATHS 以供 UI 生成模組路徑選單
+# 匯入 SYSTEM_PATHS 以供 UI 動態生成環境與模組路徑選單
 from case_generator import SYSTEM_PATHS, CaseGenError, generate_test_cases, generate_test_outline
 from jira_client import JiraError, extract_issue_summary, fetch_issue
 from keywords import SEARCH_DICTIONARY
@@ -351,15 +351,30 @@ with tab2:
                 active_outline = "\n".join(selected_lines)
 
             # =================================================================
-            # 📌 改為動態讀取 SYSTEM_PATHS 的 key，這樣 system_paths.py 改名或新增 key 這裡就會同步變更！
+            # 📌【獨立選擇區 1】測試案例內文壓入之模組路徑 (動態讀取 system_paths.py)
             # =================================================================
+            st.markdown("---")
+            st.markdown("### 📌 選擇測試案例內文壓入之模組路徑")
+            
+            # 🔥 關鍵修正：動態讀取 system_paths.py 的所有 Key (例如 WEB, GoGaming, GoMoney 等)
             env_options = list(SYSTEM_PATHS.keys())
+            col_env, col_module = st.columns(2)
             with col_env:
                 selected_env_type = st.selectbox(
                     "系統環境", 
                     options=env_options, 
                     index=0, 
                     key="gen_env_type_select"
+                )
+            
+            with col_module:
+                module_path_list = ["🤖 [自動由 AI 判斷路徑]"] + SYSTEM_PATHS.get(selected_env_type, [])
+                user_selected_module_path = st.selectbox(
+                    "選擇要壓入測試案例內文的路徑",
+                    options=module_path_list,
+                    index=0,
+                    key="gen_module_path_select",
+                    help="選定後，AI 生成案例時 Step 1 的內文將會顯示此路徑。"
                 )
 
             # =================================================================
