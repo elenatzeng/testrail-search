@@ -2,7 +2,7 @@ import re
 import streamlit as st
 
 from auth_whitelist import is_authorized
-from case_generator import CaseGenError, generate_test_cases, generate_test_outline, SYSTEM_PATHS
+from case_generator import CaseGenError, generate_test_cases, generate_test_outline
 from jira_client import JiraError, extract_issue_summary, fetch_issue
 from keywords import SEARCH_DICTIONARY
 from style import apply_custom_style
@@ -287,14 +287,6 @@ with tab2:
             st.session_state["test_outline"] = outline_text
 
             st.markdown("---")
-            st.markdown("### 🌐 系統端選擇")
-            env_type = st.selectbox(
-                "這個需求單屬於哪個系統端？",
-                options=list(SYSTEM_PATHS.keys()),
-                help="AI 只會從這個系統端底下的路徑清單挑選 path，選錯會導致案例被歸到「其他」或錯誤分類。"
-            )
-
-            st.markdown("---")
             st.markdown("### 📄 大綱分頁生成設定（防止 Token 截斷）")
 
             outline_lines = [line.strip() for line in outline_text.splitlines() if line.strip()]
@@ -343,6 +335,7 @@ with tab2:
 
             target_pid, target_sid = None, None
             selected_path_hint = None
+            existing_paths = []  # 這裡即時從 TestRail 抓到的真實分類路徑清單，會直接餵給 AI 當作 path 候選清單
 
             if not (tr_url and tr_user and tr_pw):
                 st.warning("👈 請先在側邊欄填寫 TestRail 連線資訊（帳號/API Key），才能載入 Project 與路徑清單。")
@@ -395,7 +388,7 @@ with tab2:
                             "📂 選擇測試案例存放路徑 (Section)",
                             options=path_options,
                             index=0,
-                            help="可直接點選現有的 TestRail 分類路徑，避免手動輸入錯誤。"
+                            help="可直接點選現有的 TestRail 分類路徑，避免手動輸入錯誤。若選「自動由 AI 判斷路徑」，AI 會直接從左方這份即時抓到的真實路徑清單中挑選，不會用寫死的內建清單。"
                         )
 
                         if chosen_option == "✍️ [手動輸入新路徑...]":
@@ -445,8 +438,8 @@ with tab2:
                                 s['summary'],
                                 s['description'],
                                 active_outline,
-                                env_type=env_type,
                                 path_hint=selected_path_hint,
+                                available_paths=existing_paths,
                             )
                             st.session_state["generated_cases"] = cases
                             st.session_state["target_pid_final"] = target_pid
