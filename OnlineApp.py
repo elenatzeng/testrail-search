@@ -56,9 +56,7 @@ def get_val(key):
 
 def md_break(text) -> str:
     """
-    Markdown 裡單一個 \\n 不會換行，一定要「兩個空白 + \\n」或空一行才會斷行。
-    AI 產生的 steps/preconditions 內容裡都是單一 \\n，直接丟給 st.markdown()
-    會全部擠成一行，這裡統一轉換一次再顯示。
+    Markdown 顯示優化：確保換行能正確被 Streamlit 渲染
     """
     if not text:
         return ""
@@ -66,11 +64,7 @@ def md_break(text) -> str:
 
 
 def show_friendly_error(e: Exception, context: str = "這個步驟") -> None:
-    """
-    統一的錯誤顯示：不讓 Streamlit 跳出紅色 Traceback 畫面（那個對非工程背景的
-    使用者太嚇人），而是顯示一個清楚、可讀的訊息。技術細節收進可展開區塊，
-    需要回報問題時再展開複製即可。
-    """
+    """ 統一的錯誤顯示介面 """
     st.error(f"⚠️ {context}發生了一點問題，可以再試一次；如果一直發生，麻煩把下面的詳細內容截圖給開發者。")
     with st.expander("🔍 詳細錯誤內容（回報問題時可以複製這裡）", expanded=False):
         st.code(f"{type(e).__name__}: {e}", language="text")
@@ -105,9 +99,14 @@ tab1, tab2 = st.tabs(["🔍 案例查詢", "🤖 AI 產生測試案例 (Jira)"])
 # Tab 1：TestRail 案例查詢功能
 # ============================================================
 with tab1:
-    if tr_url and tr_user and tr_pw:
+    # 支援自動備援讀取 Streamlit Secrets
+    active_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
+    active_tr_user = tr_user or st.secrets.get("TESTRAIL_USER", "")
+    active_tr_pw = tr_pw or st.secrets.get("TESTRAIL_API_KEY", "") or st.secrets.get("TESTRAIL_PASSWORD", "")
+
+    if active_tr_url and active_tr_user and active_tr_pw:
         with st.spinner("🚀 正在從 TestRail 同步數據..."):
-            all_cases, path_map, sync_time, p_name = fetch_data_from_tr(tr_url, tr_user, tr_pw, pid, sid)
+            all_cases, path_map, sync_time, p_name = fetch_data_from_tr(active_tr_url, active_tr_user, active_tr_pw, pid, sid)
 
         if all_cases is None:
             st.error(f"❌ 無法連線至 TestRail。原因：{sync_time}")
@@ -195,7 +194,7 @@ with tab1:
                             unsafe_allow_html=True
                         )
                         c2.markdown(
-                            f'''<div style="text-align:right;"><a href="{tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''',
+                            f'''<div style="text-align:right;"><a href="{active_tr_url.strip("/")}/index.php?/cases/view/{cid}" target="_blank" class="view-btn">📖 Open Case</a></div>''',
                             unsafe_allow_html=True
                         )
 
@@ -234,7 +233,7 @@ with tab1:
                                 st.markdown(f'<div class="content-box">{final_render(steps_data)}</div>', unsafe_allow_html=True)
                         st.markdown("---")
     else:
-        st.info("👈 請先在左側完成連線設定。")
+        st.info("👈 請先在左側完成連線設定（或確認 .streamlit/secrets.toml 已配置 TestRail 憑證）。")
 
 # ============================================================
 # Tab 2：Jira 需求單 → AI 產生測試案例 → 推送 TestRail
@@ -357,14 +356,19 @@ with tab2:
 
             target_pid, target_sid = None, None
             selected_path_hint = None
-            existing_paths = []  # 這裡即時從 TestRail 抓到的真實分類路徑清單，會直接餵給 AI 當作 path 候選清單
+            existing_paths = []
 
-            if not (tr_url and tr_user and tr_pw):
+            # 💡 自動備援憑證機制
+            active_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
+            active_tr_user = tr_user or st.secrets.get("TESTRAIL_USER", "")
+            active_tr_pw = tr_pw or st.secrets.get("TESTRAIL_API_KEY", "") or st.secrets.get("TESTRAIL_PASSWORD", "")
+
+            if not (active_tr_url and active_tr_user and active_tr_pw):
                 st.warning("👈 請先在側邊欄填寫 TestRail 連線資訊（帳號/API Key），才能載入 Project 與路徑清單。")
             else:
                 if "tr_projects" not in st.session_state:
                     try:
-                        st.session_state["tr_projects"] = list_projects(tr_url, tr_user, tr_pw)
+                        st.session_state["tr_projects"] = list_projects(active_tr_url, active_tr_user, active_tr_pw)
                     except Exception as e:
                         st.session_state["tr_projects_error"] = f"{type(e).__name__}: {e}"
 
@@ -379,7 +383,7 @@ with tab2:
                     suite_cache_key = f"tr_suites_{target_pid}"
                     if suite_cache_key not in st.session_state:
                         try:
-                            st.session_state[suite_cache_key] = list_suites(tr_url, tr_user, tr_pw, target_pid)
+                            st.session_state[suite_cache_key] = list_suites(active_tr_url, active_tr_user, active_tr_pw, target_pid)
                         except Exception as e:
                             show_friendly_error(e, "讀取 Suite 清單時")
                             st.session_state[suite_cache_key] = []
@@ -398,7 +402,7 @@ with tab2:
                         if sec_cache_key not in st.session_state:
                             try:
                                 with st.spinner("正在讀取 TestRail 分類路徑..."):
-                                    sec_map = fetch_sections(tr_url, tr_user, tr_pw, target_pid, target_sid)
+                                    sec_map = fetch_sections(active_tr_url, active_tr_user, active_tr_pw, target_pid, target_sid)
                                     st.session_state[sec_cache_key] = sec_map
                             except Exception as e:
                                 st.session_state[sec_cache_key] = {}
@@ -410,7 +414,7 @@ with tab2:
                             "📂 選擇測試案例存放路徑 (Section)",
                             options=path_options,
                             index=0,
-                            help="可直接點選現有的 TestRail 分類路徑，避免手動輸入錯誤。若選「自動由 AI 判斷路徑」，AI 會直接從左方這份即時抓到的真實路徑清單中挑選，不會用寫死的內建清單。"
+                            help="可直接點選現有的 TestRail 分類路徑，避免手動輸入錯誤。"
                         )
 
                         if chosen_option == "✍️ [手動輸入新路徑...]":
@@ -460,15 +464,13 @@ with tab2:
                                 s['summary'],
                                 s['description'],
                                 active_outline,
-                                path_hint=selected_path_hint,
-                                available_paths=existing_paths,
+                                path_hint=selected_path_hint
                             )
                             st.session_state["generated_cases"] = cases
                             st.session_state["target_pid_final"] = target_pid
                             st.session_state["target_sid_final"] = target_sid
                             st.session_state["selected_path_hint"] = selected_path_hint
 
-                            # 💡 每次新產生案例時，清除之前的全選與個案勾選紀錄
                             st.session_state["select_all_cases"] = False
                             for k in list(st.session_state.keys()):
                                 if k.startswith("case_select_"):
@@ -484,7 +486,6 @@ with tab2:
             target_sid = st.session_state.get("target_sid_final", target_sid)
             override_path = st.session_state.get("selected_path_hint")
 
-            # 🛠️ 回調函式：當全選狀態改變時，強制更新每一個案例的 Session State 並 rerun
             def on_select_all_change():
                 new_status = st.session_state.get("select_all_cases", False)
                 for idx in range(len(cases)):
@@ -499,16 +500,24 @@ with tab2:
                     on_change=on_select_all_change
                 )
 
+            # 🛠️ 具備完整 Credentials 備援的 TestRail 推送函式
             def push_case_to_tr(case_item, path_to_use):
+                final_tr_url = tr_url or st.secrets.get("TESTRAIL_URL", "")
+                final_tr_user = tr_user or st.secrets.get("TESTRAIL_USER", "")
+                final_tr_pw = tr_pw or st.secrets.get("TESTRAIL_API_KEY", "") or st.secrets.get("TESTRAIL_PASSWORD", "")
+
+                if not (final_tr_url and final_tr_user and final_tr_pw):
+                    raise TestRailWriteError("未找到有效的 TestRail 連線憑證（請在側邊欄填寫或設定 Secrets）。")
+
                 cache_key = f"push_path_map_{target_pid}_{target_sid}"
                 if cache_key not in st.session_state:
                     st.session_state[cache_key] = fetch_sections(
-                        tr_url, tr_user, tr_pw, target_pid, target_sid
+                        final_tr_url, final_tr_user, final_tr_pw, target_pid, target_sid
                     )
                 target_path_map = st.session_state[cache_key]
 
                 target_section_id = get_or_create_section(
-                    tr_url, tr_user, tr_pw, target_pid, target_sid, target_path_map,
+                    final_tr_url, final_tr_user, final_tr_pw, target_pid, target_sid, target_path_map,
                     path_to_use
                 )
 
@@ -522,7 +531,7 @@ with tab2:
                     preconds_str = str(preconds_raw or "")
 
                 return create_test_case(
-                    tr_url, tr_user, tr_pw,
+                    final_tr_url, final_tr_user, final_tr_pw,
                     target_section_id,
                     case_item.get("title", "未命名案例"),
                     preconds_str,
@@ -535,7 +544,6 @@ with tab2:
             for idx, case in enumerate(cases):
                 final_push_path = override_path or case.get("path") or "未分類"
 
-                # 💡 每個案例的 key，預設皆為 False (預設不勾選)
                 case_key = f"case_select_{idx}"
                 if case_key not in st.session_state:
                     st.session_state[case_key] = False
@@ -566,9 +574,7 @@ with tab2:
                         c2.markdown(f"**Expected**\n\n{md_break(step.get('expected', ''))}")
 
                     if st.button(f"📤 單獨推送案例 #{idx+1}", key=f"push_single_{idx}"):
-                        if not (tr_url and tr_user and tr_pw):
-                            st.warning("請先在側邊欄填寫 TestRail 連線資訊。")
-                        elif not target_pid or not target_sid:
+                        if not target_pid or not target_sid:
                             st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
                         else:
                             try:
@@ -580,9 +586,7 @@ with tab2:
 
             with col_batch_btn:
                 if st.button(f"🚀 批次推送已勾選案例 ({len(selected_indices)}/{len(cases)})", use_container_width=True):
-                    if not (tr_url and tr_user and tr_pw):
-                        st.warning("請先在側邊欄填寫 TestRail 連線資訊。")
-                    elif not target_pid or not target_sid:
+                    if not target_pid or not target_sid:
                         st.warning("無法取得正確的 Project / Suite ID，請確認連線。")
                     elif not selected_indices:
                         st.warning("請至少勾選一個測試案例進行推送。")
