@@ -191,27 +191,18 @@ def _configure_genai() -> None:
 
 
 def get_candidate_paths(env_type: str, text_content: str, available_paths: list = None) -> list:
-    """ 挑選候選路徑：優先使用 API 實時抓取的清單，否則退回 SYSTEM_PATHS """
+    """ 
+    挑選候選路徑：
+    1. 若有實時從 TestRail 抓取的 API 清單，優先使用 API 清單。
+    2. 否則將所有系統 (FE, GoGaming, GoMoney) 的路徑完全展平給 Gemini AI，
+       防止關鍵字預先過濾誤刪正確答案！
+    """
     if available_paths and len(available_paths) > 0:
-        all_paths = available_paths
-    else:
-        all_paths = SYSTEM_PATHS.get(env_type, [])
-        if not all_paths:
-            all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
+        return available_paths
 
-    matched_paths = []
-    keywords = set(re.findall(r'[\u4e00-\u9fa5a-zA-Z0-9]+', text_content.lower()))
-
-    for path in all_paths:
-        path_lower = path.lower()
-        if any(kw in path_lower for kw in keywords if len(kw) >= 2):
-            matched_paths.append(path)
-
-    # 候選過少時，直接把所有路徑餵給 AI 進行全域語意分析
-    if len(matched_paths) < 3:
-        return all_paths
-
-    return matched_paths
+    # 展平所有系統路徑，確保 GoGaming > 营销推广 > 优惠券管理 一定會被送到 Gemini 手中
+    all_paths = [p for paths in SYSTEM_PATHS.values() for p in paths]
+    return all_paths
 
 
 def call_gemini_with_retry(prompt_data, max_retries=4):
