@@ -262,44 +262,58 @@ def generate_test_cases(
     candidate_paths = get_candidate_paths(env_type, f"{summary} {description} {outline}", available_paths=available_paths)
     paths_str = "\n".join([f"- {p}" for p in candidate_paths])
 
+    display_path = target_path if has_custom_path else (candidate_paths[0] if candidate_paths else "GoGaming > 营销推广 > 优惠券管理")
+
     if has_custom_path:
-        # 使用者手動選定路徑的嚴格 Prompt
         path_instruction = f"""1. path 欄位請固定輸出："{target_path}"
-2. steps 内 Step 1 請統一寫為：1. 路徑：{target_path}"""
+2. steps 内 Step 1 的 content 請固定輸出：路徑：{target_path}"""
     else:
-        # 讓 AI 從清單中挑選的 Prompt
         path_instruction = f"""1. path 必須「完全相同」地引用以下系統路徑清單中的其中一條：
 {paths_str}
-2. steps 内 Step 1 請統一寫為：1. 路徑：[選取的 path]"""
+2. steps 内 Step 1 的 content 請輸出：路徑：[選取的 path]"""
 
     system_prompt = f"""你是一位資深 QA。請分析 Jira 需求與大綱，並將其轉換為 TestRail 測試案例 JSON Array。
 
-【路徑匹配指令】：
+【路徑與 Step 拆分關鍵指令】：
 {path_instruction}
+
+3. **Step 結構必須拆分為多個獨立的 Step 物件（至少 2~3 個 Step），嚴禁全部塞在 Step 1**：
+   - **Step 1 (固定導航路徑)**：
+     - content: "路徑：{display_path}"
+     - expected: "成功進入 {display_path} 頁面。"
+   - **Step 2 (主要測試操作)**：
+     - content: 詳細的測試步驟與動作（例如點擊、輸入資料、選擇下拉選單）。
+     - expected: 對應步驟的操作反應或畫面變化。
+   - **Step 3 (可選：最終驗證/結果檢查)**：
+     - content: 檢查數據、系統提示或資料庫狀態。
+     - expected: 最終預期結果（若有錯誤提示用 Tips Red Error Message :）。
 
 【案例結構規範】：
 - title: [模組]-情境 或 [動作]-目的
-- preconditions: 前置條件列表
-- steps:
-   - content 格式：
-     1. 路徑：[對應路徑]
-     2. [動作/步驟]
-     • [具體測試情境]
-   - expected: 預期結果，若有錯誤提示用 Tips Red Error Message :
+- preconditions: 前置條件列表（不要包含任何序號前綴如 "1. "）
+- steps: 包含多個 Step 物件的 List
 
 回傳格式（標準 JSON）：
 [
   {{
     "title": "[优惠券管理]-新增优惠券类型选单验证",
-    "path": "{target_path if has_custom_path else 'GoGaming > 营销推广 > 优惠券管理'}",
+    "path": "{display_path}",
     "preconditions": [
-      "1. 登入後台管理系統。",
-      "2. 具備優惠券管理權限。"
+      "登入後台管理系統。",
+      "具備優惠券管理權限。"
     ],
     "steps": [
       {{
-        "content": "1. 路徑：{target_path if has_custom_path else 'GoGaming > 营销推广 > 优惠券管理'}\\n2. 點擊創建優惠券並檢查類型下拉選單\\n   • 檢查類型選單中是否正確新增選項",
-        "expected": "優惠券類型選單正確包含並顯示對應選項。"
+        "content": "路徑：{display_path}",
+        "expected": "成功進入優惠券管理頁面。"
+      }},
+      {{
+        "content": "點擊「新增優惠券」按鈕，並點開「優惠券類型」下拉選單。",
+        "expected": "下拉選單正確展開。"
+      }},
+      {{
+        "content": "檢查下拉選單選項內容。",
+        "expected": "正確包含並顯示「BW現金券」、「Freespin」、「Freechip」選項。"
       }}
     ]
   }}
@@ -317,13 +331,30 @@ def generate_test_cases(
     try:
         cases = json.loads(cleaned_text)
         
-        # 後處理：若使用者手動選定了模組路徑，強制校正所有案例的 path 欄位
+        # 後處理：1. 強制校正 path 2. 校正 Step 1 內文 3. 清理 preconditions 前綴數字
         for case in cases:
             if has_custom_path:
                 case["path"] = target_path
             elif not case.get("path") or case.get("path") == "其他":
                 case["path"] = candidate_paths[0] if candidate_paths else "GoGaming > 营销推广 > 优惠券管理"
+            
+            # 修正 Step 1 路徑內文
+            steps = case.get("steps", [])
+            if steps and isinstance(steps, list):
+                first_step = steps[0]
+                content = first_step.get("content", "")
                 
+                if "路徑：" in content or "路徑:" in content:
+                    new_content = re.sub(r".*?路徑[:：].*?(\n|$)", f"路徑：{case['path']}\n", content)
+                    first_step["content"] = new_content.strip()
+                else:
+                    first_step["content"] = f"路徑：{case['path']}\n" + content
+
+            # 清理 Preconditions 原本帶有的數字前綴
+            preconds = case.get("preconditions", [])
+            if isinstance(preconds, list):
+                case["preconditions"] = [re.sub(r"^\d+[\.\s]*", "", str(p).strip()) for p in preconds]
+
         return cases
     except json.JSONDecodeError:
         raise CaseGenError("AI 回傳格式非有效 JSON，請再試一次。")
