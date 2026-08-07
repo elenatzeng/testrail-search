@@ -9,6 +9,8 @@
 ALLOWED_EMAILS = {
     "ela@intellianalyze.com",
     "kh@intellianalyze.com",
+    "Lo@intellianalyze.com",
+   
 }
 
 
