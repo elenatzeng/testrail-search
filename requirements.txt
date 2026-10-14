@@ -3,3 +3,4 @@ google-generativeai
 testrail-api
 pandas
 altair<5
+anthropic

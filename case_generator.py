@@ -2,7 +2,7 @@ import json
 import random
 import re
 import time
-import google.generativeai as genai
+import anthropic
 import streamlit as st
 
 # 📌 直接從獨立檔案引入路徑地圖
@@ -14,40 +14,41 @@ class CaseGenError(Exception):
     pass
 
 
-def get_gemini_model():
-    """初始化 Gemini API 模型（最新穩定版）"""
-    api_key = st.secrets.get("GEMINI_API_KEY", "")
+# 模型分開設定：大綱用較快的模型，測試案例用品質較好的模型
+OUTLINE_MODEL = "claude-haiku-5-5"
+CASE_MODEL = "claude-sonnet-5-5"
+
+
+def get_claude_client():
+    """初始化 Anthropic 用戶端"""
+    api_key = st.secrets.get("ANTHROPIC_API_KEY", "")
     if not api_key:
-        raise CaseGenError("未設定 GEMINI_API_KEY，請在 Secrets 中配置。")
-    
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-3.5-flash")
+        raise CaseGenError("未設定 ANTHROPIC_API_KEY，請在 Secrets 中配置。")
+    return anthropic.Anthropic(api_key=api_key)
 
 
-def call_gemini_with_retry(prompt_input, max_retries=5, delay=5):
-    """帶有指數退避與 429 處理的 Gemini 呼叫（等待約 5、10、20、40 秒）"""
-    model = get_gemini_model()
+def call_claude_with_retry(user_content, system=None, model=CASE_MODEL, max_retries=5, delay=5):
+    """帶有指數退避與 429 處理的 Claude 呼叫（等待約 5、10、20、40 秒）"""
+    client = get_claude_client()
+    kwargs = {"model": model, "max_tokens": 8192, "messages": [{"role": "user", "content": user_content}]}
+    if system:
+        kwargs["system"] = system
+
     for attempt in range(max_retries):
         try:
-            response = model.generate_content(
-                prompt_input,
-                generation_config={"temperature": 0.2}
-            )
-            return response.text
-        except Exception as e:
-            err_str = str(e)
-            err_lower = err_str.lower()
-            is_rate_limit = "429" in err_str or "resourceexhausted" in err_lower or "quota" in err_lower
-            if is_rate_limit:
-                # 每日配額用完，等待無效，直接告知
-                if "perday" in err_lower or "per_day" in err_lower or "daily" in err_lower:
-                    raise CaseGenError("今日 Gemini 免費額度已用完，請明天再試或改用付費方案。") from e
-                if attempt < max_retries - 1:
-                    time.sleep(delay + random.uniform(0, 1))
-                    delay *= 2
-                    continue
-                raise CaseGenError("API 每分鐘請求數已達上限，多次重試仍失敗，請稍後再試。") from e
-            raise CaseGenError(f"Gemini API 呼叫失敗：{e}") from e
+            resp = client.messages.create(**kwargs)
+            return "".join(b.text for b in resp.content if b.type == "text").strip()
+        except anthropic.RateLimitError as e:
+            if attempt < max_retries - 1:
+                time.sleep(delay + random.uniform(0, 1))
+                delay *= 2
+                continue
+            raise CaseGenError("API 每分鐘請求數已達上限，多次重試仍失敗，請稍後再試。") from e
+        except anthropic.APIError as e:
+            msg = str(e)
+            if "credit" in msg.lower() or "balance" in msg.lower():
+                raise CaseGenError("Claude API 餘額不足，請到 Anthropic Console 確認帳戶。") from e
+            raise CaseGenError(f"Claude API 呼叫失敗：{msg}") from e
 
 
 def get_candidate_paths(env_type: str, query_text: str, available_paths: list = None) -> list:
@@ -77,7 +78,7 @@ def generate_test_outline(summary: str, description: str) -> str:
 
 Jira 摘要：{summary}
 Jira 描述：{description}"""
-    return call_gemini_with_retry(prompt)
+    return call_claude_with_retry(prompt, model=OUTLINE_MODEL)
 
 
 def generate_test_cases(
@@ -154,7 +155,7 @@ JSON 範例（標題切勿寫成 [模組]-情境）：
 
     user_input = f"Jira 摘要：{summary}\n需求描述：{description}\n大綱：\n{outline}"
 
-    raw_text = call_gemini_with_retry([system_prompt, user_input])
+    raw_text = call_claude_with_retry(user_input, system=system_prompt, model=CASE_MODEL)
 
     cleaned_text = re.sub(r"^```json\s*", "", raw_text, flags=re.MULTILINE)
     cleaned_text = re.sub(r"^```\s*", "", cleaned_text, flags=re.MULTILINE).strip()
