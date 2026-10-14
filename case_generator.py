@@ -1,4 +1,5 @@
 import json
+import random
 import re
 import time
 import google.generativeai as genai
@@ -23,8 +24,8 @@ def get_gemini_model():
     return genai.GenerativeModel("gemini-3.5-flash")
 
 
-def call_gemini_with_retry(prompt_input, max_retries=3, delay=5):
-    """帶有自動重試機制與 429 處理的 Gemini 呼叫"""
+def call_gemini_with_retry(prompt_input, max_retries=5, delay=5):
+    """帶有指數退避與 429 處理的 Gemini 呼叫（等待約 5、10、20、40 秒）"""
     model = get_gemini_model()
     for attempt in range(max_retries):
         try:
@@ -35,13 +36,18 @@ def call_gemini_with_retry(prompt_input, max_retries=3, delay=5):
             return response.text
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str or "ResourceExhausted" in err_str or "Quota" in err_str:
+            err_lower = err_str.lower()
+            is_rate_limit = "429" in err_str or "resourceexhausted" in err_lower or "quota" in err_lower
+            if is_rate_limit:
+                # 每日配額用完，等待無效，直接告知
+                if "perday" in err_lower or "per_day" in err_lower or "daily" in err_lower:
+                    raise CaseGenError("今日 Gemini 免費額度已用完，請明天再試或改用付費方案。") from e
                 if attempt < max_retries - 1:
-                    time.sleep(delay)
+                    time.sleep(delay + random.uniform(0, 1))
                     delay *= 2
                     continue
-                raise CaseGenError("API 請求過於頻繁（已達免費額度），請等待約 20 秒後再試。")
-            raise CaseGenError(f"Gemini API 呼叫失敗：{e}")
+                raise CaseGenError("API 每分鐘請求數已達上限，多次重試仍失敗，請稍後再試。") from e
+            raise CaseGenError(f"Gemini API 呼叫失敗：{e}") from e
 
 
 def get_candidate_paths(env_type: str, query_text: str, available_paths: list = None) -> list:
