@@ -436,7 +436,8 @@ with tab2:
                                     sec_map = fetch_sections(active_tr_url, active_tr_user, active_tr_pw, target_pid, target_sid)
                                     st.session_state[sec_cache_key] = sec_map
                             except Exception as e:
-                                st.session_state[sec_cache_key] = {}
+                                # 失敗時不快取，讓下次操作可以重試；並顯示真正的錯誤原因
+                                show_friendly_error(e, "讀取 TestRail 分類路徑時")
 
                         existing_paths = sorted(list(set(st.session_state.get(sec_cache_key, {}).values())))
 

@@ -68,10 +68,28 @@ def fetch_sections(
     格式跟 utils.fetch_data_from_tr() 產生的 path_map 一致，讓
     get_or_create_section() 可以直接沿用。
     """
-    data = _get(
-        tr_url, tr_user, tr_pw, f"/api/v2/get_sections/{project_id}&suite_id={suite_id}"
-    )
-    sections = _unwrap_list(data, "sections")
+    # 分頁抓取：Section 數量可能超過單頁上限，必須逐頁讀完
+    sections: List[Dict[str, Any]] = []
+    seen_ids: set = set()
+    offset = 0
+    page_size = 250
+    while True:
+        data = _get(
+            tr_url,
+            tr_user,
+            tr_pw,
+            f"/api/v2/get_sections/{project_id}&suite_id={suite_id}&limit={page_size}&offset={offset}",
+        )
+        batch = _unwrap_list(data, "sections")
+        new_items = [s for s in batch if s.get("id") not in seen_ids]
+        if not new_items:
+            break  # 沒有新資料（空頁，或 API 忽略分頁參數）就停止
+        for s in new_items:
+            seen_ids.add(s.get("id"))
+        sections.extend(new_items)
+        if len(batch) < page_size:
+            break
+        offset += page_size
 
     by_id = {s["id"]: s for s in sections}
 
